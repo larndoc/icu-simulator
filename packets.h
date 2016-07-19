@@ -26,7 +26,7 @@
 //fee[0].bytes[counter]
 //
 //// response_packet coutners
-uint8_t response_packet_counter[3]; //this counts the number of fee packets from each of the three interfaces, need to increment the packets for each of the response packets that are recieved...
+uint8_t response_packet_counter[3] = {0, 0, 0}; //this counts the number of fee packets from each of the three interfaces, need to increment the packets for each of the response packets that are recieved...
 
 
 struct byte_r{

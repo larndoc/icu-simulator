@@ -4,7 +4,7 @@
 #include "errors.h"
 bool toggled; 
 bool prev = true;  
-uint8_t cmd_packet[PACKET_SIZE]   = {0, 0, 0, 0, 0, 1};
+uint8_t cmd_packet[PACKET_SIZE]   = {0, 5, 0, 0, 0, 1};
 uint8_t cmd_packet1[PACKET_SIZE]  = {1, 1, 1, 1, 0, 0}; 
 uint8_t cmd_packet2[PACKET_SIZE]  = {0, 8, 7, 12, 11, 123}; 
 bool packet_exists[3]             = {false, false, false}; 
@@ -13,6 +13,9 @@ bool send_cmd[3]                  = {true, true, false};
 uint8_t fee_packet[FEE_PACKET_SIZE]; 
 uint8_t fee_packet1[FEE_PACKET_SIZE]; 
 uint8_t fee_packet2[FEE_PACKET_SIZE];
+uint8_t* fee_packet_ptr = fee_packet; 
+uint8_t* fee_packet1_ptr= fee_packet1; 
+uint8_t* fee_packet2_ptr= fee_packet2; 
  
 bool checksum[3] = {0, 0, 0}; 
  
@@ -95,10 +98,14 @@ void reset_counter(){
   response_packet_counter[2] = 0; 
 }
 
-void print_packet(uint8_t test_packet[FEE_PACKET_SIZE], int index){
-  for(int i = 0; i < response_packet_counter[index]; i++){
-    Serial.println(test_packet[i], HEX); 
-  }
+void print_packet(uint8_t* test_packet, int index){
+  //for (int i = 0; i < response_packet_counter[index]; i++){
+   // int temp  = (fee_packet[response_packet_counter[index]]);
+   // Serial.println(temp);
+ // }
+  Serial.print("FEE PACKET SIZE:"); 
+  Serial.print(" "); 
+  Serial.println(response_packet_counter[1]); 
 }
 
 void reset_fee_packet(int index)
@@ -109,21 +116,27 @@ void reset_fee_packet(int index)
 }
 
 void loop(){
-  if( send_command == false && packet_exists[0] == false && packet_exists[1] == false && packet_exists[2] == false){
+  while( send_command == false){
+   // Serial.println("A"); 
    recieve_reply(); 
   }
+  /*
   if(send_command == false && packet_exists[0] == true){
      print_packet(fee_packet, 0); 
      reset_fee_packet(0); 
+     packet_exists[0] = false; 
     }
    if(send_command == false && packet_exists[1] == true){
     print_packet(fee_packet1, 1); 
     reset_fee_packet(1);  
+    packet_exists[1] = false; 
    }
    if(send_command == false && packet_exists[2] == true){
     print_packet(fee_packet2, 2); 
     reset_fee_packet(2);   
+    packet_exists[2] = false; 
    }
+   /*
   if(send_command); 
   // Serial.println(fee_packet1[4]);
   //check_checksum(fee_packet1, 1); 

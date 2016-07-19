@@ -10,25 +10,26 @@ void display_recieved_output(){
 }
 void sync(){
   
-    digitalWrite(13, toggled); 
+    digitalWrite(12, toggled); 
     digitalWrite(10, toggled); 
     //digitalWrite(ledPin2, toggled);
 }
 
 void async_clear(){
-    digitalWrite(13,  LOW); 
+    digitalWrite(12,  LOW); 
     digitalWrite(10, LOW);
    // digitalWrite(ledPin2, false); 
 }
 
 void async_set(){
-    digitalWrite(13, HIGH); 
+    digitalWrite(12, HIGH); 
     digitalWrite(10, HIGH); 
     //digitalWrite(ledPin2, true); 
 }
 
 void initialize_pins(){
-  pinMode(13, OUTPUT); 
+  pinMode(12, OUTPUT); 
+  pinMode(13, OUTPUT);
   pinMode(ledPin1, OUTPUT); 
   pinMode(ledPin2, OUTPUT); 
 }
