@@ -12,16 +12,19 @@
       print_packet(fee_packet_ptr, 0);
       packet_exists[0] = false;  
       response_packet_counter[0] = 0; 
+      global_packet_counter[0]++; 
     }
     if(packet_exists[1]){
       print_packet(fee_packet1_ptr, 1);
       packet_exists[1] = false; 
       response_packet_counter[1] = 0;
+      global_packet_counter[1]++; 
     }
     if(packet_exists[2]){
       print_packet(fee_packet2_ptr, 2);
       packet_exists[2] = false;  
       response_packet_counter[2] = 0;
+      global_packet_counter[2]++; 
     }
     if(!packet_exists[0] && send_cmd[0]){ 
         Serial1.write(cmd_packet, PACKET_SIZE);                     //if the packet doesn't exist to be processed then we move send our packet; 
@@ -76,6 +79,9 @@
           packet_exists[0] = true;
                    set_flag(0); 
                    fee_packet[response_packet_counter[0]] = Serial1.read(); 
+                   Serial.println("PACKET NO AT INTERFACE 1:"); 
+                   Serial.println(" "); 
+                   Serial.println(global_packet_counter[0]); 
                    Serial.println(fee_packet[response_packet_counter[0]]); 
                    checksum[0] ^= fee_packet[response_packet_counter[0]]; // Serial.println(FEE_PACKET1.bytes[response_packet_counter[0]]); 
                    response_packet_counter[0]++;
@@ -84,7 +90,10 @@
          if(Serial2.available()){
           packet_exists[1] = true; 
                    set_flag(1); 
-                   fee_packet1[response_packet_counter[1]] = Serial2.read(); 
+                   fee_packet1[response_packet_counter[1]] = Serial2.read();
+                   Serial.println("PACKET NO AT INTERFACE 2:"); 
+                   Serial.println(" "); 
+                   Seria.println(global_packet_counter[1]);  
                    Serial.println(fee_packet1[response_packet_counter[1]]); 
                    checksum[1] ^= fee_packet1[response_packet_counter[1]];  
                    response_packet_counter[1]++;  
@@ -98,6 +107,9 @@
           packet_exists[2] = true; 
                       set_flag(2);
                      fee_packet2[response_packet_counter[2]] = Serial3.read();
+                     Serial.println("PACKET_NO AT INTERFACE 3:"); 
+                     Serial.println(" "); 
+                     Serial.println(global_packet_counter[2]); 
                      checksum[2] ^= fee_packet[response_packet_counter[2]];  
                      //Serial.println(FEE_PACKET3.bytes[response_packet_counter[2]]);  
                      response_packet_counter[2]++; 

@@ -7,6 +7,7 @@ bool prev = true;
 uint8_t cmd_packet[PACKET_SIZE]   = {0, 5, 0, 0, 0, 1};
 uint8_t cmd_packet1[PACKET_SIZE]  = {1, 1, 1, 1, 0, 0}; 
 uint8_t cmd_packet2[PACKET_SIZE]  = {0, 8, 7, 12, 11, 123}; 
+int global_packet_counter[3] = {0, 0, 0}; 
 bool packet_exists[3]             = {false, false, false}; 
 bool send_cmd[3]                  = {true, true, false};
 
