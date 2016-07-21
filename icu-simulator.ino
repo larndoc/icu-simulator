@@ -43,22 +43,12 @@ void process_packet(){
 
 void duty_cycle(unsigned long pulse_width_us){
   t = micros();
-  //unsigned long temp = pulse_width_us;
- 
- // overflow(); 
-  // fix overflow issue
-  //delay(pulse_width_us - micros())
-  //digitalWrite(13, LOW); 
- // t = micros();
  if(micros() - t == 0){
       elapsed_time =  elapsed_time + 76; //overflow has occured
  }
 
   while( (micros() + elapsed_time - t ) < pulse_width_us ){
     } 
-    //digitalWrite(13, LOW);
-  //old_time = t;  
-  // while loop waits until pulse_width_us time is over
 }
 
 void check_error(uint8_t* tst){
