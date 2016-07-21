@@ -54,21 +54,21 @@
    // if(!send_command){
         if(Serial1.available()){
           packet_exists[0] = true;
-                   fee_packet_ptr[0].arr[response_packet_counter[0]] = Serial1.read(); 
+                   fee_packet_ptr[response_packet_counter[0]] = Serial1.read(); 
                    checksum[0] ^= fee_packet_ptr[response_packet_counter[0]]; // Serial.println(FEE_PACKET1.bytes[response_packet_counter[0]]); 
                    response_packet_counter[0]++;
          }
   
          if(Serial2.available()){
           packet_exists[1] = true; 
-                   fee_packet_ptr[1].arr[response_packet_counter[1]] = Serial2.read();
+                   fee_packet1_ptr[response_packet_counter[1]] = Serial2.read();
                    checksum[1] ^= fee_packet1_ptr[response_packet_counter[1]];  
                    response_packet_counter[1]++;  
          }
          
          if(Serial3.available()){
           packet_exists[2] = true; 
-                     fee_packet_ptr[2].arr[response_packet_counter[2]] = Serial3.read(); 
+                     fee_packet2_ptr[response_packet_counter[2]] = Serial3.read(); 
                      checksum[2] ^= fee_packet2_ptr[response_packet_counter[2]]; 
                      response_packet_counter[2]++; 
                     
