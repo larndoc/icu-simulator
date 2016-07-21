@@ -6,26 +6,22 @@
       Serial2.begin(BAUD_RATE); 
       Serial3.begin(BAUD_RATE); 
   }
+
+  void process_packet(uint8_t* fee_ptr, int index){
+    if(packet_exists[index]){
+      print_packet(fee_ptr, index); 
+      check_checksum(fee_ptr, index); 
+      packet_exists[index] = false; 
+      response_packet_counter[index] = 0; 
+      global_packet_counter[index]++; 
+    }
+    
+  }
   
   void serial_write(bool send_cmd[3]){  
-    if(packet_exists[0]){                                           //on every rising edge we will first check to see if a packet exists and proces it accordingly, re-initialzing the flag to false and the counter to its initial value;
-      print_packet(fee_packet_ptr, 0);
-      packet_exists[0] = false;  
-      response_packet_counter[0] = 0; 
-      global_packet_counter[0]++; 
-    }
-    if(packet_exists[1]){
-      print_packet(fee_packet1_ptr, 1);
-      packet_exists[1] = false; 
-      response_packet_counter[1] = 0;
-      global_packet_counter[1]++; 
-    }
-    if(packet_exists[2]){
-      print_packet(fee_packet2_ptr, 2);
-      packet_exists[2] = false;  
-      response_packet_counter[2] = 0;
-      global_packet_counter[2]++; 
-    }
+    process_packet(fee_packet_ptr, 0);                                           //on every rising edge we will first check to see if a packet exists and proces it accordingly, re-initialzing the flag to false and the counter to its initial value
+    process_packet(fee_packet1_ptr, 1); 
+    process_packet(fee_packet2_ptr, 2); 
     if(!packet_exists[0] && send_cmd[0]){ 
         Serial1.write(cmd_packet, PACKET_SIZE);                     //if the packet doesn't exist to be processed then we move send our packet; 
     }   
@@ -36,28 +32,6 @@
         Serial3.write(cmd_packet2, PACKET_SIZE); 
     }
   }
-
- 
-  
-  /*
-  void load_packets(uint8_t cmd_packets[PACKET_SIZE], uint8_t data[PACKET_SIZE])
-  {
-    for(int i = 0; i < PACKET_SIZE; i++){
-      cmd_packets[i] = data[i]; 
-    }
-  }
- */
-
- /*
-  
-  
-  void check_pckt_size(packet* p1)
-  {
-    if( sizeof(p1)/sizeof((p1)[0]) !=  PACKET_SIZE){
-      Serial.println(" the size of the array doesn't meet the specification"); 
-    }
-  }
-  */
   
   
   bool check_capacity(int crt_pckt_size)
@@ -74,14 +48,11 @@
   
   void recieve_reply()
   {
-    if(!send_command){
+   // if(!send_command){
         if(Serial1.available()){
           packet_exists[0] = true;
-                   set_flag(0); 
+                 //  set_flag(0); 
                    fee_packet[response_packet_counter[0]] = Serial1.read(); 
-                   Serial.println("PACKET NO AT INTERFACE 1:"); 
-                   Serial.println(" "); 
-                   Serial.println(global_packet_counter[0]); 
                    Serial.println(fee_packet[response_packet_counter[0]]); 
                    checksum[0] ^= fee_packet[response_packet_counter[0]]; // Serial.println(FEE_PACKET1.bytes[response_packet_counter[0]]); 
                    response_packet_counter[0]++;
@@ -89,12 +60,8 @@
   
          if(Serial2.available()){
           packet_exists[1] = true; 
-                   set_flag(1); 
+                  // set_flag(1); 
                    fee_packet1[response_packet_counter[1]] = Serial2.read();
-                   Serial.println("PACKET NO AT INTERFACE 2:"); 
-                   Serial.println(" "); 
-                   Seria.println(global_packet_counter[1]);  
-                   Serial.println(fee_packet1[response_packet_counter[1]]); 
                    checksum[1] ^= fee_packet1[response_packet_counter[1]];  
                    response_packet_counter[1]++;  
                    //if(response_packet_counter[1] == 6){
@@ -105,11 +72,8 @@
          
          if(Serial3.available()){
           packet_exists[2] = true; 
-                      set_flag(2);
-                     fee_packet2[response_packet_counter[2]] = Serial3.read();
-                     Serial.println("PACKET_NO AT INTERFACE 3:"); 
-                     Serial.println(" "); 
-                     Serial.println(global_packet_counter[2]); 
+                     // set_flag(2);
+                     fee_packet2[response_packet_counter[2]] = Serial3.read(); 
                      checksum[2] ^= fee_packet[response_packet_counter[2]];  
                      //Serial.println(FEE_PACKET3.bytes[response_packet_counter[2]]);  
                      response_packet_counter[2]++; 
@@ -118,12 +82,12 @@
                      //}
                     
          }
-    }
+   // }
     
   }
   bool set_flag(int index){
     if(check_capacity[index]){ 
-      digitalWrite(13, HIGH); 
+      //digitalWrite(13, HIGH); 
       //response_packet_counter[index] = 0; 
       check_cap[index] = true;
     } 

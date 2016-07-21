@@ -16,19 +16,18 @@ void sync(){
 }
 
 void async_clear(){
-    digitalWrite(12,  LOW); 
+    digitalWrite(13,  LOW); 
     digitalWrite(10, LOW);
    // digitalWrite(ledPin2, false); 
 }
 
 void async_set(){
-    digitalWrite(12, HIGH); 
+    digitalWrite(13, HIGH); 
     digitalWrite(10, HIGH); 
     //digitalWrite(ledPin2, true); 
 }
 
 void initialize_pins(){
-  pinMode(12, OUTPUT); 
   pinMode(13, OUTPUT);
   pinMode(ledPin1, OUTPUT); 
   pinMode(ledPin2, OUTPUT); 
