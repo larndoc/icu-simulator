@@ -6,21 +6,21 @@
 #include "packets.h" 
 #include "clock.h"
 #include "errors.h"
+#include "fee_packet_structure.h"
 bool toggled; 
-uint8_t cmd_packet[PACKET_SIZE]   = {0, 5, 0, 0, 0, 1};
-uint8_t cmd_packet1[PACKET_SIZE]  = {1, 1, 1, 1, 0, 0}; 
-uint8_t cmd_packet2[PACKET_SIZE]  = {0, 8, 7, 12, 11, 123}; 
+union fee_paket fee_packet1_temp; 
+union fee_paket fee_packet2_temp; 
+union fee_paket fee_packet3_temp; 
+bool read_sci = true;
+uint8_t cmd_packet[PACKET_SIZE]   = {1, 0, 0, 0, 0, 1};
+uint8_t cmd_packet1[PACKET_SIZE]  = {1, 0, 0, 0, 0, 1}; 
+uint8_t cmd_packet2[PACKET_SIZE]  = {1, 0, 0, 0, 0, 1}; 
 uint16_t global_packet_counter[3] = {0, 0, 0}; 
 bool checksum[3]                  = {false, false, false}; 
 bool packet_exists[3]             = {false, false, false}; 
-bool send_cmd[3]                  = {true, true, false};
+bool send_cmd[3]                  = {true, true, true};
 uint8_t elapsed_time = 0; 
-uint8_t fee_packet[FEE_PACKET_SIZE]; 
-uint8_t fee_packet1[FEE_PACKET_SIZE]; 
-uint8_t fee_packet2[FEE_PACKET_SIZE];
-uint8_t* fee_packet_ptr = fee_packet; 
-uint8_t* fee_packet1_ptr= fee_packet1; 
-uint8_t* fee_packet2_ptr= fee_packet2; 
+union fee_paket* fee_packet_ptr[3]          = {&fee_packet1_temp, &fee_packet2_temp, &fee_packet3_temp}; 
 uint16_t init_val; 
 uint16_t final_val = 0;
 time_t current_time = 0; 
@@ -90,30 +90,42 @@ void reset_counter(){
   response_packet_counter[2] = 0; 
 }
   time_t old_val = 0; 
-void print_packet(uint8_t* test_packet, int index){
+  uint8_t*old_packet;
+  
+void print_packet(uint8_t* test_packet, uint8_t index){
   uint16_t bit_rate = 0; 
   current_time = now(); 
-  init_val = global_packet_counter[index]; 
-  if(current_time == old_val){
-  }
-  else{
+  //init_val = global_packet_counter[index]; 
   final_val = global_packet_counter[index];
   bit_rate = (final_val * response_packet_counter[index]) >> 3; 
-  unsigned normalize = fast_divide(bit_rate); 
-  String Bit_rate = "bit rate: " + String(normalize);
+  //unsigned normalize = fast_divide(bit_rate); 
+  //String Bit_rate = "bit rate: " + String(normalize);
   String time_elapsed = "time elapased in seconds: " + String(old_val) + "\t"; 
-  String fee_packet_size = "fee packet_size: " + String(response_packet_counter[index]) + " bytes \t"; 
-  String interface = "recieved from interface: " + String(index) + "\t"; 
-  String packets_transferred = "Total packets transferred: "  + String(final_val) ;
-  Serial.print(time_elapsed);
-  Serial.print(fee_packet_size);   
-  Serial.print(interface);  
-  Serial.print(packets_transferred);
-  Serial.println(Bit_rate); 
-  global_packet_counter[index] = 0; 
+  //String fee_packet_size = "fee packet_size: " + String(response_packet_counter[index]) + " bytes \t"; 
+  String interface = "recieved from interface: " + String(index + 1) + "\t"; 
+  //String packets_transferred = "Total packets transferred: "  + String(final_val) ;
+  Serial.print(time_elapsed); 
+  //Serial.println(interface);
+  //Serial.print(time_elapsed);
+  //Serial.print(fee_packet_size);   
+  //Serial.print("IF# ");
+  Serial.print(index + 1);
+  Serial.print("-");
+  Serial.print(response_packet_counter[index]);
+  if(read_sci == true){
+    Serial.println(
   }
+  //Serial.println(")");  
+ // Serial.print(packets_transferred);
+  //Serial.println(" "); 
+  //Serial.println(Bit_rate); 
+  global_packet_counter[index] = 0;
   old_val = current_time; 
+  old_packet = test_packet; 
 }
+
+
+
 
 
 int fast_divide(uint8_t bit_rate)

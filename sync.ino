@@ -1,11 +1,11 @@
 const int ledPin = 13;
-const uint8_t ledPin1 = 10; 
-const uint8_t ledPin2 = 7;
+const uint8_t ledPin1 = 12; 
+const uint8_t ledPin2 = 11;
 const uint8_t ledPin3 = 4; 
 
 void display_recieved_output(){
  for (int i = 0; i < response_packet_counter[1]; i++){
-  Serial.println(fee_packet1[i]); 
+  Serial.println(fee_packet1_ptr[i]); 
  }
 }
 void sync(){
@@ -16,19 +16,19 @@ void sync(){
 }
 
 void async_clear(){
-    digitalWrite(13,  LOW); 
-    digitalWrite(10, LOW);
-   // digitalWrite(ledPin2, false); 
+    digitalWrite(ledPin,  LOW); 
+    digitalWrite(ledPin1, LOW);
+    digitalWrite(ledPin2, LOW); 
 }
 
 void async_set(){
-    digitalWrite(13, HIGH); 
-    digitalWrite(10, HIGH); 
-    //digitalWrite(ledPin2, true); 
+    digitalWrite(ledPin, HIGH); 
+    digitalWrite(ledPin1, HIGH); 
+    digitalWrite(ledPin2, HIGH); 
 }
 
 void initialize_pins(){
-  pinMode(13, OUTPUT);
+  pinMode(ledPin, OUTPUT);
   pinMode(ledPin1, OUTPUT); 
   pinMode(ledPin2, OUTPUT); 
 }

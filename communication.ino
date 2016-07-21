@@ -1,15 +1,18 @@
   #include "test.h"
   #include "packets.h" 
   void initiate_communication(){
-      Serial.begin(BAUD_RATE); 
+      Serial.begin(250000); 
       Serial1.begin(BAUD_RATE); 
       Serial2.begin(BAUD_RATE); 
       Serial3.begin(BAUD_RATE); 
   }
 
-  void process_packet(uint8_t* fee_ptr, int index){
+  void process_packet(uint8_t* fee_ptr, uint8_t index){
+    
     if(packet_exists[index]){
+      //Serial.println(response_packet_counter[index]); 
       print_packet(fee_ptr, index); 
+      //Serial.println(index);
       check_checksum(fee_ptr, index); 
       packet_exists[index] = false; 
       response_packet_counter[index] = 0; 
@@ -51,35 +54,23 @@
    // if(!send_command){
         if(Serial1.available()){
           packet_exists[0] = true;
-                 //  set_flag(0); 
-                   fee_packet[response_packet_counter[0]] = Serial1.read(); 
-                   Serial.println(fee_packet[response_packet_counter[0]]); 
-                   checksum[0] ^= fee_packet[response_packet_counter[0]]; // Serial.println(FEE_PACKET1.bytes[response_packet_counter[0]]); 
+                   fee_packet_ptr[0].arr[response_packet_counter[0]] = Serial1.read(); 
+                   checksum[0] ^= fee_packet_ptr[response_packet_counter[0]]; // Serial.println(FEE_PACKET1.bytes[response_packet_counter[0]]); 
                    response_packet_counter[0]++;
          }
   
          if(Serial2.available()){
           packet_exists[1] = true; 
-                  // set_flag(1); 
-                   fee_packet1[response_packet_counter[1]] = Serial2.read();
-                   checksum[1] ^= fee_packet1[response_packet_counter[1]];  
+                   fee_packet_ptr[1].arr[response_packet_counter[1]] = Serial2.read();
+                   checksum[1] ^= fee_packet1_ptr[response_packet_counter[1]];  
                    response_packet_counter[1]++;  
-                   //if(response_packet_counter[1] == 6){
-                    //  packet_exists = true; 
-                     // response_packet_counter[1] = 0; 
-                   //}
          }
          
          if(Serial3.available()){
           packet_exists[2] = true; 
-                     // set_flag(2);
-                     fee_packet2[response_packet_counter[2]] = Serial3.read(); 
-                     checksum[2] ^= fee_packet[response_packet_counter[2]];  
-                     //Serial.println(FEE_PACKET3.bytes[response_packet_counter[2]]);  
+                     fee_packet_ptr[2].arr[response_packet_counter[2]] = Serial3.read(); 
+                     checksum[2] ^= fee_packet2_ptr[response_packet_counter[2]]; 
                      response_packet_counter[2]++; 
-                     //if(response_packet_counter[2] == 6){
-                      //  response_packet_counter[2] = 0; 
-                     //}
                     
          }
    // }
