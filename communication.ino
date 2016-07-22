@@ -15,22 +15,22 @@
       response_packet_counter[index] = 0; 
       global_packet_counter[index]++; 
     }
-    
+  }
+
+  void send_packet(HardwareSerial* port, int index)
+  {
+    if(!packet_exists[index] && send_cmd[index]){
+      port->write(cmd_packet, PACKET_SIZE); 
+    }
   }
   
   void serial_write(bool send_cmd[3]){  
     process_packet(fee_packet_ptr[0], 0);                                           //on every rising edge we will first check to see if a packet exists and proces it accordingly, re-initialzing the flag to false and the counter to its initial value
     process_packet(fee_packet_ptr[1], 1); 
     process_packet(fee_packet_ptr[2], 2); 
-    if(!packet_exists[0] && send_cmd[0]){ 
-        Serial1.write(cmd_packet, PACKET_SIZE);                                     //if the packet doesn't exist to be processed then we move send our packet; 
-    }   
-    if(!packet_exists[1] && send_cmd[1]){
-        Serial2.write(cmd_packet1, PACKET_SIZE); 
-    }
-    if(!packet_exists[2] && send_cmd[2]){    
-        Serial3.write(cmd_packet2, PACKET_SIZE); 
-    }
+    send_packet(&Serial1, 0); 
+    send_packet(&Serial2, 1); 
+    send_packet(&Serial3, 2); 
   }
   
   
