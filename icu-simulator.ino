@@ -19,6 +19,7 @@ uint8_t cmd_packet[PACKET_SIZE]      = {1, 0, 0, 0, 0, 1};
 uint8_t cmd_packet1[PACKET_SIZE]     = {1, 0, 0, 0, 0, 1}; 
 uint8_t cmd_packet2[PACKET_SIZE]     = {1, 0, 0, 0, 0, 1}; 
 uint16_t global_packet_counter[3]    = {0, 0, 0}; 
+uint8_t response_packet_counter[3]   = {0, 0, 0};
 bool checksum[3]                     = {false, false, false}; 
 bool packet_exists[3]                = {false, false, false}; 
 bool fee_enabled[3]                  = {true, true, true};
