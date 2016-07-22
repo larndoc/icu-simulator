@@ -16,7 +16,9 @@ uint8_t cmd_packet2[PACKET_SIZE]  = {1, 0, 0, 0, 0, 1};
 uint16_t global_packet_counter[3] = {0, 0, 0}; 
 bool checksum[3]                  = {false, false, false}; 
 bool packet_exists[3]             = {false, false, false}; 
-bool send_cmd[3]                  = {true, true, true};
+bool fee_enabled[3]               = {true, true, true};
+HardwareSerial* port[3]           = {&Serial1, &Serial2, &Serial3};
+const uint8_t sync_pins[3]        = {11, 12, 13}; 
 unsigned long elapsed_time = 0;
 unsigned long current_time; 
 unsigned long wait_time;  
@@ -62,14 +64,21 @@ void check_error(uint8_t* tst){
 void timer_isr(){   
      async_set(); 
      duty_cycle(1000);
-     serial_write(send_cmd); //generation of 128 Hz signals on the output pin   
+     serial_write(fee_enabled); //generation of 128 Hz signals on the output pin   
      async_clear(); 
 }
 
 
-void setup() {  
-    initialize_pins(); 
-    initiate_communication(); 
+void setup() { 
+  Serial.begin(250000); 
+  for(int i = 0; i < 3; i++){  
+    if(fee_enabled[i]){
+        pinMode(sync_pins[i], OUTPUT); 
+        digitalWrite(sync_pins[i], LOW); 
+        port[i]->begin(BAUD_RATE); 
+    }
+    
+  }
     Timer.getAvailable().attachInterrupt(timer_isr).setFrequency(FREQUENCY).start(); 
 }
 
@@ -90,6 +99,7 @@ void reset_counter(){
 }
   
 void print_packet(uint8_t* test_packet, uint8_t index){
+  digitalWrite(10, HIGH); 
   current_time = now(); 
  // unsigned normalize = fast_divide(bit_rate); 
   String time_elapsed = "time elapased in s: " + String(current_time) + "\t"; 
@@ -109,6 +119,7 @@ void print_packet(uint8_t* test_packet, uint8_t index){
   //Serial.println(" "); 
   //Serial.println(Bit_rate); 
   global_packet_counter[index] = 0;
+  digitalWrite(10, LOW); 
 }
 
 

@@ -1,11 +1,5 @@
   #include "test.h"
   #include "packets.h" 
-  void initiate_communication(){
-      Serial.begin(250000); 
-      Serial1.begin(BAUD_RATE); 
-      Serial2.begin(BAUD_RATE); 
-      Serial3.begin(BAUD_RATE); 
-  }
 
   void process_packet(uint8_t* fee_ptr, uint8_t index){
     if(packet_exists[index]){
@@ -19,18 +13,16 @@
 
   void send_packet(HardwareSerial* port, int index)
   {
-    if(!packet_exists[index] && send_cmd[index]){
+    if(!packet_exists[index] && fee_enabled[index]){
       port->write(cmd_packet, PACKET_SIZE); 
     }
   }
   
   void serial_write(bool send_cmd[3]){  
-    process_packet(fee_packet_ptr[0], 0);                                           //on every rising edge we will first check to see if a packet exists and proces it accordingly, re-initialzing the flag to false and the counter to its initial value
-    process_packet(fee_packet_ptr[1], 1); 
-    process_packet(fee_packet_ptr[2], 2); 
-    send_packet(&Serial1, 0); 
-    send_packet(&Serial2, 1); 
-    send_packet(&Serial3, 2); 
+    for(int i = 0; i < 3; i++){
+      process_packet(fee_packet_ptr[i], i); 
+      send_packet(port[i], i); 
+    }                                         //on every rising edge we will first check to see if a packet exists and proces it accordingly, re-initialzing the flag to false and the counter to its initial value
   }
   
   
