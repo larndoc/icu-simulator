@@ -88,21 +88,12 @@ void reset_counter(){
   response_packet_counter[1] = 0; 
   response_packet_counter[2] = 0; 
 }
-  time_t old_val = 0; 
-  uint8_t*old_packet;
   
 void print_packet(uint8_t* test_packet, uint8_t index){
-  uint16_t bit_rate = 0; 
   current_time = now(); 
-  //init_val = global_packet_counter[index]; 
-  //final_val = global_packet_counter[index];
-  // bit_rate = (final_val * response_packet_counter[index]) >> 3; 
-  //unsigned normalize = fast_divide(bit_rate); 
-  //String Bit_rate = "bit rate: " + String(normalize);
-  String time_elapsed = "time elapased in seconds: " + String(old_val) + "\t"; 
-  //String fee_packet_size = "fee packet_size: " + String(response_packet_counter[index]) + " bytes \t"; 
+ // unsigned normalize = fast_divide(bit_rate); 
+  String time_elapsed = "time elapased in s: " + String(current_time) + "\t"; 
   String interface = "recieved from interface: " + String(index + 1) + "\t"; 
-  //String packets_transferred = "Total packets transferred: "  + String(final_val) ;
   Serial.print(time_elapsed); 
   //Serial.println(interface);
   //Serial.print(time_elapsed);
@@ -110,18 +101,18 @@ void print_packet(uint8_t* test_packet, uint8_t index){
   //Serial.print("IF# ");
   Serial.print(index + 1);
   Serial.print("-");
-  Serial.println(response_packet_counter[index]);
+  Serial.print(response_packet_counter[index]);
+  Serial.print("-");
+  //Serial.println(normalize);
   //Serial.println(")");  
  // Serial.print(packets_transferred);
   //Serial.println(" "); 
   //Serial.println(Bit_rate); 
   global_packet_counter[index] = 0;
-  //old_val = current_time; 
-  old_packet = test_packet; 
 }
 
 
-int fast_divide(uint8_t bit_rate)
+int fast_divide(unsigned bit_rate)
 {
   unsigned q, r;
   q = (bit_rate >> 1) + (bit_rate >> 2);
