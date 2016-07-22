@@ -21,7 +21,7 @@ HardwareSerial* port[3]           = {&Serial1, &Serial2, &Serial3};
 const uint8_t sync_pins[3]        = {11, 12, 13}; 
 unsigned long elapsed_time = 0;
 unsigned long current_time; 
-unsigned long wait_time;  
+unsigned long t;  
 uint8_t fee_packet[FEE_PACKET_SIZE]; 
 uint8_t fee_packet1[FEE_PACKET_SIZE]; 
 uint8_t fee_packet2[FEE_PACKET_SIZE];
@@ -52,14 +52,19 @@ void check_error(uint8_t* tst){
   
 }
 
-void wait(unsigned long pulse_width_us){
-  wait_time = micros();
- if(micros() - wait_time == 0){
-      elapsed_time =  elapsed_time + 76; //overflow has occured
- }
+/*
+ * void wait deals with the waiting for the desired amount of time before we start to process packets and trasmit packets to the rest of the three interfaces
+ */
 
-  while( (micros() + elapsed_time - wait_time ) < pulse_width_us ){
-    } 
+void wait(unsigned long delta_us){
+  while( (micros()  - t ) < delta_us ){
+    if(micros() - t < 0){        //indicates that a overflow has occured 
+    //the time t is declared as a global variable which means that it is eight bytes.
+    //if micros() < t, then we can deduce that 0xFFFFFFFF - t time has already elapsed since overflow, so now we need to wait for the amount of time given by delta_us - (0xFFFFFFFF - t); 
+    delta_us = delta_us - (0xFFFFFFFF - t);      
+    
+    }
+  } 
 }
 
 /*
@@ -69,6 +74,7 @@ void wait(unsigned long pulse_width_us){
  * the wait function will stall for the amount of time defined by the variable time_us(in microseconds) before we proces the previous packet and send the next packet to the interface
  */
 void timer_isr(){   
+    t = micros(); 
     unsigned long time_us = 1000; 
     for(int i = 0; i < 3; i++){
       if(fee_enabled[i]){
