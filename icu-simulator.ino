@@ -7,7 +7,6 @@
 #include "clock.h"
 #include "errors.h"
 #include "fee_packet_structure.h"
-bool toggled; 
 union fee_paket fee_packet1_temp; 
 union fee_paket fee_packet2_temp; 
 union fee_paket fee_packet3_temp; 
@@ -18,17 +17,13 @@ uint16_t global_packet_counter[3] = {0, 0, 0};
 bool checksum[3]                  = {false, false, false}; 
 bool packet_exists[3]             = {false, false, false}; 
 bool send_cmd[3]                  = {true, true, true};
-uint8_t elapsed_time = 0; 
+unsigned long elapsed_time = 0;
+unsigned long current_time; 
+unsigned long wait_time;  
 uint8_t fee_packet[FEE_PACKET_SIZE]; 
 uint8_t fee_packet1[FEE_PACKET_SIZE]; 
 uint8_t fee_packet2[FEE_PACKET_SIZE];
-uint8_t* fee_packet_ptr = fee_packet; 
-uint8_t* fee_packet1_ptr= fee_packet1; 
-uint8_t* fee_packet2_ptr= fee_packet2; 
-uint16_t init_val; 
-uint16_t final_val = 0;
-time_t current_time = 0; 
-time_t current; 
+uint8_t* fee_packet_ptr[3] = {fee_packet, fee_packet1, fee_packet2};  
 bool overflow = false; 
 
 
@@ -46,12 +41,12 @@ void process_packet(){
 }
 
 void duty_cycle(unsigned long pulse_width_us){
-  t = micros();
- if(micros() - t == 0){
+  wait_time = micros();
+ if(micros() - wait_time == 0){
       elapsed_time =  elapsed_time + 76; //overflow has occured
  }
 
-  while( (micros() + elapsed_time - t ) < pulse_width_us ){
+  while( (micros() + elapsed_time - wait_time ) < pulse_width_us ){
     } 
 }
 
@@ -100,8 +95,8 @@ void print_packet(uint8_t* test_packet, uint8_t index){
   uint16_t bit_rate = 0; 
   current_time = now(); 
   //init_val = global_packet_counter[index]; 
-  final_val = global_packet_counter[index];
-  bit_rate = (final_val * response_packet_counter[index]) >> 3; 
+  //final_val = global_packet_counter[index];
+  // bit_rate = (final_val * response_packet_counter[index]) >> 3; 
   //unsigned normalize = fast_divide(bit_rate); 
   //String Bit_rate = "bit rate: " + String(normalize);
   String time_elapsed = "time elapased in seconds: " + String(old_val) + "\t"; 
@@ -121,7 +116,7 @@ void print_packet(uint8_t* test_packet, uint8_t index){
   //Serial.println(" "); 
   //Serial.println(Bit_rate); 
   global_packet_counter[index] = 0;
-  old_val = current_time; 
+  //old_val = current_time; 
   old_packet = test_packet; 
 }
 
