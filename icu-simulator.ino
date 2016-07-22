@@ -7,25 +7,19 @@
 #include "clock.h"
 #include "errors.h"
 #include "fee_packet_structure.h"
-union fee_paket fee_packet1_temp; 
-union fee_paket fee_packet2_temp; 
-union fee_paket fee_packet3_temp; 
-uint8_t cmd_packet[PACKET_SIZE]   = {1, 0, 0, 0, 0, 1};
-uint8_t cmd_packet1[PACKET_SIZE]  = {1, 0, 0, 0, 0, 1}; 
-uint8_t cmd_packet2[PACKET_SIZE]  = {1, 0, 0, 0, 0, 1}; 
-uint16_t global_packet_counter[3] = {0, 0, 0}; 
-bool checksum[3]                  = {false, false, false}; 
-bool packet_exists[3]             = {false, false, false}; 
-bool fee_enabled[3]               = {true, true, true};
-HardwareSerial* port[3]           = {&Serial1, &Serial2, &Serial3};
-const uint8_t sync_pins[3]        = {11, 12, 13}; 
-unsigned long elapsed_time = 0;
+union  fee_paket fee_packet[3];  
+union  fee_paket* fee_packet_ptr[3]  = {&fee_packet[0], &fee_packet[1], &fee_packet[2]} ;
+uint8_t cmd_packet[PACKET_SIZE]      = {1, 0, 0, 0, 0, 1};
+uint8_t cmd_packet1[PACKET_SIZE]     = {1, 0, 0, 0, 0, 1}; 
+uint8_t cmd_packet2[PACKET_SIZE]     = {1, 0, 0, 0, 0, 1}; 
+uint16_t global_packet_counter[3]    = {0, 0, 0}; 
+bool checksum[3]                     = {false, false, false}; 
+bool packet_exists[3]                = {false, false, false}; 
+bool fee_enabled[3]                  = {true, true, true};
+HardwareSerial* port[3]              = {&Serial1, &Serial2, &Serial3};
+const uint8_t sync_pins[3]           = {11, 12, 13}; 
 unsigned long current_time; 
 unsigned long t;  
-uint8_t fee_packet[FEE_PACKET_SIZE]; 
-uint8_t fee_packet1[FEE_PACKET_SIZE]; 
-uint8_t fee_packet2[FEE_PACKET_SIZE];
-uint8_t* fee_packet_ptr[3] = {fee_packet, fee_packet1, fee_packet2};  
 bool overflow = false; 
 
 
@@ -34,15 +28,6 @@ bool send_command = false;
 bool check_cap[3]; 
 
 bool recieved_reply = false; 
-
-
-void process_packet(){
-//  check_checksum(fee_packet1, 1);           //set the flag if the checksum doesn't match
- 
-  //check_error(fee_packet1[0]);              //light up the LED if something is wrong. 
-}
-
-
 
 void check_error(uint8_t* tst){
       if(*tst == NO_ERROR)
@@ -67,6 +52,8 @@ void wait(unsigned long delta_us){
   } 
 }
 
+
+
 /*
  * Timer interrupt service routine that occurs after every 1/128s
  * for each of the communication pins we check to see if the flag has been set 
@@ -87,6 +74,8 @@ void timer_isr(){
 }
 }
 
+
+
 /*
  * initialize the Serial monitor to print debug information 
  * each interface is driven by a synchronisation pin.
@@ -106,11 +95,11 @@ void setup() {
     Timer.getAvailable().attachInterrupt(timer_isr).setFrequency(FREQUENCY).start();        /*attach the interrupt to the function timer_isr at 128 Hz (FREQUENCY)*/
 }
 
-void check_checksum(uint8_t* fee_packet_ptr, int index)
+void check_checksum(union fee_paket* fee_packet_ptr, int index)
 {
-  if(fee_packet_ptr[FEE_PACKET_SIZE - 1] != checksum[index])
+  if(fee_packet_ptr->arr[FEE_PACKET_SIZE - 1] != checksum[index])
   {
-    fee_packet_ptr[0] = INVALID_ICU_PACKET_CHECKSUM;
+    fee_packet_ptr[index].arr[0] = INVALID_ICU_PACKET_CHECKSUM;
   }
   
  // check_error(fee_packet_ptr); 
@@ -122,7 +111,7 @@ void reset_counter(){
   response_packet_counter[2] = 0; 
 }
   
-void print_packet(uint8_t* test_packet, uint8_t index){
+void print_packet(union fee_paket* test_packet, uint8_t index){
   digitalWrite(10, HIGH); 
   current_time = now(); 
  // unsigned normalize = fast_divide(bit_rate); 
@@ -156,44 +145,6 @@ void reset_fee_packet(int index)
 
 void loop(){
    recieve_reply(); 
-  /*
-  if(send_command == false && packet_exists[0] == true){
-     print_packet(fee_packet, 0); 
-     reset_fee_packet(0); 
-     packet_exists[0] = false; 
-    }
-   if(send_command == false && packet_exists[1] == true){
-    print_packet(fee_packet1, 1); 
-    reset_fee_packet(1);  
-    packet_exists[1] = false; 
-   }
-   if(send_command == false && packet_exists[2] == true){
-    print_packet(fee_packet2, 2); 
-    reset_fee_packet(2);   
-    packet_exists[2] = false; 
-   }
-   /*
-  if(send_command); 
-  // Serial.println(fee_packet1[4]);
-  //check_checksum(fee_packet1, 1); 
-  
-  
-  /*
-   
- if(send_command == false){
-     //Serial.println("A");
-     recieve_reply();    
-    // check_checksum(fee_packet1, 1);
-    // check_error(fee_packet[0]); 
-     //check_error(fee_packet1[0]); 
-    // check_error(f1->rep_packet[2]); 
-  }
-   if(!send_command && recieved_reply == true){
-      //check_checksum(fee_packet, 0);
-     check_checksum(fee_packet1, 1); 
-     // check_checksum(fee_packet2, 2);  
-  }
-  */
 }
 
 
