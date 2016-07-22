@@ -42,15 +42,7 @@ void process_packet(){
   //check_error(fee_packet1[0]);              //light up the LED if something is wrong. 
 }
 
-void duty_cycle(unsigned long pulse_width_us){
-  wait_time = micros();
- if(micros() - wait_time == 0){
-      elapsed_time =  elapsed_time + 76; //overflow has occured
- }
 
-  while( (micros() + elapsed_time - wait_time ) < pulse_width_us ){
-    } 
-}
 
 void check_error(uint8_t* tst){
       if(*tst == NO_ERROR)
@@ -60,15 +52,41 @@ void check_error(uint8_t* tst){
   
 }
 
+void wait(unsigned long pulse_width_us){
+  wait_time = micros();
+ if(micros() - wait_time == 0){
+      elapsed_time =  elapsed_time + 76; //overflow has occured
+ }
 
-void timer_isr(){   
-     async_set(); 
-     duty_cycle(1000);
-     serial_write(fee_enabled); //generation of 128 Hz signals on the output pin   
-     async_clear(); 
+  while( (micros() + elapsed_time - wait_time ) < pulse_width_us ){
+    } 
 }
 
+/*
+ * Timer interrupt service routine that occurs after every 1/128s
+ * for each of the communication pins we check to see if the flag has been set 
+ * if the flag has been set, we will write HIGH at the paticular synchronisation pin
+ * the wait function will stall for the amount of time defined by the variable time_us(in microseconds) before we proces the previous packet and send the next packet to the interface
+ */
+void timer_isr(){   
+    unsigned long time_us = 1000; 
+    for(int i = 0; i < 3; i++){
+      if(fee_enabled[i]){
+        digitalWrite(sync_pins[i], HIGH);  
+        wait(time_us);
+        process_packet(fee_packet_ptr[i], i); 
+        send_packet(port[i], i); 
+        digitalWrite(sync_pins[i], LOW); 
+    } 
+}
+}
 
+/*
+ * initialize the Serial monitor to print debug information 
+ * each interface is driven by a synchronisation pin.
+ * only initialize the sync and communication pins if the fee_enabled flag to the respective interface is enabled
+ * port[i] represents each set of communication pins respectively. 
+ */
 void setup() { 
   Serial.begin(250000); 
   for(int i = 0; i < 3; i++){  
@@ -79,7 +97,7 @@ void setup() {
     }
     
   }
-    Timer.getAvailable().attachInterrupt(timer_isr).setFrequency(FREQUENCY).start(); 
+    Timer.getAvailable().attachInterrupt(timer_isr).setFrequency(FREQUENCY).start();        /*attach the interrupt to the function timer_isr at 128 Hz (FREQUENCY)*/
 }
 
 void check_checksum(uint8_t* fee_packet_ptr, int index)
@@ -123,17 +141,6 @@ void print_packet(uint8_t* test_packet, uint8_t index){
 }
 
 
-int fast_divide(unsigned bit_rate)
-{
-  unsigned q, r;
-  q = (bit_rate >> 1) + (bit_rate >> 2);
-  q = q + (q >> 4);
-  q = q + (q >> 8);
-  q = q + (q >> 16);
-  q = q >> 3;
-  r = bit_rate - q*10;
-return q + ((r + 6) >> 4);
-}
 void reset_fee_packet(int index)
 {
   response_packet_counter[index] = 0; 
