@@ -6,22 +6,28 @@
 #include "clock.h"
 #include "errors.h"
 #include "fee_packet_structure.h"
-union  fee_paket fee_packet[3];  
-union  fee_paket* fee_packet_ptr[3]  = {&fee_packet[0], &fee_packet[1], &fee_packet[2]} ;
+#include "pc_data_dump.h"
+#define SCIENCE_DATA 1 
+
+enum st {ADD_DATA, SEND, STORE_TO_PC} task; 
+fee_paket fee_packet[3];  
+fee_paket* fee_packet_ptr[3]         = {&fee_packet[0], &fee_packet[1], &fee_packet[2]} ;
+pc_data pc_packet                    = {SCIENCE_DATA, 0, N_FIB, N_FOB, N_FSC, NULL, NULL, NULL};
+pc_data* pc_packet_ptr               = &pc_packet;
 uint8_t cmd_packet[PACKET_SIZE]      = {1, 0, 0, 0, 0, 1};
 uint8_t cmd_packet1[PACKET_SIZE]     = {1, 0, 0, 0, 0, 1}; 
 uint8_t cmd_packet2[PACKET_SIZE]     = {1, 0, 0, 0, 0, 1}; 
 uint16_t global_packet_counter[3]    = {0, 0, 0}; 
 bool checksum[3]                     = {false, false, false}; 
 bool packet_exists[3]                = {false, false, false}; 
-bool fee_enabled[3]                  = {false, true, false};
+bool fee_enabled[3]                  = {true, true, true};
 HardwareSerial* port[3]              = {&Serial1, &Serial2, &Serial3};
 const uint8_t sync_pins[3]           = {11, 12, 13}; 
 unsigned long current_time; 
 unsigned long t;  
 bool overflow = false; 
-
-
+unsigned long sync_counter = 0;
+unsigned long old_counter = 0;  
 bool send_command = false;
 
 bool check_cap[3]; 
@@ -64,6 +70,7 @@ void timer_isr(){
     unsigned long time_us = 1000; 
     for(int i = 0; i < 3; i++){
       if(fee_enabled[i]){
+        sync_counter++; 
         digitalWrite(sync_pins[i], HIGH);  
         wait(time_us);
         process_packet(fee_packet_ptr[i], i); 
@@ -82,6 +89,7 @@ void timer_isr(){
  * port[i] represents each set of communication pins respectively. 
  */
 void setup() { 
+  
   Serial.begin(250000); 
   for(int i = 0; i < 3; i++){  
     if(fee_enabled[i]){
@@ -125,8 +133,9 @@ void print_packet(union fee_paket* test_packet, uint8_t index){
   //Serial.print("-");
   //Serial.print(response_packet_counter[index]);
   //Serial.print("-");
-  //Serial.print("first byte ");
-  Serial.write(test_packet->arr, 8);
+  //Serial.print("first byte "); 
+  //Serial.println(pc_packet_ptr->n_fib); 
+// Serial.write(test_packet->arr, 5);
   //Serial.println(normalize);
   //Serial.println(")");  
  // Serial.print(packets_transferred);
@@ -143,10 +152,43 @@ void reset_fee_packet(int index)
   packet_exists[index] = false; 
   checksum[index] = 0; 
 }
-
-void loop(){
-   recieve_reply(); 
+void send_data_to_pc(){
+  
 }
+void loop(){
+   recieve_reply();
+   switch(task){
+    case STORE_TO_PC:
+        for(int i = 0; i < 3; i++){
+          if(fee_enabled[i]){
+            for (int j = 0; j < 10; j++){
+              if(i == 0){
+                pc_packet_ptr->sci_fib[j] = fee_packet_ptr[0]->science_data[j];
+              }
+              if(i == 1){
+                pc_packet_ptr->sci_fob[j] = fee_packet_ptr[1]->science_data[j];
+              }
+              if(i == 2){
+                pc_packet_ptr->sci_fsc[j] = fee_packet_ptr[2]->science_data[j]; 
+              }
+            }
+          }
+        }
+        task = ADD_DATA; 
+    case ADD_DATA: 
+      if(sync_counter > old_counter){
+        old_counter = sync_counter; 
+        recieve_reply(); 
+        task = STORE_TO_PC;
+        sync_counter = old_counter; 
+      }
+      
+      default: ; 
+   }
+    //Serial.write(fee_packet_ptr[0]->science_data, 10); 
+ 
+}
+
 
 
 

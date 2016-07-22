@@ -1,8 +1,11 @@
   #include "test.h"
   #include "packets.h" 
-
+  #include "pc_data_dump.h"
+  
+  
   void process_packet(union fee_paket* fee_ptr, uint8_t index){
     if(packet_exists[index]){
+      pc_packet_ptr->time1 = sync_counter;
       print_packet(fee_ptr, index);                                                       //on every sync signal check to see if there is some processing to do and send the UART packet to the rest of the interfaces respectively. 
       check_checksum(fee_ptr, index); 
       packet_exists[index] = false; 

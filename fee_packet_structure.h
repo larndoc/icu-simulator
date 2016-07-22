@@ -1,3 +1,6 @@
+#ifndef FEE_PACKET_STRUCTURE_H
+#define FEE_PACKET_STRUCTURE_H
+
 #define FEE_PACKET_HEADER_OFFSET 	0 
 #define FEE_PACKET_SIZE 			100 
 #define FEE_PACKET_HEADER_SIZE 		1 
@@ -20,3 +23,6 @@ union fee_paket
 	};
 	uint8_t arr[FEE_PACKET_SIZE];
 };
+
+#endif
+

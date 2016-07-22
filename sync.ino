@@ -10,3 +10,4 @@ void async_set(){
     digitalWrite(*port[1], HIGH); 
     digitalWrite(*port[2], HIGH); 
 }
+
