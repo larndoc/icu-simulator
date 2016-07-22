@@ -2,7 +2,6 @@
 #include <TimeLib.h>
 #include <DueTimer.h>
 #include <time.h> 
-#include "packets.h" 
 #include "clock.h"
 #include "errors.h"
 #include "fee_packet_structure.h"
@@ -12,6 +11,7 @@
 enum st {ADD_DATA, SEND, STORE_TO_PC} task; 
 fee_paket fee_packet[3];  
 fee_paket* fee_packet_ptr[3]         = {&fee_packet[0], &fee_packet[1], &fee_packet[2]} ;
+uint8_t response_packet_counter[3]   = {0, 0, 0}; 
 pc_data pc_packet                    = {SCIENCE_DATA, 0, N_FIB, N_FOB, N_FSC, NULL, NULL, NULL};
 pc_data* pc_packet_ptr               = &pc_packet;
 byte* pc_data[3]                     = {pc_packet_ptr->sci_fib, pc_packet_ptr->sci_fob, pc_packet_ptr->sci_fsc};                      
