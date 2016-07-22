@@ -102,7 +102,7 @@ void print_packet(uint8_t* test_packet, uint8_t index){
   Serial.print(index + 1);
   Serial.print("-");
   Serial.print(response_packet_counter[index]);
-  Serial.print("-");
+  Serial.println("-");
   //Serial.println(normalize);
   //Serial.println(")");  
  // Serial.print(packets_transferred);
