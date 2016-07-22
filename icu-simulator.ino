@@ -1,6 +1,5 @@
 #include <Time.h>
 #include <TimeLib.h>
-
 #include <DueTimer.h>
 #include <time.h> 
 #include "packets.h" 
@@ -15,7 +14,7 @@ uint8_t cmd_packet2[PACKET_SIZE]     = {1, 0, 0, 0, 0, 1};
 uint16_t global_packet_counter[3]    = {0, 0, 0}; 
 bool checksum[3]                     = {false, false, false}; 
 bool packet_exists[3]                = {false, false, false}; 
-bool fee_enabled[3]                  = {true, true, true};
+bool fee_enabled[3]                  = {false, true, false};
 HardwareSerial* port[3]              = {&Serial1, &Serial2, &Serial3};
 const uint8_t sync_pins[3]           = {11, 12, 13}; 
 unsigned long current_time; 
@@ -117,15 +116,17 @@ void print_packet(union fee_paket* test_packet, uint8_t index){
  // unsigned normalize = fast_divide(bit_rate); 
   String time_elapsed = "time elapased in s: " + String(current_time) + "\t"; 
   String interface = "recieved from interface: " + String(index + 1) + "\t"; 
-  Serial.print(time_elapsed); 
+  //Serial.print(time_elapsed); 
   //Serial.println(interface);
   //Serial.print(time_elapsed);
   //Serial.print(fee_packet_size);   
   //Serial.print("IF# ");
-  Serial.print(index + 1);
-  Serial.print("-");
-  Serial.print(response_packet_counter[index]);
-  Serial.println("-");
+  //Serial.print(index + 1);
+  //Serial.print("-");
+  //Serial.print(response_packet_counter[index]);
+  //Serial.print("-");
+  //Serial.print("first byte ");
+  Serial.write(test_packet->arr, 8);
   //Serial.println(normalize);
   //Serial.println(")");  
  // Serial.print(packets_transferred);
