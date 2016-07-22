@@ -14,15 +14,14 @@ union fee_paket
 {
 	struct
 	{
-		uint8_t header; 
-		uint8_t science_data[SCIENCE_DATA_LENGTH]; 
-		uint8_t hk_data[HOUSE_KEEPING_DATA];
-		uint8_t config_param_id[CONFIG_PARAM_ID]; 
-		uint8_t config_param_val[CONFIG_PARAM_VAL];
-		uint8_t checksum[CHECKSUM_VAL];
+		byte header; 
+		byte science_data[SCIENCE_DATA_LENGTH]; 
+		byte hk_data[HOUSE_KEEPING_DATA];
+		byte config_param_id[CONFIG_PARAM_ID]; 
+		byte config_param_val[CONFIG_PARAM_VAL];
+		byte checksum[CHECKSUM_VAL];
 	};
-	uint8_t arr[FEE_PACKET_SIZE];
+	byte arr[FEE_PACKET_SIZE];
 };
 
 #endif
-

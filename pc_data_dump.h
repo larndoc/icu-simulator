@@ -15,17 +15,16 @@ union pc_data
 {
   struct
   {
-    uint8_t id;
+    byte id;
     unsigned time1;
-    uint8_t n_fib; 
-    uint8_t n_fob; 
-    uint8_t n_fsc;
-    uint8_t sci_fib[TOTAL_FIB_SIZE];
-    uint8_t sci_fob[TOTAL_FOB_SIZE];
-    uint8_t sci_fsc[TOTAL_FSC_SIZE];  
+    byte n_fib; 
+    byte n_fob; 
+    byte n_fsc;
+    byte sci_fib[TOTAL_FIB_SIZE];
+    byte sci_fob[TOTAL_FOB_SIZE];
+    byte sci_fsc[TOTAL_FSC_SIZE];  
   };
-  uint8_t pc_pckt[8+TOTAL_FIB_SIZE+TOTAL_FOB_SIZE+TOTAL_FSC_SIZE]; 
+  byte pc_pckt[8+TOTAL_FIB_SIZE+TOTAL_FOB_SIZE+TOTAL_FSC_SIZE]; 
 };
 
 #endif
-

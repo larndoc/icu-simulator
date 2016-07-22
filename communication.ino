@@ -2,7 +2,6 @@
   #include "packets.h" 
   #include "pc_data_dump.h"
   
-  
   void process_packet(union fee_paket* fee_ptr, uint8_t index){
     if(packet_exists[index]){
       pc_packet_ptr->time1 = sync_counter;
@@ -21,37 +20,16 @@
     }
   }
   
-  bool check_capacity(int crt_pckt_size)
-  {
-    if (crt_pckt_size > FEE_PACKET_SIZE){
-      //do something 
-       return true; 
-    }
-    else{
-      return false; 
-    }
-  }
   void check_port(HardwareSerial* port, int index){
     if(port->available()){
       packet_exists[index] = true; 
       fee_packet_ptr[index]->arr[response_packet_counter[index]] = port->read(); 
       checksum[index] ^= fee_packet_ptr[index]->arr[response_packet_counter[index]]; 
       response_packet_counter[index]++;  
+      if(response_packet_counter[index] > FEE_PACKET_SIZE){
+        digitalWrite(led_pin, HIGH);                                                       //if packet size exceeds the maximum fee_packet_size then set the flag, i.e set pin 10 HIGH and continue mode of operation
+      }
     }
   }
-  
-  void recieve_reply()
-  {
-    for(int i = 0; i < 3; i++){
-      check_port(port[i], i); 
-    } 
-  }
-  
-  bool set_flag(int index){
-    if(check_capacity[index]){ 
-      //digitalWrite(13, HIGH); 
-      //response_packet_counter[index] = 0; 
-      check_cap[index] = true;
-    } 
-  }
+
 

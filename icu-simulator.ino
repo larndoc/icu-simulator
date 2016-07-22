@@ -14,6 +14,7 @@ fee_paket fee_packet[3];
 fee_paket* fee_packet_ptr[3]         = {&fee_packet[0], &fee_packet[1], &fee_packet[2]} ;
 pc_data pc_packet                    = {SCIENCE_DATA, 0, N_FIB, N_FOB, N_FSC, NULL, NULL, NULL};
 pc_data* pc_packet_ptr               = &pc_packet;
+byte* pc_data[3]                     = {pc_packet_ptr->sci_fib, pc_packet_ptr->sci_fob, pc_packet_ptr->sci_fsc};                      
 uint8_t cmd_packet[PACKET_SIZE]      = {1, 0, 0, 0, 0, 1};
 uint8_t cmd_packet1[PACKET_SIZE]     = {1, 0, 0, 0, 0, 1}; 
 uint8_t cmd_packet2[PACKET_SIZE]     = {1, 0, 0, 0, 0, 1}; 
@@ -23,6 +24,7 @@ bool packet_exists[3]                = {false, false, false};
 bool fee_enabled[3]                  = {true, true, true};
 HardwareSerial* port[3]              = {&Serial1, &Serial2, &Serial3};
 const uint8_t sync_pins[3]           = {11, 12, 13}; 
+const uint8_t led_pin                = 10; 
 unsigned long current_time; 
 unsigned long t;  
 bool overflow = false; 
@@ -89,7 +91,7 @@ void timer_isr(){
  * port[i] represents each set of communication pins respectively. 
  */
 void setup() { 
-  
+  pinMode(led_pin, OUTPUT); 
   Serial.begin(250000); 
   for(int i = 0; i < 3; i++){  
     if(fee_enabled[i]){
@@ -112,73 +114,48 @@ void check_checksum(union fee_paket* fee_packet_ptr, int index)
  // check_error(fee_packet_ptr); 
 }
 
-void reset_counter(){
-  response_packet_counter[0] = 0; 
-  response_packet_counter[1] = 0; 
-  response_packet_counter[2] = 0; 
-}
+
+/*
+ * void print_packet is used to print debug information
+ */
   
 void print_packet(union fee_paket* test_packet, uint8_t index){
   digitalWrite(10, HIGH); 
   current_time = now(); 
- // unsigned normalize = fast_divide(bit_rate); 
   String time_elapsed = "time elapased in s: " + String(current_time) + "\t"; 
   String interface = "recieved from interface: " + String(index + 1) + "\t"; 
-  //Serial.print(time_elapsed); 
-  //Serial.println(interface);
-  //Serial.print(time_elapsed);
-  //Serial.print(fee_packet_size);   
-  //Serial.print("IF# ");
-  //Serial.print(index + 1);
-  //Serial.print("-");
-  //Serial.print(response_packet_counter[index]);
-  //Serial.print("-");
-  //Serial.print("first byte "); 
-  //Serial.println(pc_packet_ptr->n_fib); 
-// Serial.write(test_packet->arr, 5);
-  //Serial.println(normalize);
-  //Serial.println(")");  
- // Serial.print(packets_transferred);
-  //Serial.println(" "); 
-  //Serial.println(Bit_rate); 
-  global_packet_counter[index] = 0;
+  Serial.print(" "); 
+  Serial.print("-");
+  Serial.print(response_packet_counter[index]);
+  Serial.println("-");
   digitalWrite(10, LOW); 
 }
 
-
-void reset_fee_packet(int index)
-{
-  response_packet_counter[index] = 0; 
-  packet_exists[index] = false; 
-  checksum[index] = 0; 
-}
-void send_data_to_pc(){
-  
-}
+/*
+ * implementation of a finite state machine 
+ * state is represented by the variable task 
+ * currently there are two states given by store_to_pc and add_data 
+ * in state 1, 'store_to_pc', we know that we have data ready and package it into a form that will be understood by the PC 
+ * in state 2, if sync_counter is equal to old_counter, then we stay in the same state and listen for data at all the three pins respectively otherwise we go back to state 1. 
+ */ 
 void loop(){
-   recieve_reply();
    switch(task){
     case STORE_TO_PC:
         for(int i = 0; i < 3; i++){
           if(fee_enabled[i]){
-            for (int j = 0; j < 10; j++){
-              if(i == 0){
-                pc_packet_ptr->sci_fib[j] = fee_packet_ptr[0]->science_data[j];
-              }
-              if(i == 1){
-                pc_packet_ptr->sci_fob[j] = fee_packet_ptr[1]->science_data[j];
-              }
-              if(i == 2){
-                pc_packet_ptr->sci_fsc[j] = fee_packet_ptr[2]->science_data[j]; 
-              }
-            }
+              pc_data[i] = fee_packet_ptr[i]->science_data;
           }
         }
         task = ADD_DATA; 
     case ADD_DATA: 
-      if(sync_counter > old_counter){
+      if(sync_counter == old_counter){
+        for(int i = 0; i < 3; i++){
+          check_port(port[i], i);  
+        }
+        task = ADD_DATA;
+      }
+      else if(sync_counter > old_counter){                       //this is a means to ensure that we listen for data in sync with every 
         old_counter = sync_counter; 
-        recieve_reply(); 
         task = STORE_TO_PC;
         sync_counter = old_counter; 
       }
@@ -186,7 +163,7 @@ void loop(){
       default: ; 
    }
     //Serial.write(fee_packet_ptr[0]->science_data, 10); 
- 
+
 }
 
 
