@@ -5,13 +5,13 @@
 #include "clock.h"
 #include "errors.h"
 #include "fee_packet_structure.h"
+#include "packets.h"
 #include "pc_data_dump.h"
 #define SCIENCE_DATA 1 
 
 enum st {ADD_DATA, SEND, STORE_TO_PC} task; 
 fee_paket fee_packet[3];  
 fee_paket* fee_packet_ptr[3]         = {&fee_packet[0], &fee_packet[1], &fee_packet[2]} ;
-uint8_t response_packet_counter[3]   = {0, 0, 0}; 
 pc_data pc_packet                    = {SCIENCE_DATA, 0, N_FIB, N_FOB, N_FSC, NULL, NULL, NULL};
 pc_data* pc_packet_ptr               = &pc_packet;
 byte* pc_data[3]                     = {pc_packet_ptr->sci_fib, pc_packet_ptr->sci_fob, pc_packet_ptr->sci_fsc};                      
@@ -19,6 +19,7 @@ uint8_t cmd_packet[PACKET_SIZE]      = {1, 0, 0, 0, 0, 1};
 uint8_t cmd_packet1[PACKET_SIZE]     = {1, 0, 0, 0, 0, 1}; 
 uint8_t cmd_packet2[PACKET_SIZE]     = {1, 0, 0, 0, 0, 1}; 
 uint16_t global_packet_counter[3]    = {0, 0, 0}; 
+uint8_t response_packet_counter[3]   = {0, 0, 0};
 bool checksum[3]                     = {false, false, false}; 
 bool packet_exists[3]                = {false, false, false}; 
 bool fee_enabled[3]                  = {true, true, true};
@@ -28,7 +29,7 @@ const uint8_t led_pin                = 10;
 unsigned long current_time; 
 unsigned long t;  
 bool overflow = false; 
-unsigned long sync_counter = 0;
+unsigned long sync_counter           = 0;
 unsigned long old_counter = 0;  
 bool send_command = false;
 
@@ -36,13 +37,6 @@ bool check_cap[3];
 
 bool recieved_reply = false; 
 
-void check_error(uint8_t* tst){
-      if(*tst == NO_ERROR)
-          Serial.println("No Error"); 
-       else if(*tst == INVALID_ICU_PACKET_CHECKSUM)
-          Serial.println("Invalid ICU packet checksum"); 
-  
-}
 
 /*
  * void wait deals with the waiting for the desired amount of time before we start to process packets and trasmit packets to the rest of the three interfaces
@@ -69,11 +63,12 @@ void wait(unsigned long delta_us){
  */
 void timer_isr(){   
     t = micros(); 
+    sync_counter++;
     unsigned long time_us = 1000; 
     for(int i = 0; i < 3; i++){
       if(fee_enabled[i]){
-        sync_counter++; 
-        digitalWrite(sync_pins[i], HIGH);  
+        digitalWrite(sync_pins[i], HIGH);
+        pc_data[i] = fee_packet_ptr[i]->science_data;        
         wait(time_us);
         process_packet(fee_packet_ptr[i], i); 
         send_packet(port[i], i); 
@@ -93,6 +88,8 @@ void timer_isr(){
 void setup() { 
   pinMode(led_pin, OUTPUT); 
   Serial.begin(250000); 
+  while(Serial.available()==0){
+  }
   for(int i = 0; i < 3; i++){  
     if(fee_enabled[i]){
         pinMode(sync_pins[i], OUTPUT); 
@@ -124,10 +121,14 @@ void print_packet(union fee_paket* test_packet, uint8_t index){
   current_time = now(); 
   String time_elapsed = "time elapased in s: " + String(current_time) + "\t"; 
   String interface = "recieved from interface: " + String(index + 1) + "\t"; 
-  Serial.print(" "); 
-  Serial.print("-");
-  Serial.print(response_packet_counter[index]);
-  Serial.println("-");
+ //Serial.println(pc_packet_ptr->time1); 
+  
+  
+
+ // if(fee_enabled[2]){
+  //  Serial.write(pc_packet_ptr->time1); 
+  //}
+ 
   digitalWrite(10, LOW); 
 }
 
@@ -141,11 +142,8 @@ void print_packet(union fee_paket* test_packet, uint8_t index){
 void loop(){
    switch(task){
     case STORE_TO_PC:
-        for(int i = 0; i < 3; i++){
-          if(fee_enabled[i]){
-              pc_data[i] = fee_packet_ptr[i]->science_data;
-          }
-        }
+       Serial.println(pc_packet_ptr->time1); 
+    
         task = ADD_DATA; 
     case ADD_DATA: 
       if(sync_counter == old_counter){
@@ -154,10 +152,9 @@ void loop(){
         }
         task = ADD_DATA;
       }
-      else if(sync_counter > old_counter){                       //this is a means to ensure that we listen for data in sync with every 
+      else if(sync_counter > old_counter){                      
         old_counter = sync_counter; 
         task = STORE_TO_PC;
-        sync_counter = old_counter; 
       }
       
       default: ; 
@@ -165,8 +162,6 @@ void loop(){
     //Serial.write(fee_packet_ptr[0]->science_data, 10); 
 
 }
-
-
 
 
 
