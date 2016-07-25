@@ -24,7 +24,7 @@ union pc_data
     byte sci_fob[TOTAL_FOB_SIZE];
     byte sci_fsc[TOTAL_FSC_SIZE];  
   };
-  byte pc_pckt[8+TOTAL_FIB_SIZE+TOTAL_FOB_SIZE+TOTAL_FSC_SIZE]; 
+  byte arr[8+TOTAL_FIB_SIZE+TOTAL_FOB_SIZE+TOTAL_FSC_SIZE]; 
 };
 
 #endif

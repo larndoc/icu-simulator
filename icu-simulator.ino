@@ -9,7 +9,7 @@
 #include "pc_data_dump.h"
 #define SCIENCE_DATA 1 
 
-enum st {ADD_DATA, SEND, STORE_TO_PC} task; 
+enum st {ADD_DATA, SEND, STORE_TO_PC} task = ADD_DATA; 
 fee_paket fee_packet[3];  
 fee_paket* fee_packet_ptr[3]         = {&fee_packet[0], &fee_packet[1], &fee_packet[2]} ;
 pc_data pc_packet                    = {SCIENCE_DATA, 0, N_FIB, N_FOB, N_FSC, NULL, NULL, NULL};
@@ -32,7 +32,7 @@ bool overflow = false;
 unsigned long sync_counter           = 0;
 unsigned long old_counter = 0;  
 bool send_command = false;
-
+bool serial_port1 = false; 
 bool check_cap[3]; 
 
 bool recieved_reply = false; 
@@ -63,7 +63,6 @@ void wait(unsigned long delta_us){
  */
 void timer_isr(){   
     t = micros(); 
-    sync_counter++;
     unsigned long time_us = 1000; 
     for(int i = 0; i < 3; i++){
       if(fee_enabled[i]){
@@ -75,6 +74,9 @@ void timer_isr(){
         digitalWrite(sync_pins[i], LOW); 
     } 
 }
+ if(fee_enabled[0] && fee_enabled[1] && fee_enabled[2]){
+    sync_counter++;
+    }
 }
 
 
@@ -87,9 +89,8 @@ void timer_isr(){
  */
 void setup() { 
   pinMode(led_pin, OUTPUT); 
-  Serial.begin(250000); 
-  while(Serial.available()==0){
-  }
+  Serial.begin(250000);
+  while(Serial.available() == 0);
   for(int i = 0; i < 3; i++){  
     if(fee_enabled[i]){
         pinMode(sync_pins[i], OUTPUT); 
@@ -142,7 +143,9 @@ void print_packet(union fee_paket* test_packet, uint8_t index){
 void loop(){
    switch(task){
     case STORE_TO_PC:
-       Serial.println(pc_packet_ptr->time1); 
+       // Serial.println("A");
+        Serial.write(pc_packet_ptr->arr, 8); 
+  
     
         task = ADD_DATA; 
     case ADD_DATA: 
