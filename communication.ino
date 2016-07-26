@@ -3,7 +3,7 @@
   
   void process_packet(union fee_paket* fee_ptr, uint8_t index){
     if(packet_exists[index]){
-      pc_packet_ptr->time1 = sync_counter;
+      //pc_packet_ptr->time1 = sync_counter;
       print_packet(fee_ptr, index);                                                       //on every sync signal check to see if there is some processing to do and send the UART packet to the rest of the interfaces respectively. 
       check_checksum(fee_ptr, index); 
       packet_exists[index] = false; 
@@ -15,7 +15,15 @@
   void send_packet(HardwareSerial* port, int index)
   {
     if(!packet_exists[index] && fee_enabled[index]){
-      port->write(cmd_packet, PACKET_SIZE); 
+      if(index == 0){
+        port->write(cmd_packet, PACKET_SIZE); 
+      }
+      if(index == 1){
+        port->write(cmd_packet1, PACKET_SIZE); 
+      }
+      if(index == 2){
+        port->write(cmd_packet2, PACKET_SIZE); 
+      }
     }
   }
   
