@@ -15,14 +15,14 @@ union pc_data
 {
   struct
   {
-    byte id;
-    unsigned time1;
-    byte n_fib; 
-    byte n_fob; 
-    byte n_fsc;
-    byte sci_fib[TOTAL_FIB_SIZE];
+    byte sci_fsc[TOTAL_FIB_SIZE];
     byte sci_fob[TOTAL_FOB_SIZE];
-    byte sci_fsc[TOTAL_FSC_SIZE];  
+    byte sci_fib[TOTAL_FSC_SIZE]; 
+	byte n_fsc; 
+	byte n_fob; 
+	byte n_fib; 
+	unsigned time1; 
+	byte id; 
   };
   byte arr[8+TOTAL_FIB_SIZE+TOTAL_FOB_SIZE+TOTAL_FSC_SIZE]; 
 };
