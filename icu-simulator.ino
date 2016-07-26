@@ -7,7 +7,7 @@
 #include "fee_packet_structure.h"
 #include "packets.h"
 #include "pc_data_dump.h"
-#define SCIENCE_DATA 8
+#define SCIENCE_DATA 0x1
 
 enum set {
   ADD_DATA =0, 
@@ -20,7 +20,7 @@ enum set {
 enum set task = BEGIN_SYNC;
 fee_paket fee_packet[3];
 fee_paket* fee_packet_ptr[3]         = {&fee_packet[0], &fee_packet[1], &fee_packet[2]} ;
-pc_data pc_packet                    = {SCIENCE_DATA, 0, 1, 1, 0, NULL, NULL, NULL};        
+pc_data pc_packet                    = {SCIENCE_DATA, 0xAAAAAAAA, 1, 1, 1};        
 pc_data* pc_packet_ptr               = &pc_packet;
 byte* pc_data[3]                     = {pc_packet_ptr->sci_fib, pc_packet_ptr->sci_fob, pc_packet_ptr->sci_fsc};
 uint8_t cmd_packet[PACKET_SIZE]      = {1, 0, 0, 0, 0, 1};
@@ -112,6 +112,7 @@ void timer_isr() {
     }
     if (fee_enabled[0] && fee_enabled[1] && fee_enabled[2]) {
       sync_counter++;
+      pc_packet.time1 = sync_counter;
     }
   }
 }
@@ -126,7 +127,7 @@ void timer_isr() {
 */
 void setup() {
   pinMode(led_pin, OUTPUT);
-  Serial.begin(250000);
+  Serial.begin(BAUD_RATE);
   for (int i = 0; i < 3; i++) {
     if (fee_enabled[i]) {
       pinMode(sync_pins[i], OUTPUT);
@@ -188,10 +189,7 @@ void loop() {
       }
       break;
     case STORE_TO_PC:
-     // for(int i = 0; i < 3; i++){
-      //  interface_counter[i] = pc_packet_ptr->arr[i + 5]; 
-     // }
-      Serial.write(pc_packet_ptr->arr, 3);
+      Serial.write(pc_packet_ptr->arr, 18);
    
       task = ADD_DATA;
       break; 

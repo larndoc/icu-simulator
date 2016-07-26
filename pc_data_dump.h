@@ -11,12 +11,13 @@
 #define TOTAL_FOB_SIZE      N_FOB*FOB_SCI_DATA_SIZE 
 #define TOTAL_FSC_SIZE      N_FSC*FSC_SCI_DATA_SIZE
 #define TOTAL_PC_PCKT_SIZE  TOTAL_FIB_SIZE + TOTAL_FOB_SIZE + TOTAL_FSC_SIZE  + 8
+#pragma pack(1)                                                 /*eliminates byte padding*/
 union pc_data
 {
   struct
   {
     byte id; 
-    unsigned time1; 
+    unsigned long time1; 
     byte n_fib; 
     byte n_fob; 
     byte n_fsc; 

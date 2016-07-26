@@ -10,6 +10,7 @@
 #define	CONFIG_PARAM_VAL			1
 #define CHECKSUM_SIZE				100
 #define CHECKSUM_VAL				1	
+#pragma pack(1)
 union fee_paket
 {
 	struct
