@@ -147,23 +147,13 @@ void loop() {
   switch (task) {
     case BEGIN_SYNC:
       if(Serial.read() == '5'){
-        //Serial.println("Z"); 
         task = ADD_DATA;
       }
       else{
         task = BEGIN_SYNC; 
       }
-      break; 
-      //if (a != char('A')) {
-        
-     // }
-      //else {
-        //task = ADD_DATA;
-      //}
+      break;
     case STORE_TO_PC:
-      //Serial.println("A");
-    
-
      Serial.write(pc_packet_ptr->arr, 7);
 
 
