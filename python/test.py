@@ -46,19 +46,22 @@ if __name__ == "__main__":
 	parser.add_argument(dest = 'port', help = "display the interface port to the computer ", type = str)
 	args = parser.parse_args() 
 	
-	s = serial.Serial(args.port, 115200)
+	s = serial.Serial(args.port, 115200, timeout = 1)
 	
 	# arduino startup time
 	time.sleep(1)
 	
 	t = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-	with open("fib_sci_" + t + ".txt", "a") as f:
-		s.write(b'5')
+	s.write(b'5')
+	with open("fib_sci_" + t + ".csv", 'w') as f, open ("fob_sci_" + t + ".csv", 'w') as se, open ("fsc_sci_" + t + ".csv", 'w') as d:
 		while True:
 			try:
-				data = s.read(size=18)
-				print(data)
+				#a = 2
+				data = s.read(size = 18)
+				#print(data)
 				f.write(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f") + "," + "{}".format(int.from_bytes(data[1:5], 'big')) + "\n")
+				d.write(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f") + "," + "{}".format(int.from_bytes(data[1:5], 'big')) + "\n")
+				se.write(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f") + "," + "()".format(int.from_bytes(data[1:5], 'big')) + "\n")
 			except KeyboardInterrupt:
 				break;
 
