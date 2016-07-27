@@ -7,7 +7,7 @@
 #include "fee_packet_structure.h"
 #include "packets.h"
 #include "pc_data_dump.h"
-#define SCIENCE_DATA 0x1
+#define SCIENCE_DATA 0x0
 
 enum set {
   ADD_DATA =0, 

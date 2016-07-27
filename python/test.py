@@ -20,11 +20,6 @@ def write_to_file(file, data, open, time):
 		return str(open + time + ".csv")
 	
 if __name__ == "__main__":
-	# baud_rate = 115200
-	# file_name = ['', '', '']
-	# created = [False, False, False]
-	# parser = argparse.ArgumentParser(); 
-	# parser.add_argument(dest = 'port', help = "display the interface port to the computer ", type = str)
 	# args = parser.parse_args() 
 	# port = args.port 
 	# serial_port = serial.Serial(port, baud_rate, timeout = 1)
@@ -46,22 +41,27 @@ if __name__ == "__main__":
 	parser.add_argument(dest = 'port', help = "display the interface port to the computer ", type = str)
 	args = parser.parse_args() 
 	
-	s = serial.Serial(args.port, 115200, timeout = 1)
+	s = serial.Serial(args.port, 115200, timeout = 0.5)
 	
 	# arduino startup time
 	time.sleep(1)
 	
 	t = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 	s.write(b'5')
-	with open("fib_sci_" + t + ".csv", 'w') as f, open ("fob_sci_" + t + ".csv", 'w') as se, open ("fsc_sci_" + t + ".csv", 'w') as d:
+	with open("fib_sci_" + t + ".csv", 'a') as f, open ("fob_sci_" + t + ".csv", 'a') as se, open ("fsc_sci_" + t + ".csv", 'a') as d:
+		f.write("date" + "," +  "time" + "," +  "sync_counter" + "\n")
+		d.write("date" + "," +  "time" + "," +  "sync_counter" + "\n")
+		se.write("date" + "," +  "time" + "," +  "sync_counter" + "\n")
 		while True:
 			try:
 				#a = 2
 				data = s.read(size = 18)
-				#print(data)
-				f.write(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f") + "," + "{}".format(int.from_bytes(data[1:5], 'big')) + "\n")
-				d.write(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f") + "," + "{}".format(int.from_bytes(data[1:5], 'big')) + "\n")
-				se.write(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f") + "," + "()".format(int.from_bytes(data[1:5], 'big')) + "\n")
+				s.flushInput()
+				#hex_string = "".join("%00x" % b for b in data)
+				#print(data[1:5]);
+				f.write(datetime.datetime.now().strftime("%Y-%m-%d") + ","  + datetime.datetime.now().strftime("%H:%M:%S.%f") +  "," + ("{}".format(int.from_bytes(data[1:5], byteorder  = 'little'))) + "\n")
+				d.write(datetime.datetime.now().strftime("%Y-%m-%d") + ", " + datetime.datetime.now().strftime("%H:%M:%S.%f") +  ", " + ("{}".format(int.from_bytes(data[1:5], byteorder = 'little'))) + "\n")
+				se.write(datetime.datetime.now().strftime("%Y-%m-%d")+ ", " + datetime.datetime.now().strftime("%H:%M:%S.%f") +  ", " + ("{}".format(int.from_bytes(data[1:5], byteorder = 'little'))) + "\n")
 			except KeyboardInterrupt:
 				break;
 
