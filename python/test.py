@@ -5,31 +5,32 @@ import time
 import datetime
 
 if __name__ == "__main__":
-	# args = parser.parse_args() 
-	# port = args.port 
-	# serial_port = serial.Serial(port, baud_rate, timeout = 1)
-	# send_start_command_to_arduino(serial_port)
-	# while 1: 
-		# try: 	
-			# with open((file_name[1]), "a") as f: 
-					# f.write("fsc_sci_" + timestr)
-		# except serial.SerialTimeoutException:
-			# print("DATA COULD NOT BE READ")  
-	
+	#initialization of the baud rate 
+	#initialization of the argument parser for the user to enter the desired communication port 
+	#initialization of the science data and the x, y and z components from all 3 interfaces 
+	#setting up the communication via the usb interface with a timeout of 0.5 seconds 
+	baud_rate = 115200 
 	parser = argparse.ArgumentParser();
 	parser.add_argument(dest = 'port', help = "display the interface port to the computer ", type = str)
 	args = parser.parse_args() 
-	
-	s = serial.Serial(args.port, 115200, timeout = 0.5)
-	
-	# arduino startup time
-	time.sleep(1)
 	science_data = [0, 0, 0]
 	x_hb = [0, 0, 0]
 	y_hb = [0, 0, 0]
 	z_hb = [0, 0, 0]
-	t = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+	
+	s = serial.Serial(args.port, baud_rate, timeout = 0.5)
+	
+	# arduino startup time
+	time.sleep(1)
+
+	
+	#timestamp for each of the filenames
+	t  = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+	
+	#sending start command to the arduino 
 	s.write(b'5')
+	
+	#opening all the 3 files with the time_stamp 
 	with open("fib_sci_" + t + ".csv", 'a') as f, open ("fob_sci_" + t + ".csv", 'a') as se,  open ("fsc_sci_" + t + ".csv", 'a') as d:
 		f.write("status" + "," + "date" + "," +  "time" + "," +  "sync_counter" + "\n")
 		d.write("status" + "," + "date" + "," +  "time" + "," +  "sync_counter" + "\n")
