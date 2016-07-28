@@ -19,10 +19,10 @@ enum set {
 
 enum set task = BEGIN_SYNC;
 fee_paket fee_packet[3];
-fee_paket* fee_packet_ptr[3]         = {&fee_packet[0], &fee_packet[1], &fee_packet[2]} ;
-pc_data pc_packet                    = {SCIENCE_DATA, 0xAAAAAAAA, 1, 1, 1};        
+fee_paket* fee_packet_ptr[3]         = {&fee_packet[2], &fee_packet[1], &fee_packet[0]} ;
+pc_data pc_packet                    = {SCIENCE_DATA, 0, 0, 0, 0};        
 pc_data* pc_packet_ptr               = &pc_packet;
-byte* pc_data[3]                     = {pc_packet_ptr->sci_fib, pc_packet_ptr->sci_fob, pc_packet_ptr->sci_fsc};
+byte* pc_data[3]                     = {pc_packet_ptr->sci_fsc, pc_packet_ptr->sci_fob, pc_packet_ptr->sci_fib};
 uint8_t cmd_packet[PACKET_SIZE]      = {1, 0, 0, 0, 0, 1};
 uint8_t cmd_packet1[PACKET_SIZE]     = {1, 0, 0, 0, 0, 1};
 uint8_t cmd_packet2[PACKET_SIZE]     = {1, 0, 0, 0, 0, 1};
@@ -79,11 +79,6 @@ void timer_isr() {
     for(int i = 0; i < 3; i++){
       if(fee_enabled[i]){
         digitalWrite(sync_pins[i], HIGH);         //setting up of the pins 
-      }
-    }
-    for(int i = 0; i < 3; i++){
-      if(fee_enabled[i]){
-        //pc_data[i] = fee_packet_ptr[i] -> science_data; 
       }
     }
 
@@ -189,15 +184,45 @@ void loop() {
       }
       break;
     case STORE_TO_PC:
-      Serial.write(pc_packet_ptr->arr, 18);
+      if(packet_exists[0]){
+        pc_packet_ptr->n_fib = pc_packet_ptr->n_fib + 1;
+        for(int i = 0; i < 10; i++){
+          for(int i = 0; i < 10; i++){
+            pc_packet_ptr->sci_fib[i] = fee_packet_ptr[2] -> science_data[i];
+          }
+          packet_exists[2] = false; 
+          
+        }
+      }
+   
+        if(packet_exists[1]){
+          pc_packet_ptr->n_fob = pc_packet_ptr->n_fob + 1;
+          for(int i = 0; i < 10; i++){
+            pc_packet_ptr->sci_fob[i] = fee_packet_ptr[1] -> science_data[i]; 
+          }
+          packet_exists[1] = false; 
+        }
+
+        if(packet_exists[2]){
+          pc_packet_ptr->n_fsc = pc_packet_ptr->n_fsc + 1; 
+          for(int i = 0; i < 10; i++){
+            pc_packet_ptr->sci_fsc[i] = fee_packet_ptr[2] -> science_data[i]; 
+          }
+          packet_exists[2] = false; 
+        }
+      
+   
+       Serial.write(pc_packet_ptr->arr, 18);
    
       task = ADD_DATA;
       break; 
     case ADD_DATA:
+
       if (sync_counter == old_counter) {
         for (int i = 0; i < 3; i++) {
           check_port(port[i], i);
         }
+        //Serial.write(fee_packet_ptr[1]->science_data,10);
         task = ADD_DATA;
       }
       else if (sync_counter > old_counter) {

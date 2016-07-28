@@ -6,7 +6,6 @@
       //pc_packet_ptr->time1 = sync_counter;
       print_packet(fee_ptr, index);                                                       //on every sync signal check to see if there is some processing to do and send the UART packet to the rest of the interfaces respectively. 
       check_checksum(fee_ptr, index); 
-      packet_exists[index] = false; 
       response_packet_counter[index] = 0; 
       global_packet_counter[index]++; 
     }

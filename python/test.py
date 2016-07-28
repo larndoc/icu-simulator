@@ -18,7 +18,7 @@ if __name__ == "__main__":
 	y_hb = [0, 0, 0]
 	z_hb = [0, 0, 0]
 	
-	s = serial.Serial(args.port, baud_rate, timeout = 0.5)
+	s = serial.Serial(args.port, baud_rate, timeout = 1)
 	
 	# arduino startup time
 	time.sleep(1)
@@ -40,6 +40,7 @@ if __name__ == "__main__":
 			try:
 				data = s.read(size = 18)
 				s.flushInput()
+				#print(data[7])
 				status = str(data[0]);
 				
 				fib_lower_limit = 8; 
@@ -51,7 +52,7 @@ if __name__ == "__main__":
 				fob_upper_limit = fib_lower_limit + 10*data[5] + 10*data[6] - 1;
 				if(fob_lower_limit < fob_upper_limit): 
 					science_data[1] = ("{}".format(int.from_bytes(data[fob_lower_limit:fob_upper_limit], 'little')))
-				
+			
 				fsc_lower_limit = fob_upper_limit + 1
 				fsc_upper_limit = fsc_lower_limit + 10*data[7]  - 1; 
 				if(fsc_lower_limit < fsc_upper_limit): 
@@ -62,12 +63,12 @@ if __name__ == "__main__":
 						x_hb[i] = int(science_data[i]) & 0x00000001
 						y_hb[i] = int(science_data[i]) & 0x00000003
 						z_hb[i] = int(science_data[i]) & 0x00000006
-				
-				if(data[0] > 0):
+						print("current index" + str(i + 1)  +  " " + str(x_hb[i]) + " " + str(y_hb[i]) + " " + str(z_hb[i]))
+				if(data[5] > 0):
 					f.write(status + "," + current_time.strftime("%Y-%m-%d")  + " , "  + current_time.strftime("%H:%M:%S.%f") +  "," + ("{}".format(int.from_bytes(data[1:5], byteorder  = 'little'))) + "\n") 
-				if(data[1] > 0):
+				if(data[6] > 0):
 					d.write(status + "," + current_time.strftime("%Y-%m-%d")  + " , " + current_time.strftime("%H:%M:%S.%f") +  ", " + ("{}".format(int.from_bytes(data[1:5], byteorder = 'little'))) + "\n") 
-				if(data[2] > 0):
+				if(data[7] > 0):
 					se.write(status + "," + current_time.strftime("%Y-%m-%d") + " , " + current_time.strftime("%H:%M:%S.%f") +  ", " + ("{}".format(int.from_bytes(data[1:5], byteorder = 'little'))) + "\n")
 				
 				current_time = current_time + datetime.timedelta(milliseconds = 7.8125)					#frequency set at 128 Hz, timedelta = 1/frequency ~ 7.8125 milliseconds
