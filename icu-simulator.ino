@@ -190,7 +190,7 @@ void loop() {
           for(int i = 0; i < 10; i++){
             pc_packet_ptr->sci_fib[i] = fee_packet_ptr[2] -> science_data[i];
           }
-          packet_exists[2] = false; 
+          packet_exists[0] = false; 
           
         }
       }
