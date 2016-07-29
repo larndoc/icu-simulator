@@ -13,7 +13,6 @@
 
   void send_packet(HardwareSerial* port, int index)
   {
-    if(!packet_exists[index] && fee_enabled[index]){
       if(index == 0){
         port->write(cmd_packet, PACKET_SIZE); 
       }
@@ -23,7 +22,6 @@
       if(index == 2){
         port->write(cmd_packet2, PACKET_SIZE); 
       }
-    }
   }
   
   void check_port(HardwareSerial* port, int index){

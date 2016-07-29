@@ -1,28 +1,38 @@
+/* in order to reject any noise interference the appropiate boolean values for the variable fee_enabled need to be set */ 
+/*currently serial1 is configured to the synchronisation pin at pin 11, serial2 is configured to the synchronisation pin at pin 13 and serial is configured to the synchromnisation pin at pin 12 */ 
+/*currently use keypad button 'A' to initiate simulation */
+
 #include <Time.h>
 #include <TimeLib.h>
 #include <DueTimer.h>
 #include <time.h>
-#include "clock.h"
 #include "errors.h"
 #include "fee_packet_structure.h"
 #include "packets.h"
 #include "pc_data_dump.h"
 #define SCIENCE_DATA 0x0
 
+#define FREQUENCY             128
+#define PERIOD_US             100000/FREQUENCY
+
 enum set {
   ADD_DATA =0, 
-  SEND, 
+  SEND,
+  CREATE_PC_PACKET, 
+  CLEAR_PC_PACKET,
   STORE_TO_PC, 
   BEGIN_SYNC, 
-  DONE_SYNC
+  DONE_SYNC,
+  DEFAULT0
   };
 
-enum set task = BEGIN_SYNC;
+enum set task = DEFAULT0;
+enum set input = BEGIN_SYNC; 
 fee_paket fee_packet[3];
-fee_paket* fee_packet_ptr[3]         = {&fee_packet[2], &fee_packet[1], &fee_packet[0]} ;
-pc_data pc_packet                    = {SCIENCE_DATA, 0, 0, 0, 0};        
+fee_paket* fee_packet_ptr[3]         = {&fee_packet[0], &fee_packet[1], &fee_packet[2]} ;
+pc_data pc_packet                    = {SCIENCE_DATA, 0, 1, 0, 0};        
 pc_data* pc_packet_ptr               = &pc_packet;
-byte* pc_data[3]                     = {pc_packet_ptr->sci_fsc, pc_packet_ptr->sci_fob, pc_packet_ptr->sci_fib};
+byte* pc_data[3]                     = {pc_packet_ptr->sci_fib, pc_packet_ptr->sci_fob, pc_packet_ptr->sci_fib};
 uint8_t cmd_packet[PACKET_SIZE]      = {1, 0, 0, 0, 0, 1};
 uint8_t cmd_packet1[PACKET_SIZE]     = {1, 0, 0, 0, 0, 1};
 uint8_t cmd_packet2[PACKET_SIZE]     = {1, 0, 0, 0, 0, 1};
@@ -31,9 +41,9 @@ byte interface_counter[3]            = {0, 0, 0};
 uint8_t response_packet_counter[3]   = {0, 0, 0};
 bool checksum[3]                     = {false, false, false};
 bool packet_exists[3]                = {false, false, false};
-bool fee_enabled[3]                  = {true, true, true};
+bool fee_enabled[3]                  = {true, false, false};
 HardwareSerial* port[3]              = {&Serial1, &Serial2, &Serial3};
-const uint8_t sync_pins[3]           = {11, 12, 13};
+const uint8_t sync_pins[3]           = {11, 13, 12};
 const uint8_t led_pin                = 10;
 unsigned long current_time;
 unsigned long t;
@@ -43,9 +53,14 @@ unsigned long old_counter = 0;
 bool send_command = false;
 bool serial_port1 = false;
 bool check_cap[3];
-
 bool recieved_reply = false;
-
+/*prototype of the functions implemented in the filed /* 
+ * void wait(unsigned long delta_us)  //when the sync pins are set high, this function is used to wait the time given by delta_us in microseconds before setting them to zero again 
+ * void timer_isr()                   //called at 7.8125 ms 
+ * void setup()                       //used to initialize the pins and setup the communication 
+ * void print_packet()                //used to print debug information 
+ * void loop()                        //used to implement the state machine 
+ */
 
 /*
    void wait deals with the waiting for the desired amount of time before we start to process packets and trasmit packets to the rest of the three interfaces
@@ -71,7 +86,7 @@ void wait(unsigned long delta_us) {
    the wait function will stall for the amount of time defined by the variable time_us(in microseconds) before we proces the previous packet and send the next packet to the interface
 */
 void timer_isr() {
-  if (task == BEGIN_SYNC){}
+  if (input == BEGIN_SYNC){}
   else {
     t = micros();
     unsigned long time_us = 1000;
@@ -88,28 +103,29 @@ void timer_isr() {
       }
     }
 
-    for(int i = 0; i < 3; i++){
+     for(int i = 0; i < 3; i++) {
+      if(fee_enabled[i]){
+        wait(time_us); 
+      }
+    }
+        for(int i = 0; i < 3; i++){
       if(fee_enabled[i]){
         send_packet(port[i], i);
       }
     }
 
-    for(int i = 0; i < 3; i++) {
-      if(fee_enabled[i]){
-        wait(time_us); 
-      }
-    }
+
+   
     
     for (int i = 0; i < 3; i++) {
       if (fee_enabled[i]) {
         digitalWrite(sync_pins[i], LOW);
       }
     }
-    if (fee_enabled[0] && fee_enabled[1] && fee_enabled[2]) {
       sync_counter++;
       pc_packet.time1 = sync_counter;
-    }
-  }
+ 
+}
 }
 
 
@@ -167,74 +183,90 @@ void print_packet(union fee_paket* test_packet, uint8_t index) {
 
 /*
    implementation of a finite state machine
-   state is represented by the variable task
-   currently there are two states given by store_to_pc and add_data
-   in state 1, 'store_to_pc', we know that we have data ready and package it into a form that will be understood by the PC
-   in state 2, if sync_counter is equal to old_counter, then we stay in the same state and listen for data at all the three pins respectively otherwise we go back to state 1.
+   state is represented by the variable task and we have a input variable that determines which state to go to from the default state 
 */
-byte a;
+
 void loop() {
   switch (task) {
     case BEGIN_SYNC:
-      if(Serial.read() == '5'){
-        task = ADD_DATA;
+      if(Serial.read() == 'A'){
+        input = ADD_DATA;
+        
       }
       else{
-        task = BEGIN_SYNC; 
+        input = BEGIN_SYNC; 
       }
+      task = DEFAULT0;
       break;
-    case STORE_TO_PC:
-      if(packet_exists[0]){
-        pc_packet_ptr->n_fib = pc_packet_ptr->n_fib + 1;
-        for(int i = 0; i < 10; i++){
-          for(int i = 0; i < 10; i++){
-            pc_packet_ptr->sci_fib[i] = fee_packet_ptr[2] -> science_data[i];
-          }
-          packet_exists[0] = false; 
-          
-        }
-      }
-   
-        if(packet_exists[1]){
-          pc_packet_ptr->n_fob = pc_packet_ptr->n_fob + 1;
-          for(int i = 0; i < 10; i++){
-            pc_packet_ptr->sci_fob[i] = fee_packet_ptr[1] -> science_data[i]; 
-          }
-          packet_exists[1] = false; 
-        }
-
-        if(packet_exists[2]){
-          pc_packet_ptr->n_fsc = pc_packet_ptr->n_fsc + 1; 
-          for(int i = 0; i < 10; i++){
-            pc_packet_ptr->sci_fsc[i] = fee_packet_ptr[2] -> science_data[i]; 
-          }
-          packet_exists[2] = false; 
-        }
       
-   
-       Serial.write(pc_packet_ptr->arr, 18);
-   
-      task = ADD_DATA;
+    case STORE_TO_PC:   
+       Serial.write(pc_packet.arr , 18);
+      input = ADD_DATA; 
+      task = DEFAULT0;
       break; 
+
+      
     case ADD_DATA:
 
       if (sync_counter == old_counter) {
         for (int i = 0; i < 3; i++) {
+          if(fee_enabled[i]){
           check_port(port[i], i);
+          }
         }
         //Serial.write(fee_packet_ptr[1]->science_data,10);
-        task = ADD_DATA;
+        input = ADD_DATA;
       }
       else if (sync_counter > old_counter) {
         old_counter = sync_counter;
-        task = STORE_TO_PC;
+        input = CLEAR_PC_PACKET;
       }
+      task = DEFAULT0; 
       break; 
 
+      case CREATE_PC_PACKET: 
+          for(int j = 0; j < 3; j++){
+           if(packet_exists[j]){
+              for(int i = 0; i < 10; i++){
+                pc_packet.sci_fib[i] = fee_packet_ptr[j] -> science_data[i]; 
+            }
+            packet_exists[j] = false; 
+         }
+        }
+        input = STORE_TO_PC; 
+        task = DEFAULT0; 
+    break;
+
+    case CLEAR_PC_PACKET: 
+    for(int i = 0; i < FEE_PACKET_SIZE; i++){
+      fee_packet_ptr[0]->arr[i] = 0; 
+    }
+
+    input = CREATE_PC_PACKET; 
+    
+    task = DEFAULT0; 
+    break; 
+
+    
+  case DEFAULT0: 
+    if(input == STORE_TO_PC){
+      task = STORE_TO_PC; 
+    }
+    else if(input == ADD_DATA){
+      task = ADD_DATA; 
+    }
+    else if(input == BEGIN_SYNC){
+      task = BEGIN_SYNC; 
+    }
+    else if(input == CLEAR_PC_PACKET){
+      task = CLEAR_PC_PACKET; 
+    }
+    else if(input == CREATE_PC_PACKET){
+      task = CREATE_PC_PACKET; 
+    }
+    break ;
     default: ;
   }
-  //Serial.write(fee_packet_ptr[0]->science_data, 10);
-
 }
 
 
