@@ -199,15 +199,6 @@ void loop() {
     case BEGIN_SYNC:
       if(Serial.read() == 'A'){
         input = ADD_DATA;
-         if(Serial1.available() > 0){
-          int temp = Serial1.read();
-        }
-        if(Serial2.available() > 0){
-          int temp = Serial2.read(); 
-        }
-        if(Serial3.available() > 0){
-          int temp = Serial3.read();
-        }
         
       }
       else{
@@ -274,14 +265,7 @@ void loop() {
     break; 
 
     
-  case DEFAULT0: 
-    if(Serial.read() == 'D'){
-      for(int i = 0; i < 3; i++){
-        if(fee_enabled[i]){
-          port[i]->end();
-        }
-      }
-    }
+  case DEFAULT0:
     if(input == STORE_TO_PC){
       task = STORE_TO_PC; 
     }
