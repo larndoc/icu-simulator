@@ -6,14 +6,23 @@
 #include <TimeLib.h>
 #include <DueTimer.h>
 #include <time.h>
+#include <stdlib.h>
 #include "errors.h"
 #include "fee_packet_structure.h"
-#include "packets.h"
 #include "pc_data_dump.h"
 #define SCIENCE_DATA 0x0
 
+/*clock information*/
 #define FREQUENCY             128
 #define PERIOD_US             100000/FREQUENCY
+
+/*UART and FEE packet information*/
+#define BYTE_SIZE             8
+#define PACKET_SIZE           6
+#define PACKETS_TO_TRANSFER   3 
+#define BAUD_RATE             115200 
+#define FEE_PACKET_SIZE       100 
+#define PACKETS_RECIEVED      3
 
 enum set {
   ADD_DATA =0, 
@@ -30,7 +39,7 @@ enum set task = DEFAULT0;
 enum set input = BEGIN_SYNC; 
 fee_paket fee_packet[3];
 fee_paket* fee_packet_ptr[3]         = {&fee_packet[0], &fee_packet[1], &fee_packet[2]} ;
-pc_data pc_packet                    = {SCIENCE_DATA, 0, 1, 0, 0};        
+pc_data pc_packet                    = {SCIENCE_DATA, 0, 0, 0, 1};        
 pc_data* pc_packet_ptr               = &pc_packet;
 byte* pc_data[3]                     = {pc_packet_ptr->sci_fib, pc_packet_ptr->sci_fob, pc_packet_ptr->sci_fib};
 uint8_t cmd_packet[PACKET_SIZE]      = {1, 0, 0, 0, 0, 1};
@@ -41,7 +50,7 @@ byte interface_counter[3]            = {0, 0, 0};
 uint8_t response_packet_counter[3]   = {0, 0, 0};
 bool checksum[3]                     = {false, false, false};
 bool packet_exists[3]                = {false, false, false};
-bool fee_enabled[3]                  = {true, false, false};
+bool fee_enabled[3]                  = {false, false, true};
 HardwareSerial* port[3]              = {&Serial1, &Serial2, &Serial3};
 const uint8_t sync_pins[3]           = {11, 13, 12};
 const uint8_t led_pin                = 10;
@@ -123,7 +132,7 @@ void timer_isr() {
       }
     }
       sync_counter++;
-      pc_packet.time1 = sync_counter;
+      pc_packet.time1 = uint32_t (__builtin_bswap32(sync_counter));
  
 }
 }
@@ -157,7 +166,6 @@ void check_checksum(union fee_paket* fee_packet_ptr, int index)
     fee_packet_ptr[index].arr[0] = INVALID_ICU_PACKET_CHECKSUM;
   }
 
-  // check_error(fee_packet_ptr);
 }
 
 
@@ -200,7 +208,7 @@ void loop() {
       break;
       
     case STORE_TO_PC:   
-       Serial.write(pc_packet.arr , 18);
+       Serial.write(pc_packet.arr , TOTAL_PC_PCKT_SIZE);
       input = ADD_DATA; 
       task = DEFAULT0;
       break; 
@@ -225,22 +233,30 @@ void loop() {
       break; 
 
       case CREATE_PC_PACKET: 
-          for(int j = 0; j < 3; j++){
-           if(packet_exists[j]){
+           if(packet_exists[0]){
               for(int i = 0; i < 10; i++){
-                pc_packet.sci_fib[i] = fee_packet_ptr[j] -> science_data[i]; 
+                pc_packet_ptr->sci_fib[i] = (fee_packet_ptr[0] -> science_data[i]); 
             }
-            packet_exists[j] = false; 
+            packet_exists[0] = false; 
          }
-        }
+          if(packet_exists[1]){
+              for(int i = 0; i < 10; i++){
+                pc_packet_ptr->sci_fob[i] = (fee_packet_ptr[1] -> science_data[i]); 
+            }
+            packet_exists[1] = false; 
+         }
+         if(packet_exists[2]){
+              for(int i = 0; i < 10; i++){
+                pc_packet_ptr->sci_fsc[i] = (fee_packet_ptr[2] -> science_data[i]); 
+            }
+            packet_exists[2] = false; 
+         }
         input = STORE_TO_PC; 
         task = DEFAULT0; 
     break;
 
     case CLEAR_PC_PACKET: 
-    for(int i = 0; i < FEE_PACKET_SIZE; i++){
-      fee_packet_ptr[0]->arr[i] = 0; 
-    }
+    
 
     input = CREATE_PC_PACKET; 
     
