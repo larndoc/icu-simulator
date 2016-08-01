@@ -7,8 +7,8 @@ import binascii
 from abc import ABCMeta, abstractmethod
 
 class fee_packet: 
-	science_data		= ['','','']
-	buffer				= ['', '', '']
+	science_data = ['','','']
+	buffer	     = ['', '', '']
 	def __init__(self, f1, f2, f3, serial_port): 
 		self.fib_handler = f1
 		self.fob_handler = f2
@@ -18,19 +18,19 @@ class fee_packet:
 	def update(self, current_time):	
 		data = bytearray((self.port).read(size = 8))
 		self.id	= str(data[0])
-		self.sync_counter       = ("{}".format(int.from_bytes(data[1 : 5], byteorder = 'big'))); 
+		self.sync_counter       		= ("{}".format(int.from_bytes(data[1 : 5], byteorder = 'big'))); 
 		delta_val 				= float(self.sync_counter) * 7.8125 
 		self.time 				= current_time + datetime.timedelta(milliseconds = delta_val) ;
 		self.n_fib 				= int(data[5])
 		self.n_fob 				= int(data[6])
 		self.n_fsc 				= int(data[7])
-		total_data_to_read 		= self.n_fib*10 + self.n_fob*10 + self.n_fsc*10
-		self.fib_lower_limit 	= 8  
-		self.fib_upper_limit    = self.fib_lower_limit   + 10*self.n_fib
-		self.fob_lower_limit 	= self.fib_upper_limit 
-		self.fob_upper_limit	= self.fob_lower_limit + 10*self.n_fob 
-		self.fsc_lower_limit 	= self.fob_upper_limit 
-		self.fsc_upper_limit 	= self.fsc_lower_limit + 10*self.n_fsc
+		total_data_to_read 			= self.n_fib*10 + self.n_fob*10 + self.n_fsc*10
+		self.fib_lower_limit 			= 8  
+		self.fib_upper_limit    		= self.fib_lower_limit   + 10*self.n_fib
+		self.fob_lower_limit 			= self.fib_upper_limit 
+		self.fob_upper_limit			= self.fob_lower_limit + 10*self.n_fob 
+		self.fsc_lower_limit 			= self.fob_upper_limit 
+		self.fsc_upper_limit 			= self.fsc_lower_limit + 10*self.n_fsc
 		
 		fee_pack.write_fib()
 		fee_pack.write_fob()
@@ -127,7 +127,7 @@ if __name__ == "__main__":
 			try:
 				nb = input('please choose a command: ')
 				encoded = nb.encode('utf-8')
-				if(nb == 'B')
+				if(nb == 'B')												
 					print('exiting science mode')
 				fee_pack.update(current_time)
 				#s.flushInput()
