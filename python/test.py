@@ -23,6 +23,9 @@ class fee_packet:
 		return self.n_fob 
 	def get_nfsc(self): 
 		return self.n_fsc 
+		
+	def update_time(self): 
+		
 
 	#@abstractmethod
 	def store_to_pc(self, file): 
@@ -145,8 +148,7 @@ if __name__ == "__main__":
 				if(fee_pack.get_nfsc() > 0): 
 					fee_pack = fsc_packet(data, time) 
 					fee_pack.store_to_pc(d)
-				
-				current_time = current_time + datetime.timedelta(milliseconds = 7.8125)					
+				currnet_time = fee_pack.update_time();					
 			except KeyboardInterrupt:
 				break;
 
