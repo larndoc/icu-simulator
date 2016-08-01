@@ -16,8 +16,7 @@ class fee_packet:
 		self.port = serial_port
 	
 	def update(self, current_time):	
-		data = bytearray((self.port).read(size = 8));
-		print(data)
+		data = bytearray((self.port).read(size = 8))
 		self.id	= str(data[0])
 		self.sync_counter       = ("{}".format(int.from_bytes(data[1 : 5], byteorder = 'big'))); 
 		delta_val 				= float(self.sync_counter) * 7.8125 
@@ -45,8 +44,8 @@ class fee_packet:
 		return self.n_fsc 
 		
 	def write_fsc(self):
-		if(self.get_nfsc() > 0):
-			self.buffer[2]  = self.port.read(self.n_fsc*10); 
+		for i in range(0, self.get_nfsc()):
+			self.buffer[2]  = self.port.read(size = 10); 
 			self.science_data[2] = self.buffer[2]
 			sensor_temp_controller 			= self.science_data[2][0] & 0xF0
 			laser_temp_controller  			= self.science_data[2][0] & 0x0F
@@ -60,10 +59,9 @@ class fee_packet:
 			self.fsc_handler.write(str(sensor_temp_controller) + "," + str(laser_temp_controller) + "," + str(laser_current_controller) + "," + str(microwave_reference_controller) + "," +  str(zeeman_controller) + "," + str(science_data_id) + "," + str(science_data_val) + "," + str(time_stamp) + "\n")
 	
 	def write_fob(self):
-		if(self.get_nfob() > 0):
-			self.buffer[1] = self.port.read(self.n_fob*10)
-			print(self.buffer[1])
-			self.science_data[1] = bytearray(self.buffer[1][self.fob_lower_limit : self.fob_upper_limit])
+		for i in range(0,self.get_nfob()) :
+			self.buffer[1] = self.port.read(size = 10)
+			self.science_data[1] = self.buffer[1]
 			x	=   ("{}".format(int.from_bytes([self.science_data[1][2], self.science_data[1][1], self.science_data[1][0]], byteorder = 'little')))
 			y	=   ("{}".format(int.from_bytes([self.science_data[1][5], self.science_data[1][4], self.science_data[1][3]], byteorder = 'little')))
 			z	=   ("{}".format(int.from_bytes([self.science_data[1][8], self.science_data[1][7], self.science_data[1][6]], byteorder = 'little')))
@@ -72,10 +70,9 @@ class fee_packet:
 			self.fib_handler.write(x + "," + y + "," + z + "," + sensor_range + "," + "\n")
 	
 	def write_fib(self):
-		if(self.get_nfib() > 0): 
+		for i in range(0, self.get_nfib()): 
 			self.buffer[0] = self.port.read(size = self.n_fib*10)
 			self.science_data[0] = self.buffer[0]
-			print(self.science_data[0])
 			x	=   ("{}".format(int.from_bytes([self.science_data[0][0], self.science_data[0][1], self.science_data[0][2]], byteorder = 'little')))
 			y	=   ("{}".format(int.from_bytes([self.science_data[0][3], self.science_data[0][4], self.science_data[0][5]], byteorder = 'little')))
 			z	=   ("{}".format(int.from_bytes([self.science_data[0][6], self.science_data[0][7], self.science_data[0][6]], byteorder = 'little')))
@@ -110,14 +107,17 @@ if __name__ == "__main__":
 	s.flushInput()
 	
 	#sending start command to the arduino 
-	s.write(b'A')
+	nb = input('please choose a command: ')
+	encoded = nb.encode('utf-8')
+	s.write(encoded)
+	if(nb == 'A'):
+		print('entering science mode')
 	s.flush()
 	#opening all the 3 files with the time_stamp 
 	with open("fib_sci_" + t + ".csv", 'a') as fib_handler, open ("fob_sci_" + t + ".csv", 'a') as fob_handler,  open ("fsc_sci_" + t + ".csv", 'a') as fsc_handler:
 		header = "time" + "," + "status" + "," + "n_fib" + "," + "n_fob" + "," + "n_fsc" + ","
 		y = s.read(size = 8)
 		s.flushInput()
-		#print(y)
 		fee_pack = fee_packet( fib_handler, fob_handler, fsc_handler, s)
 		fee_pack.fib_handler.write(header + "x" + "," + "y" + "," + "z" + "\n")
 		fee_pack.fob_handler.write(header + "x" + "," + "y" + "," + "z" + "\n")
@@ -125,6 +125,10 @@ if __name__ == "__main__":
 		current_time = datetime.datetime.now()
 		while True:
 			try:
+				nb = input('please choose a command: ')
+				encoded = nb.encode('utf-8')
+				if(nb == 'B')
+					print('exiting science mode')
 				fee_pack.update(current_time)
 				#s.flushInput()
 				#here I am going to pass the serial port and the header to the write function to the three write functions in the fee_packet class which will take care of packaging and writing data out; 
