@@ -25,6 +25,9 @@ class fee_packet:
 		return self.n_fsc 
 		
 	def update_time(self): 
+		sync_counter = ("{}".format(int.from_bytes(self.data[1 : 5], byteorder = 'big'))); 
+		delta_val = sync_counter * 7.8125 
+		self.time =  self.time +datetime.timedelta(milliseconds = delta_val)
 		
 
 	#@abstractmethod
@@ -110,8 +113,9 @@ if __name__ == "__main__":
 	science_data = [0, 0, 0]
 	data = 0
 	
-	s = serial.Serial(args.port, baud_rate, timeout = 1)
-	
+	s = serial.Serial(args.port, baud_rate, timeout = 1)				
+	fee_pack = fee_packet();
+	fee_pack.update(data, str(data[0]), current_time, data[5], data[6], data[7]) 
 	# arduino startup time
 	time.sleep(1)
 
@@ -133,9 +137,6 @@ if __name__ == "__main__":
 			try:
 				data = bytearray(s.read(size = 28))
 				s.flushInput()			#debug_information(data)
-				
-				fee_pack = fee_packet();
-				fee_pack.update(data, str(data[0]), current_time, data[5], data[6], data[7]) 
 				#print(fee_pack.get_nfib())
 				if(fee_pack.get_nfib() > 0): 
 					fee_pack = fib_packet(data, time)
@@ -148,7 +149,7 @@ if __name__ == "__main__":
 				if(fee_pack.get_nfsc() > 0): 
 					fee_pack = fsc_packet(data, time) 
 					fee_pack.store_to_pc(d)
-				currnet_time = fee_pack.update_time();					
+				fee_pack.update_time();					
 			except KeyboardInterrupt:
 				break;
 
