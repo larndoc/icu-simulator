@@ -4,7 +4,7 @@
 #define FIB_SCI_DATA_SIZE   10
 #define FOB_SCI_DATA_SIZE   10
 #define FSC_SCI_DATA_SIZE   10
-#define N_FIB               0
+#define N_FIB               1
 #define N_FOB               0
 #define N_FSC               1
 #define TOTAL_FIB_SIZE      N_FIB*FIB_SCI_DATA_SIZE

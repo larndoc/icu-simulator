@@ -39,7 +39,7 @@ enum set task = DEFAULT0;
 enum set input = BEGIN_SYNC; 
 fee_paket fee_packet[3];
 fee_paket* fee_packet_ptr[3]         = {&fee_packet[0], &fee_packet[1], &fee_packet[2]} ;
-pc_data pc_packet                    = {SCIENCE_DATA, 0, 0, 0, 1};        
+pc_data pc_packet                    = {SCIENCE_DATA, 0, 1, 0, 1};        
 pc_data* pc_packet_ptr               = &pc_packet;
 byte* pc_data[3]                     = {pc_packet_ptr->sci_fib, pc_packet_ptr->sci_fob, pc_packet_ptr->sci_fib};
 uint8_t cmd_packet[PACKET_SIZE]      = {1, 0, 0, 0, 0, 1};
@@ -50,7 +50,7 @@ byte interface_counter[3]            = {0, 0, 0};
 uint8_t response_packet_counter[3]   = {0, 0, 0};
 bool checksum[3]                     = {false, false, false};
 bool packet_exists[3]                = {false, false, false};
-bool fee_enabled[3]                  = {false, false, true};
+bool fee_enabled[3]                  = {true, false, true};
 HardwareSerial* port[3]              = {&Serial1, &Serial2, &Serial3};
 const uint8_t sync_pins[3]           = {11, 13, 12};
 const uint8_t led_pin                = 10;
@@ -199,9 +199,19 @@ void loop() {
     case BEGIN_SYNC:
       if(Serial.read() == 'A'){
         input = ADD_DATA;
+         if(Serial1.available() > 0){
+          int temp = Serial1.read();
+        }
+        if(Serial2.available() > 0){
+          int temp = Serial2.read(); 
+        }
+        if(Serial3.available() > 0){
+          int temp = Serial3.read();
+        }
         
       }
       else{
+       
         input = BEGIN_SYNC; 
       }
       task = DEFAULT0;
@@ -265,6 +275,13 @@ void loop() {
 
     
   case DEFAULT0: 
+    if(Serial.read() == 'D'){
+      for(int i = 0; i < 3; i++){
+        if(fee_enabled[i]){
+          port[i]->end();
+        }
+      }
+    }
     if(input == STORE_TO_PC){
       task = STORE_TO_PC; 
     }

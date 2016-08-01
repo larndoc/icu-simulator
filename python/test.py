@@ -26,7 +26,7 @@ class fee_packet:
 
 	#@abstractmethod
 	def store_to_pc(self, file): 
-		file.write((self.time.strftime("%Y%m%d-%H%M%S")) + str(self.id) "," + str(self.n_fsc) + "," + str(self.n_fob) + "," + str(self.n_fsc) + ",")
+		file.write((self.time.strftime("%Y%m%d-%H%M%S")) + "," +  str(self.id) + "," + str(self.n_fsc) + "," + str(self.n_fob) + "," + str(self.n_fsc) + ",")
 
 class fsc_packet(fee_packet):
 	#fsc_packet inherits from fee_packet and therefore it should have the attributes id, data, time, n_fib, n_fob, n_fsc and n_lower_limit 
@@ -55,9 +55,9 @@ class fsc_packet(fee_packet):
 
 class fib_packet(fee_packet):
 	def update_xyz(self, data, id, time, n_fib, n_fob, n_fsc, x_hb, x_mb, x_lb, y_hb, y_mb, y_lb, z_hlb, z_mb): 
-		self.__x 							=   ("{}".format(int.from_bytes([x_hb, x_mb, x_lb], byteorder = 'big')))
-		self.__y 							=   ("{}".format(int.from_bytes([y_hb, y_mb, y_lb], byteorder = 'big')))
-		self.__z 							=   ("{}".format(int.from_bytes([z_hlb, z_mb, z_hlb], byteorder = 'big')))
+		self.__x 							=   ("{}".format(int.from_bytes([x_hb, x_mb, x_lb], byteorder = 'little')))
+		self.__y 							=   ("{}".format(int.from_bytes([y_hb, y_mb, y_lb], byteorder = 'little')))
+		self.__z 							=   ("{}".format(int.from_bytes([z_hlb, z_mb, z_hlb], byteorder = 'little')))
 				
 	def __init__(self, data, time): 
 		fee_packet.update(self, data,data[0], time, data[5], data[6], data[7])
@@ -68,7 +68,25 @@ class fib_packet(fee_packet):
 	def store_to_pc(self, file): 
 		if(self.n_fib > 0):
 			fee_packet.store_to_pc(self, file)
-			file.write(self.__x + "," + self.__y + "," + self.__z)
+			file.write(self.__x + "," + self.__y + "," + self.__z + "\n")
+			
+class fob_packet(fee_packet):
+	def update_xyz(self, data, id, time, n_fib, n_fob, n_fsc, x_hb, x_mb, x_lb, y_hb, y_mb, y_lb, z_hb, z_mb, z_lb, sensor_range):
+		self.__x 							=   ("{}".format(int.from_bytes([x_hb, x_mb, x_lb], byteorder = 'little')))
+		self.__y 							=   ("{}".format(int.from_bytes([y_hb, y_mb, y_lb], byteorder = 'little')))
+		self.__z 							=   ("{}".format(int.from_bytes([z_hb, z_mb, z_lb], byteorder = 'little')))
+		self.__sensor_range 				= 	sensor_range
+	def __init__(self, data, time): 
+		fee_packet.update(self, data,data[0], time, data[5], data[6], data[7])
+		self.n_upper_limit				= 	self.n_lower_limit + data[5]*10
+		self.science_data[1] = bytearray(self.data[self.n_lower_limit : self.n_upper_limit])
+		self.update_xyz( data, str(data[0]), str(time), data[5], data[6], data[7], fee_packet.science_data[1][2], fee_packet.science_data[1][1], fee_packet.science_data[1][0], fee_packet.science_data[1][5], fee_packet.science_data[1][4], fee_packet.science_data[1][3], fee_packet.science_data[1][8], fee_packet.science_data[1][7], fee_packet.science_data[1][6], fee_packet.science_data[1][9])
+		
+	def store_to_pc(self, file): 
+		if(self.get_nfob() > 0):
+			fee_packet.store_to_pc(self, file)
+			file.write(str(self.__x) + "," + str(self.__y) + "," + str(self.__z) + "," + str(self.__sensor_range) + "\n")
+
 
 def debug_information(data): 
 	print(binascii.hexlify(data))
@@ -100,32 +118,33 @@ if __name__ == "__main__":
 	
 	#sending start command to the arduino 
 	s.write(b'A')
-	s.flush();
+	s.flush()
 	header = "time" + "," + "status" + "," + "n_fib" + "," + "n_fob" + "," + "n_fsc" + ","
 	#opening all the 3 files with the time_stamp 
 	with open("fib_sci_" + t + ".csv", 'a') as f, open ("fob_sci_" + t + ".csv", 'a') as se,  open ("fsc_sci_" + t + ".csv", 'a') as d:
-		f.write("x" + "," + "y" + "," + "z" + "," + "status" + "," + "date" + "," +  "time" + "," +  "sync_counter" + "\n")
+		f.write(header + "x" + "," + "y" + "," + "z" + "\n")
 		d.write(header + "sensor temperature controller" + "," + "laser temperature controller" + "," + "laser current controller" + "," + "microwave reference controller" + "," + "zeeman_controller" + "," +  "science_data_id" + "," +  "science_data" + "," + "time_stamp" + "\n")
-		se.write("sensor temperature controller" + "," + "laser temperature controller" + "," + "laser current controller" + "," + "microwave reference controller" + "," + "zeeman controller" + "science data id" + "science data" + "time stamp" + "status" + "," + "date" + "," +  "time" + "," +  "sync_counter" + "\n")
+		se.write(header + "x" + "," + "y" + "," + "z"  + "," + "sensor range" + "\n")
 		current_time = datetime.datetime.now()
 		while True:
 			try:
-				data = bytearray(s.read(size = 18))
-				s.flushInput()
-				#debug_information(data)
+				data = bytearray(s.read(size = 28))
+				s.flushInput()			#debug_information(data)
 				
 				fee_pack = fee_packet();
 				fee_pack.update(data, str(data[0]), current_time, data[5], data[6], data[7]) 
-				
+				#print(fee_pack.get_nfib())
 				if(fee_pack.get_nfib() > 0): 
 					fee_pack = fib_packet(data, time)
+					fee_pack.store_to_pc(f)
+				
+				#if(fee_pack.get_nfob() > 0): 
+				#	fee_pack = fob_packet(data, time)
+			#		fee_pack.store_to_pc(se)
 					
 				if(fee_pack.get_nfsc() > 0): 
 					fee_pack = fsc_packet(data, time) 
-						
-				fee_pack.store_to_pc(f) 
-				fee_pack.store_to_pc(d)
-				fee_pack.store_to_pc(se) 
+					fee_pack.store_to_pc(d)
 				
 				current_time = current_time + datetime.timedelta(milliseconds = 7.8125)					
 			except KeyboardInterrupt:
