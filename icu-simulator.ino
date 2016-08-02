@@ -266,6 +266,12 @@ void loop() {
 
     
   case DEFAULT0:
+    if(Serial.read() == '5'){
+     Serial1.end(); 
+     Serial2.end(); 
+     Serial3.end();
+      
+    }
     if(input == STORE_TO_PC){
       task = STORE_TO_PC; 
     }
