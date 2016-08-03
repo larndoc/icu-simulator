@@ -12,6 +12,7 @@ def debug_information(data):
 	
 	
 
+<<<<<<< HEAD
 class fee_science_reciever(Thread): 
 	#initialization of the baud rate 
 	#initialization of the argument parser for the user to enter the desired communication port 
@@ -22,25 +23,34 @@ class fee_science_reciever(Thread):
 	buffer				= ['', '', '']
 	def __init__(self, serial_port): 
 		super(fee_science_reciever, self).__init__()
+=======
+class fee_packet: 
+	science_data = ['','','']
+	buffer	     = ['', '', '']
+	def __init__(self, f1, f2, f3, serial_port): 
+		self.fib_handler = f1
+		self.fob_handler = f2
+		self.fsc_handler = f3
+>>>>>>> 0fd2b99f0a05a95d3782e8c2bf9c2aa07f071a4b
 		self.port = serial_port
 		self.receive_serial = True 
 
 	def update(self, current_time):	
 		data = bytearray((self.port).read(size = 8))
 		self.id	= str(data[0])
-		self.sync_counter       = ("{}".format(int.from_bytes(data[1 : 5], byteorder = 'big'))); 
+		self.sync_counter       		= ("{}".format(int.from_bytes(data[1 : 5], byteorder = 'big'))); 
 		delta_val 				= float(self.sync_counter) * 7.8125 
 		self.time 				= current_time + datetime.timedelta(milliseconds = delta_val) ;
 		self.n_fib 				= int(data[5])
 		self.n_fob 				= int(data[6])
 		self.n_fsc 				= int(data[7])
-		total_data_to_read 		= self.n_fib*10 + self.n_fob*10 + self.n_fsc*10
-		self.fib_lower_limit 	= 8  
-		self.fib_upper_limit    = self.fib_lower_limit   + 10*self.n_fib
-		self.fob_lower_limit 	= self.fib_upper_limit 
-		self.fob_upper_limit	= self.fob_lower_limit + 10*self.n_fob 
-		self.fsc_lower_limit 	= self.fob_upper_limit 
-		self.fsc_upper_limit 	= self.fsc_lower_limit + 10*self.n_fsc
+		total_data_to_read 			= self.n_fib*10 + self.n_fob*10 + self.n_fsc*10
+		self.fib_lower_limit 			= 8  
+		self.fib_upper_limit    		= self.fib_lower_limit   + 10*self.n_fib
+		self.fob_lower_limit 			= self.fib_upper_limit 
+		self.fob_upper_limit			= self.fob_lower_limit + 10*self.n_fob 
+		self.fsc_lower_limit 			= self.fob_upper_limit 
+		self.fsc_upper_limit 			= self.fsc_lower_limit + 10*self.n_fsc
 		
 		self.write_fib()
 		self.write_fob()
@@ -93,6 +103,7 @@ class fee_science_reciever(Thread):
 		t  = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 		self.port.flushInput()
 	#opening all the 3 files with the time_stamp 
+<<<<<<< HEAD
 		with open("fib_sci_" + t + ".csv", 'a') as self.fib_handler, open ("fob_sci_" + t + ".csv", 'a') as self.fob_handler,  open ("fsc_sci_" + t + ".csv", 'a') as self.fsc_handler:
 			header = "time" + "," + "status" + "," + "n_fib" + "," + "n_fob" + "," + "n_fsc" + ","
 			self.fib_handler.write(header + "x" + "," + "y" + "," + "z" + "\n")
@@ -102,6 +113,31 @@ class fee_science_reciever(Thread):
 			while self.receive_serial:
 				if self.port.in_waiting > 0:
 					self.update(current_time)
+=======
+	with open("fib_sci_" + t + ".csv", 'a') as fib_handler, open ("fob_sci_" + t + ".csv", 'a') as fob_handler,  open ("fsc_sci_" + t + ".csv", 'a') as fsc_handler:
+		header = "time" + "," + "status" + "," + "n_fib" + "," + "n_fob" + "," + "n_fsc" + ","
+		y = s.read(size = 8)
+		s.flushInput()
+		fee_pack = fee_packet( fib_handler, fob_handler, fsc_handler, s)
+		fee_pack.fib_handler.write(header + "x" + "," + "y" + "," + "z" + "\n")
+		fee_pack.fob_handler.write(header + "x" + "," + "y" + "," + "z" + "\n")
+		fee_pack.fsc_handler.write(header + "sensor temperature controller" + "," + "laser temperature controller" + "," + "laser current controller" + "," + "microwave reference controller" + "," + "zeeman_controller" + "," +  "science_data_id" + "," +  "science_data" + "," + "time_stamp" + "\n" )
+		current_time = datetime.datetime.now()
+		while True:
+			try:
+				nb = input('please choose a command: ')
+				encoded = nb.encode('utf-8')
+				if(nb == 'B')												
+					print('exiting science mode')
+				fee_pack.update(current_time)
+				#s.flushInput()
+				#here I am going to pass the serial port and the header to the write function to the three write functions in the fee_packet class which will take care of packaging and writing data out; 
+
+				#get the value of sync_counter from data, the value of current_time never changes. 
+				#we use the formula, time = current_time(constant) + sync_counter * 7.8125 ms (where sync_counter is the variable)
+			except KeyboardInterrupt:
+				break;
+>>>>>>> 0fd2b99f0a05a95d3782e8c2bf9c2aa07f071a4b
 
 					
 class telecommunication_states(enum):

@@ -56,6 +56,7 @@ bool packet_exists[3]                = {false, false, false};
 bool fee_enabled[3]                  = {false, false, false};
 HardwareSerial* port[3]              = {&Serial1, &Serial2, &Serial3};
 const uint8_t sync_pins[3]           = {11, 13, 12};
+int bytes1; 
 const uint8_t led_pin                = 10;
 unsigned long current_time;
 unsigned long t;
@@ -200,18 +201,44 @@ void print_packet(union fee_paket* test_packet, uint8_t index) {
 void loop() {
   switch (task) {
     case SCIENCE_MODE: 
-      for(int i = 0; i < 3; i++){
-        if(fee_enabled[i]){
-          pinMode(sync_pins[i],  OUTPUT); 
-          digitalWrite(sync_pins[i], LOW); 
-          port[i]->begin(BAUD_RATE);
-        }
         input = ADD_DATA;
-        task = DEFAULT0;                                                               //we proceed to listening for the port at the enabled fee                                                     
-      }
+        task = DEFAULT0;                                                           
       break; 
 
      case CONFIG_MODE: 
+     /*
+      uint8_t interface[2];
+      if (Serial.available() > 0){
+       Serial.readBytes(interface, 2); 
+       Serial.println(interface[2]);
+        if(interface[1] - 48 == '5'){
+          fee_activate(interface[2]); 
+          input = CONFIG_MODE; 
+        }
+        if(interface[0] - 48 == '6'){
+          fee_deactivate(interface[2]); 
+          input = CONFIG_MODE; 
+        }
+      }
+      else{
+        input = CONFIG_MODE; 
+      }
+     */
+      if(!fee_enabled[0]){
+        for(int i = 0; i < 10; i++){
+          pc_packet_ptr->sci_fib[i] = 0; 
+        }
+      }
+      if(!fee_enabled[1]){
+        for(int i = 0; i < 10; i++){
+          pc_packet_ptr->sci_fob[i] = 0; 
+        }
+      if(fee_enabled[2]){
+        for(int i = 0; i < 10; i++){
+          pc_packet_ptr->sci_fsc[i] = 0; 
+        }
+      }
+      }
       input = CONFIG_MODE;                                                              //disable the timer isr in config_mode i.e stop generating any sync pulses
       task = DEFAULT0;
      break; 
@@ -263,42 +290,46 @@ void loop() {
     break; 
  
   case DEFAULT0:
-  Serial.flush();
-    if(Serial.available() > 0){
-    // Serial.println("HELLO"); 
-    byte token[4]; 
-    int a = Serial.readBytes(token, 4);               //this is the external input to the system
-    Serial.println(int(token[0]));
-    if(token[3] == '3'){
+
+    bytes1 = Serial.available(); 
+    if(bytes1 > 0){
+    if(bytes1 == 1){ 
+    int cmd_id = Serial.read(); 
+    
+    if(cmd_id == '3'){
       input = SCIENCE_MODE; 
     }
 
-    else if(token[3] == '2'){
+    else if(cmd_id == '2'){
       input = CONFIG_COMMAND; 
     }
 
-    else if(token[3] == '4'){
+    else if(cmd_id == '4'){
       input = CONFIG_MODE;
     }
 
-    else if((input == CONFIG_MODE) && (token[3] == '5')){
-     if(token[0] = '0'){
-      fee_enabled[0] = true; 
-     }
-     if(token[1] = '1'){
-      fee_enabled[1] = true;
-     }
-     if(token[2] = '2'){
-      fee_enabled[2] = true; 
-     }
+    else if(input == CONFIG_MODE && cmd_id == '5'){
+      while(Serial.available() == 0); 
+      if(Serial.available() > 0){
+        uint8_t interface = Serial.read(); 
+        fee_activate(interface); 
+        input = CONFIG_MODE; 
+      }
+      
     }
-
-    else if((input == CONFIG_MODE) && (token[3] == '6')){
-      fee_enabled[token[0]] = false; 
+    else if(input == CONFIG_MODE && cmd_id == '6'){
+      while(Serial.available() == 0); 
+      if(Serial.available() > 0){
+        uint8_t interface = Serial.read(); 
+        fee_deactivate(interface); 
+        input = CONFIG_MODE; 
+      }
     }
-    task = DEFAULT0 ;
+    task = DEFAULT0;
     }
-    
+    }
+  
+  
      //***********************************************************NOTHING TO READ FROM THE SERIAL PORT******************************************************//
      else{
        if(input == DEFAULT0){
@@ -325,9 +356,40 @@ void loop() {
        }     
      }
     break ;
+    
     default: ;
   }
 }
 
 
+void fee_activate(char index){
+  if ( (index - 48) > 2 || (index - 48) < 0){
+    return;  
+  }
+  else{
+    fee_enabled[index - 48] = true; 
+    activate_pins(index); 
+  }
+}
+
+void fee_deactivate(char index){
+  if ((index - 48) > 2 || (index - 48) < 0){
+    return; 
+  }
+  else{
+    fee_enabled[index - 48] = false; 
+  }
+}
+
+void activate_pins(char index){
+   pinMode(sync_pins[index - 48],  OUTPUT); 
+   digitalWrite(sync_pins[index - 48], LOW); 
+   port[index - 48]->begin(BAUD_RATE);
+}
+
+void deactivate_pins(char index){
+  pinMode(sync_pins[index - 48], INPUT);
+  digitalWrite(sync_pins[index - 48], LOW); 
+  port[index - 48]->end(); 
+}
 
