@@ -11,8 +11,6 @@ def debug_information(data):
 	print(binascii.hexlify(data))
 	
 	
-
-<<<<<<< HEAD
 class fee_science_reciever(Thread): 
 	#initialization of the baud rate 
 	#initialization of the argument parser for the user to enter the desired communication port 
@@ -23,15 +21,6 @@ class fee_science_reciever(Thread):
 	buffer				= ['', '', '']
 	def __init__(self, serial_port): 
 		super(fee_science_reciever, self).__init__()
-=======
-class fee_packet: 
-	science_data = ['','','']
-	buffer	     = ['', '', '']
-	def __init__(self, f1, f2, f3, serial_port): 
-		self.fib_handler = f1
-		self.fob_handler = f2
-		self.fsc_handler = f3
->>>>>>> 0fd2b99f0a05a95d3782e8c2bf9c2aa07f071a4b
 		self.port = serial_port
 		self.receive_serial = True 
 
@@ -103,7 +92,6 @@ class fee_packet:
 		t  = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 		self.port.flushInput()
 	#opening all the 3 files with the time_stamp 
-<<<<<<< HEAD
 		with open("fib_sci_" + t + ".csv", 'a') as self.fib_handler, open ("fob_sci_" + t + ".csv", 'a') as self.fob_handler,  open ("fsc_sci_" + t + ".csv", 'a') as self.fsc_handler:
 			header = "time" + "," + "status" + "," + "n_fib" + "," + "n_fob" + "," + "n_fsc" + ","
 			self.fib_handler.write(header + "x" + "," + "y" + "," + "z" + "\n")
@@ -113,40 +101,9 @@ class fee_packet:
 			while self.receive_serial:
 				if self.port.in_waiting > 0:
 					self.update(current_time)
-=======
-	with open("fib_sci_" + t + ".csv", 'a') as fib_handler, open ("fob_sci_" + t + ".csv", 'a') as fob_handler,  open ("fsc_sci_" + t + ".csv", 'a') as fsc_handler:
-		header = "time" + "," + "status" + "," + "n_fib" + "," + "n_fob" + "," + "n_fsc" + ","
-		y = s.read(size = 8)
-		s.flushInput()
-		fee_pack = fee_packet( fib_handler, fob_handler, fsc_handler, s)
-		fee_pack.fib_handler.write(header + "x" + "," + "y" + "," + "z" + "\n")
-		fee_pack.fob_handler.write(header + "x" + "," + "y" + "," + "z" + "\n")
-		fee_pack.fsc_handler.write(header + "sensor temperature controller" + "," + "laser temperature controller" + "," + "laser current controller" + "," + "microwave reference controller" + "," + "zeeman_controller" + "," +  "science_data_id" + "," +  "science_data" + "," + "time_stamp" + "\n" )
-		current_time = datetime.datetime.now()
-		while True:
-			try:
-				nb = input('please choose a command: ')
-				encoded = nb.encode('utf-8')
-				if(nb == 'B')												
-					print('exiting science mode')
-				fee_pack.update(current_time)
-				#s.flushInput()
-				#here I am going to pass the serial port and the header to the write function to the three write functions in the fee_packet class which will take care of packaging and writing data out; 
 
-				#get the value of sync_counter from data, the value of current_time never changes. 
-				#we use the formula, time = current_time(constant) + sync_counter * 7.8125 ms (where sync_counter is the variable)
-			except KeyboardInterrupt:
-				break;
->>>>>>> 0fd2b99f0a05a95d3782e8c2bf9c2aa07f071a4b
-
-					
-class telecommunication_states(enum):
-	science_mode = 1 
-	config_mode  = 2 
-	default_mode = 0
 	
 if __name__ == '__main__':
-		telecommunication_states states = default_mode;
 		parser = argparse.ArgumentParser();
 		parser.add_argument(dest = 'port', help = "display the interface port to the computer ", type = str)
 		args = parser.parse_args() 
@@ -158,15 +115,11 @@ if __name__ == '__main__':
 		myThreadOb1.start()
 		while not myThreadOb1.is_alive():
 			pass
-		print("Thread started")
-		
-		s.write(b'A')
-		
-		print("please choose from the following \n")
-		print("1) science mode")
-		print("2) config mode")
-		nb = input(" ")
-		
+			
+		while(True): 
+			nb = input('please enter an input: ')
+			encoded = nb.encode('utf-8')
+			s.write(encoded)
 		#time.sleep(2)
 		#s.flushInput()
 		
@@ -177,44 +130,7 @@ if __name__ == '__main__':
 		## here is all the code that needs to run in the main program
 		##
 		##
-		if(states == default_mode): 
-			if(nb == '3'): 
-				print('entering science mode')
-				s.write(b'3')
-				
-			if(nb == '4'): 
-				print('entering config mode')
-				s.write(b'4')
-			
-			if(nb == '6'):
-				print('fee_deactivate')
-				s.write(b'6') 
-			if(nb == '5'):
-				print('fee activate')
-				s.write(b'5')
-			
-			
-			elif(nb == '2'): 
-				
-				states = config_mode
-			
-			elif(nb == '3'): 
-				
-				states = science_mode
-			else: 
-				print('invalid command')
-				states = config_mode
-		if(nb == '3'):
-			print("entering science mode")
-			while myThreadOb1.receive_serial:
-				nb = input("please enter an input: ")
-				if(nb == '5'):
-					s.write(b'5')
-					myThreadOb1.receive_serial = False
-		elif(nb == '4'):
-			print("entering config mode")
-			s.write(b'4')				#stop sending sync pulses 
-			if(nb == ')	
+
 			 
 		
 		
