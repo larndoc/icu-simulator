@@ -45,9 +45,7 @@ fee_paket* fee_packet_ptr[3]         = {&fee_packet[0], &fee_packet[1], &fee_pac
 pc_data pc_packet                    = {SCIENCE_DATA, 0, 1, 0, 1};        
 pc_data* pc_packet_ptr               = &pc_packet;
 byte* pc_data[3]                     = {pc_packet_ptr->sci_fib, pc_packet_ptr->sci_fob, pc_packet_ptr->sci_fib};
-uint8_t cmd_packet[PACKET_SIZE]      = {1, 0, 0, 0, 0, 1};
-uint8_t cmd_packet1[PACKET_SIZE]     = {1, 0, 0, 0, 0, 1};
-uint8_t cmd_packet2[PACKET_SIZE]     = {1, 0, 0, 0, 0, 1};
+uint8_t cmd_packet[3][PACKET_SIZE]         = {{1, 0, 0, 0, 0, 1}, {1, 0, 0, 0, 0,  1}, {1, 0, 0, 0, 0, 1}};
 uint16_t global_packet_counter[3]    = {0, 0, 0};
 byte interface_counter[3]            = {0, 0, 0}; 
 uint8_t response_packet_counter[3]   = {0, 0, 0};
@@ -328,24 +326,24 @@ void loop() {
           
           if(fee_number == 0){
             change_command_packet[0] = true; 
-            cmd_packet[1] = config_id;
+            cmd_packet[0][1] = config_id;
             for(int i = 0; i < 3; i++){
-               cmd_packet[i+2] = config_val[i];
+               cmd_packet[0][i+2] = config_val[i];
                 
             }
           }
           if(fee_number == 1){
             change_command_packet[1] = true;
-            cmd_packet1[1] = config_id; 
+            cmd_packet[1][1] = config_id; 
             for(int i = 0; i < 3; i++){
-              cmd_packet1[i+2] = config_val[i];
+              cmd_packet[1][i+2] = config_val[i];
             }
           }
           if(fee_number == 2){
             change_command_packet[2] = true; 
-            cmd_packet2[2] = config_id; 
+            cmd_packet[2][2] = config_id; 
             for(int i = 0; i <  3; i++){
-              cmd_packet2[i+2] = config_val[i]; 
+              cmd_packet[2][i+2] = config_val[i]; 
             }
           }
         }

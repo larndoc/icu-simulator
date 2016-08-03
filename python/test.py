@@ -11,8 +11,6 @@ from enum import Enum
 
 logging.basicConfig(filename='example.log',format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 
-
-
 def debug_information(data): 
 	print(binascii.hexlify(data))
 	
@@ -34,12 +32,13 @@ class fee_science_reciever(Thread):
 		data = bytearray((self.port).read(size = 8))
 		self.id	= str(data[0])
 		self.sync_counter       		= ("{}".format(int.from_bytes(data[1 : 5], byteorder = 'big'))); 
-		logging.warning('RECIEVED SCIENCE PACKET')
+		
 		delta_val 				= float(self.sync_counter) * 7.8125 
 		self.time 				= current_time + datetime.timedelta(milliseconds = delta_val) ;
 		self.n_fib 				= int(data[5])
 		self.n_fob 				= int(data[6])
 		self.n_fsc 				= int(data[7])
+		logging.debug('RECIEVED SCIENCE PACKET (FIB:%3d, FOB:%3d, FSC%3d)', self.n_fib, self.n_fob, self.n_fsc)
 		total_data_to_read 			= self.n_fib*10 + self.n_fob*10 + self.n_fsc*10
 		self.fib_lower_limit 			= 8  
 		self.fib_upper_limit    		= self.fib_lower_limit   + 10*self.n_fib
@@ -111,13 +110,18 @@ class fee_science_reciever(Thread):
 
 	
 if __name__ == '__main__':
+		baud_rate = 115200
 		parser = argparse.ArgumentParser();
 		parser.add_argument(dest = 'port', help = "display the interface port to the computer ", type = str)
 		args = parser.parse_args() 
-		s = serial.Serial(args.port, 115200, timeout = 1)
+		s = serial.Serial(args.port, baud_rate, timeout = 1)
 		time.sleep(2)
 		## needed as arduino needs to come up
-		mb = ['1) Set Time Command', '2) Set Config Command', '3) Science Mode', '4) Config Mode', '5) End the script']
+		cmd_menu = ("1) Set Time Command \n"
+					 "2) Set Config Command \n"
+					 "3) Science Mode \n"
+					 "4) Config Mode \n"
+					 "5) End the script \n")
 		fee_interface = ['1) fib interface', '2) fob interface', '3) fsc interface']
 		fee_activate = ['1) fee activate (5)', '2) fee deactivate (6)']
 		inputstring = ''
@@ -164,8 +168,7 @@ if __name__ == '__main__':
 				encoded = nb.encode('utf-8')
 				s.write(encoded)
 			elif (inputstring == ''):
-				for i in range(0, len(mb)):
-					print(mb[i])
+				print(cmd_menu)
 				nb = input('please choose an option: ')
 				if(nb == '4'):
 					inputstring = 'fee_interface'
