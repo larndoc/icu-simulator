@@ -30,13 +30,16 @@ enum set {
   CREATE_PC_PACKET, 
   CLEAR_PC_PACKET,
   STORE_TO_PC, 
-  BEGIN_SYNC, 
+  BEGIN_SYNC,
+  SCIENCE_MODE, 
+  CONFIG_MODE, 
+  CONFIG_COMMAND, 
   DONE_SYNC,
   DEFAULT0
   };
 
-enum set task = DEFAULT0;
-enum set input = BEGIN_SYNC; 
+enum set task  = DEFAULT0;
+enum set input = DEFAULT0; 
 fee_paket fee_packet[3];
 fee_paket* fee_packet_ptr[3]         = {&fee_packet[0], &fee_packet[1], &fee_packet[2]} ;
 pc_data pc_packet                    = {SCIENCE_DATA, 0, 1, 0, 1};        
@@ -50,7 +53,7 @@ byte interface_counter[3]            = {0, 0, 0};
 uint8_t response_packet_counter[3]   = {0, 0, 0};
 bool checksum[3]                     = {false, false, false};
 bool packet_exists[3]                = {false, false, false};
-bool fee_enabled[3]                  = {true, false, true};
+bool fee_enabled[3]                  = {false, false, false};
 HardwareSerial* port[3]              = {&Serial1, &Serial2, &Serial3};
 const uint8_t sync_pins[3]           = {11, 13, 12};
 const uint8_t led_pin                = 10;
@@ -95,7 +98,7 @@ void wait(unsigned long delta_us) {
    the wait function will stall for the amount of time defined by the variable time_us(in microseconds) before we proces the previous packet and send the next packet to the interface
 */
 void timer_isr() {
-  if (input == BEGIN_SYNC){}
+  if (task == DEFAULT0 || task == CONFIG_MODE){}            //if the current state is config_mode or default0 then we want to stop generating any sync signals 
   else {
     t = micros();
     unsigned long time_us = 1000;
@@ -196,39 +199,41 @@ void print_packet(union fee_paket* test_packet, uint8_t index) {
 
 void loop() {
   switch (task) {
-    case BEGIN_SYNC:
-      if(Serial.read() == 'A'){
+    case SCIENCE_MODE: 
+      for(int i = 0; i < 3; i++){
+        if(fee_enabled[i]){
+          pinMode(sync_pins[i],  OUTPUT); 
+          digitalWrite(sync_pins[i], LOW); 
+          port[i]->begin(BAUD_RATE);
+        }
         input = ADD_DATA;
-        
+        task = DEFAULT0;                                                               //we proceed to listening for the port at the enabled fee                                                     
       }
-      else{
-       
-        input = BEGIN_SYNC; 
-      }
+      break; 
+
+     case CONFIG_MODE: 
+      input = CONFIG_MODE;                                                              //disable the timer isr in config_mode i.e stop generating any sync pulses
       task = DEFAULT0;
-      break;
+     break; 
       
     case STORE_TO_PC:   
        Serial.write(pc_packet.arr , TOTAL_PC_PCKT_SIZE);
       input = ADD_DATA; 
       task = DEFAULT0;
       break; 
-
       
     case ADD_DATA:
-
       if (sync_counter == old_counter) {
         for (int i = 0; i < 3; i++) {
           if(fee_enabled[i]){
           check_port(port[i], i);
           }
         }
-        //Serial.write(fee_packet_ptr[1]->science_data,10);
         input = ADD_DATA;
       }
       else if (sync_counter > old_counter) {
         old_counter = sync_counter;
-        input = CLEAR_PC_PACKET;
+        input = CREATE_PC_PACKET;
       }
       task = DEFAULT0; 
       break; 
@@ -254,39 +259,71 @@ void loop() {
          }
         input = STORE_TO_PC; 
         task = DEFAULT0; 
-    break;
-
-    case CLEAR_PC_PACKET: 
-    
-
-    input = CREATE_PC_PACKET; 
-    
-    task = DEFAULT0; 
+     
     break; 
-
-    
+ 
   case DEFAULT0:
-    if(Serial.read() == '5'){
-     Serial1.end(); 
-     Serial2.end(); 
-     Serial3.end();
-      
+  Serial.flush();
+    if(Serial.available() > 0){
+    // Serial.println("HELLO"); 
+    byte token[4]; 
+    int a = Serial.readBytes(token, 4);               //this is the external input to the system
+    Serial.println(int(token[0]));
+    if(token[3] == '3'){
+      input = SCIENCE_MODE; 
     }
-    if(input == STORE_TO_PC){
-      task = STORE_TO_PC; 
+
+    else if(token[3] == '2'){
+      input = CONFIG_COMMAND; 
     }
-    else if(input == ADD_DATA){
-      task = ADD_DATA; 
+
+    else if(token[3] == '4'){
+      input = CONFIG_MODE;
     }
-    else if(input == BEGIN_SYNC){
-      task = BEGIN_SYNC; 
+
+    else if((input == CONFIG_MODE) && (token[3] == '5')){
+     if(token[0] = '0'){
+      fee_enabled[0] = true; 
+     }
+     if(token[1] = '1'){
+      fee_enabled[1] = true;
+     }
+     if(token[2] = '2'){
+      fee_enabled[2] = true; 
+     }
     }
-    else if(input == CLEAR_PC_PACKET){
-      task = CLEAR_PC_PACKET; 
+
+    else if((input == CONFIG_MODE) && (token[3] == '6')){
+      fee_enabled[token[0]] = false; 
     }
-    else if(input == CREATE_PC_PACKET){
-      task = CREATE_PC_PACKET; 
+    task = DEFAULT0 ;
     }
+    
+     //***********************************************************NOTHING TO READ FROM THE SERIAL PORT******************************************************//
+     else{
+       if(input == DEFAULT0){
+        task = DEFAULT0; 
+        input = DEFAULT0; 
+       }
+       else if (input == SCIENCE_MODE){
+        task = SCIENCE_MODE; 
+       }
+       else if(input == CONFIG_MODE){
+        task = CONFIG_MODE; 
+       }
+       else if(input == CONFIG_COMMAND){
+        task = CONFIG_COMMAND; 
+       }
+       else if(input == ADD_DATA){
+        task = ADD_DATA; 
+       }
+       else if(input == CREATE_PC_PACKET){
+        task = CREATE_PC_PACKET; 
+       }
+       else if(input == STORE_TO_PC){
+        task = STORE_TO_PC; 
+       }     
+     }
     break ;
     default: ;
   }

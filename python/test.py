@@ -6,16 +6,25 @@ import datetime
 import binascii
 from abc import ABCMeta, abstractmethod
 from threading import Thread
-
-
-class fee_packet: 
-	buffer				= ['', '', '']
-	def __init__(self, f1, f2, f3, serial_port): 
-		self.fib_handler = f1
-		self.fob_handler = f2
-		self.fsc_handler = f3
-		self.port = serial_port
+from enum import Enum
+def debug_information(data): 
+	print(binascii.hexlify(data))
 	
+	
+
+class fee_science_reciever(Thread): 
+	#initialization of the baud rate 
+	#initialization of the argument parser for the user to enter the desired communication port 
+	#initialization of the science data and the x, y and z components from all 3 interfaces 
+	#setting up the communication via the usb interface with a timeout of 0.5 seconds 
+	#the print function messes with the data that is being printed on the console 
+	#s = serial.Serial('COM4', 115200, timeout = 1)
+	buffer				= ['', '', '']
+	def __init__(self, serial_port): 
+		super(fee_science_reciever, self).__init__()
+		self.port = serial_port
+		self.receive_serial = True 
+
 	def update(self, current_time):	
 		data = bytearray((self.port).read(size = 8))
 		self.id	= str(data[0])
@@ -64,9 +73,9 @@ class fee_packet:
 			x	=   ("{}".format(int.from_bytes([self.buffer[1][2], self.buffer[1][1], self.buffer[1][0]], byteorder = 'little')))
 			y	=   ("{}".format(int.from_bytes([self.buffer[1][5], self.buffer[1][4], self.buffer[1][3]], byteorder = 'little')))
 			z	=   ("{}".format(int.from_bytes([self.buffer[1][8], self.buffer[1][7], self.buffer[1][6]], byteorder = 'little')))
-			sensor_range = self.science_data[1][9]
-			self.fib_handler.write(self.time.strftime("%Y%m%d %H:%M:%S.%f") + "," + str(self.id) + "," + str(self.n_fsc) + "," + str(self.n_fob) + "," + str(self.n_fsc) + ",")
-			self.fib_handler.write(x + "," + y + "," + z + "," + sensor_range + "," + "\n")
+			sensor_range = self.buffer[1][9]
+			self.fob_handler.write(self.time.strftime("%Y%m%d %H:%M:%S.%f") + "," + str(self.id) + "," + str(self.n_fsc) + "," + str(self.n_fob) + "," + str(self.n_fsc) + ",")
+			self.fob_handler.write(str(x) + "," + y + "," + z + "," + str(sensor_range) + "," + "\n")
 	
 	def write_fib(self):
 		for i in range(0, self.get_nfib()): 
@@ -76,55 +85,106 @@ class fee_packet:
 			z	=   ("{}".format(int.from_bytes([self.buffer[0][6], self.buffer[0][7], self.buffer[0][6]], byteorder = 'little')))
 			self.fib_handler.write(self.time.strftime("%Y%m%d %H:%M:%S.%f") + "," + str(self.id) + "," + str(self.n_fib) + "," + str(self.n_fob) + "," + str(self.n_fsc) + ",")
 			self.fib_handler.write(x + "," + y + "," + z + "\n")
-
-
-def debug_information(data): 
-	print(binascii.hexlify(data))
-	
-	
-
-class myThread(Thread): 
-	#initialization of the baud rate 
-	#initialization of the argument parser for the user to enter the desired communication port 
-	#initialization of the science data and the x, y and z components from all 3 interfaces 
-	#setting up the communication via the usb interface with a timeout of 0.5 seconds 
-	#the print function messes with the data that is being printed on the console 
-	#s = serial.Serial('COM4', 115200, timeout = 1)
-	def __init__(self, s):
-		super(myThread, self).__init__()
-		self.s = s
-		
 		
 	def run(self):
 	# arduino startup time
 	#timestamp for each of the filenames
 		#time.sleep(1)
 		t  = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-		self.s.flushInput
+		self.port.flushInput()
 	#opening all the 3 files with the time_stamp 
-		with open("fib_sci_" + t + ".csv", 'a') as fib_handler, open ("fob_sci_" + t + ".csv", 'a') as fob_handler,  open ("fsc_sci_" + t + ".csv", 'a') as fsc_handler:
+		with open("fib_sci_" + t + ".csv", 'a') as self.fib_handler, open ("fob_sci_" + t + ".csv", 'a') as self.fob_handler,  open ("fsc_sci_" + t + ".csv", 'a') as self.fsc_handler:
 			header = "time" + "," + "status" + "," + "n_fib" + "," + "n_fob" + "," + "n_fsc" + ","
-			fee_pack = fee_packet( fib_handler, fob_handler, fsc_handler, self.s)
-			fee_pack.fib_handler.write(header + "x" + "," + "y" + "," + "z" + "\n")
-			fee_pack.fob_handler.write(header + "x" + "," + "y" + "," + "z" + "\n")
-			fee_pack.fsc_handler.write(header + "sensor temperature controller" + "," + "laser temperature controller" + "," + "laser current controller" + "," + "microwave reference controller" + "," + "zeeman_controller" + "," +  "science_data_id" + "," +  "science_data" + "," + "time_stamp" + "\n" )
+			self.fib_handler.write(header + "x" + "," + "y" + "," + "z" + "\n")
+			self.fob_handler.write(header + "x" + "," + "y" + "," + "z" + "\n")
+			self.fsc_handler.write(header + "sensor temperature controller" + "," + "laser temperature controller" + "," + "laser current controller" + "," + "microwave reference controller" + "," + "zeeman_controller" + "," +  "science_data_id" + "," +  "science_data" + "," + "time_stamp" + "\n" )
 			current_time = datetime.datetime.now() 
-			while True:
-				fee_pack.update(current_time)
+			while self.receive_serial:
+				if self.port.in_waiting > 0:
+					self.update(current_time)
 
+					
+class telecommunication_states(enum):
+	science_mode = 1 
+	config_mode  = 2 
+	default_mode = 0
+	
 if __name__ == '__main__':
+		telecommunication_states states = default_mode;
 		parser = argparse.ArgumentParser();
 		parser.add_argument(dest = 'port', help = "display the interface port to the computer ", type = str)
 		args = parser.parse_args() 
 		s = serial.Serial(args.port, 115200, timeout = 1)
-		myThreadOb1 = myThread(s)
-		s.write(b'A')
 		time.sleep(2)
-		s.flushInput()
+		## needed as arduino needs to come up
+		
+		myThreadOb1 = fee_science_reciever(s)
 		myThreadOb1.start()
-		myThreadOb1.s.write(b'A')
-		time.sleep(1)	
-	
+		while not myThreadOb1.is_alive():
+			pass
+		print("Thread started")
+		
+		s.write(b'A')
+		
+		print("please choose from the following \n")
+		print("1) science mode")
+		print("2) config mode")
+		nb = input(" ")
+		
+		#time.sleep(2)
+		#s.flushInput()
+		
+		#myThreadOb1.s.write(b'A')
+		#time.sleep(1)
+		#waiting for the join to finish 
+		##
+		## here is all the code that needs to run in the main program
+		##
+		##
+		if(states == default_mode): 
+			if(nb == '3'): 
+				print('entering science mode')
+				s.write(b'3')
+				
+			if(nb == '4'): 
+				print('entering config mode')
+				s.write(b'4')
+			
+			if(nb == '6'):
+				print('fee_deactivate')
+				s.write(b'6') 
+			if(nb == '5'):
+				print('fee activate')
+				s.write(b'5')
+			
+			
+			elif(nb == '2'): 
+				
+				states = config_mode
+			
+			elif(nb == '3'): 
+				
+				states = science_mode
+			else: 
+				print('invalid command')
+				states = config_mode
+		if(nb == '3'):
+			print("entering science mode")
+			while myThreadOb1.receive_serial:
+				nb = input("please enter an input: ")
+				if(nb == '5'):
+					s.write(b'5')
+					myThreadOb1.receive_serial = False
+		elif(nb == '4'):
+			print("entering config mode")
+			s.write(b'4')				#stop sending sync pulses 
+			if(nb == ')	
+			 
+		
+		
+		
+		myThreadOb1.join()
+		print("program end")
 	
 		
 	
