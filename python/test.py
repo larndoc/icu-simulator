@@ -4,9 +4,15 @@ import string
 import time 
 import datetime
 import binascii
+import logging
 from abc import ABCMeta, abstractmethod
 from threading import Thread
 from enum import Enum
+
+logging.basicConfig(filename='example.log',format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+
+
+
 def debug_information(data): 
 	print(binascii.hexlify(data))
 	
@@ -28,6 +34,7 @@ class fee_science_reciever(Thread):
 		data = bytearray((self.port).read(size = 8))
 		self.id	= str(data[0])
 		self.sync_counter       		= ("{}".format(int.from_bytes(data[1 : 5], byteorder = 'big'))); 
+		logging.warning('RECIEVED SCIENCE PACKET')
 		delta_val 				= float(self.sync_counter) * 7.8125 
 		self.time 				= current_time + datetime.timedelta(milliseconds = delta_val) ;
 		self.n_fib 				= int(data[5])
@@ -110,16 +117,67 @@ if __name__ == '__main__':
 		s = serial.Serial(args.port, 115200, timeout = 1)
 		time.sleep(2)
 		## needed as arduino needs to come up
-		
+		mb = ['1) Set Time Command', '2) Set Config Command', '3) Science Mode', '4) Config Mode', '5) End the script']
+		fee_interface = ['1) fib interface', '2) fob interface', '3) fsc interface']
+		fee_activate = ['1) fee activate (5)', '2) fee deactivate (6)']
+		inputstring = ''
 		myThreadOb1 = fee_science_reciever(s)
 		myThreadOb1.start()
 		while not myThreadOb1.is_alive():
 			pass
 			
-		while(True): 
-			nb = input('please enter an input: ')
-			encoded = nb.encode('utf-8')
-			s.write(encoded)
+		while(True):
+			if(inputstring == 'fee_interface'): 
+				print('50) enable fib') 
+				print('51) enabled fob') 
+				print ('52) enabled fsc') 
+				print ('60) disable fib') 
+				print ('61) disable fob') 
+				print ('62) disable fsc') 
+				
+				nb = input('please choose an option: ')
+				if(nb == '50'): 
+					inputstring = 'fee_interface' 
+					print('enabled fib')
+				
+				elif(nb == '51'):
+					inputstring = 'fee_interface'
+					print('enabled fob')
+				elif(nb == '52'): 
+					inputstring = 'fee_interface'
+					print ('enabled fsc')
+				elif(nb == '60'): 
+					inputstring = 'fee_interface'
+					print ('disabled fib')
+				elif(nb == '61'): 
+					inputstring = 'fee_interface'
+					print ('disabled fob')
+				elif(nb == '62'): 
+					inputstring = 'fee_interface' 
+					print ('disabled fsc')
+				elif(nb == '3'): 
+					inputstring = ''
+					print ('entering science mode')
+				else: 
+					print('invalid command')
+					inputstring = 'fee_interface'
+				encoded = nb.encode('utf-8')
+				s.write(encoded)
+			elif (inputstring == ''):
+				for i in range(0, len(mb)):
+					print(mb[i])
+				nb = input('please choose an option: ')
+				if(nb == '4'):
+					inputstring = 'fee_interface'
+				elif(nb == '3'): 
+					print('initiating science mode')
+				elif(nb != '2' or nb != '1' or nb != '5' or nb != '6'): 
+					print('invalid command')
+					inputstring = ''
+				else: 
+					inputstring = ''
+				
+				
 		#time.sleep(2)
 		#s.flushInput()
 		

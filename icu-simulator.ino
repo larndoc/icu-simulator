@@ -307,13 +307,13 @@ void loop() {
     else if(input == CONFIG_COMMAND){
       int bytesToRead = Serial.available(); 
       while(bytesToRead == 0); 
-      if(bytesToRead > 3){
+      if(bytesToRead > 0){
         uint8_t arr[bytesToRead];
         Serial.readBytes(arr, bytesToRead); 
         const uint8_t fee_number = arr[0] - 48;
         const uint8_t read_write = arr[1] - 48; 
         const uint8_t config_id =  arr[2] - 48;
-        uint8_t config_val[bytesToRead - 3]; 
+        uint8_t config_val[3]; 
         for (int i = 0; i < bytesToRead - 3; i++){
           config_val[i] =  arr[2 + i]; 
         }
@@ -329,7 +329,7 @@ void loop() {
           if(fee_number == 0){
             change_command_packet[0] = true; 
             cmd_packet[1] = config_id;
-            for(int i = 0; i < bytesToRead - 3; i++){
+            for(int i = 0; i < 3; i++){
                cmd_packet[i+2] = config_val[i];
                 
             }
@@ -337,14 +337,14 @@ void loop() {
           if(fee_number == 1){
             change_command_packet[1] = true;
             cmd_packet1[1] = config_id; 
-            for(int i = 0; i < bytesToRead - 3; i++){
+            for(int i = 0; i < 3; i++){
               cmd_packet1[i+2] = config_val[i];
             }
           }
           if(fee_number == 2){
             change_command_packet[2] = true; 
             cmd_packet2[2] = config_id; 
-            for(int i = 0; i < bytesToRead - 3; i++){
+            for(int i = 0; i <  3; i++){
               cmd_packet2[i+2] = config_val[i]; 
             }
           }
