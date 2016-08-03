@@ -63,6 +63,7 @@ unsigned long t;
 bool overflow = false;
 unsigned sync_counter           = 0;
 unsigned long old_counter = 0;
+bool change_command_packet[3]     = {false, false, false};
 bool send_command = false;
 bool serial_port1 = false;
 bool check_cap[3];
@@ -182,14 +183,6 @@ void print_packet(union fee_paket* test_packet, uint8_t index) {
   current_time = now();
   String time_elapsed = "time elapased in s: " + String(current_time) + "\t";
   String interface = "recieved from interface: " + String(index + 1) + "\t";
-  //Serial.println(pc_packet_ptr->time1);
-
-
-
-  // if(fee_enabled[2]){
-  //  Serial.write(pc_packet_ptr->time1);
-  //}
-
   digitalWrite(10, LOW);
 }
 
@@ -205,25 +198,10 @@ void loop() {
         task = DEFAULT0;                                                           
       break; 
 
+
+     case CONFIG_COMMAND: 
+     
      case CONFIG_MODE: 
-     /*
-      uint8_t interface[2];
-      if (Serial.available() > 0){
-       Serial.readBytes(interface, 2); 
-       Serial.println(interface[2]);
-        if(interface[1] - 48 == '5'){
-          fee_activate(interface[2]); 
-          input = CONFIG_MODE; 
-        }
-        if(interface[0] - 48 == '6'){
-          fee_deactivate(interface[2]); 
-          input = CONFIG_MODE; 
-        }
-      }
-      else{
-        input = CONFIG_MODE; 
-      }
-     */
       if(!fee_enabled[0]){
         for(int i = 0; i < 10; i++){
           pc_packet_ptr->sci_fib[i] = 0; 
@@ -325,6 +303,54 @@ void loop() {
         input = CONFIG_MODE; 
       }
     }
+
+    else if(input == CONFIG_COMMAND){
+      int bytesToRead = Serial.available(); 
+      while(bytesToRead == 0); 
+      if(bytesToRead > 3){
+        uint8_t arr[bytesToRead];
+        Serial.readBytes(arr, bytesToRead); 
+        const uint8_t fee_number = arr[0] - 48;
+        const uint8_t read_write = arr[1] - 48; 
+        const uint8_t config_id =  arr[2] - 48;
+        uint8_t config_val[bytesToRead - 3]; 
+        for (int i = 0; i < bytesToRead - 3; i++){
+          config_val[i] =  arr[2 + i]; 
+        }
+        if(read_write == 0){
+          //we want to read 
+          //the rest of the code should go here 
+          check_port(port[fee_number], fee_number); 
+        }
+        else if(read_write == 1){
+          //we want to write 
+          //the rest of the code should go here
+          
+          if(fee_number == 0){
+            change_command_packet[0] = true; 
+            cmd_packet[1] = config_id;
+            for(int i = 0; i < bytesToRead - 3; i++){
+               cmd_packet[i+2] = config_val[i];
+                
+            }
+          }
+          if(fee_number == 1){
+            change_command_packet[1] = true;
+            cmd_packet1[1] = config_id; 
+            for(int i = 0; i < bytesToRead - 3; i++){
+              cmd_packet1[i+2] = config_val[i];
+            }
+          }
+          if(fee_number == 2){
+            change_command_packet[2] = true; 
+            cmd_packet2[2] = config_id; 
+            for(int i = 0; i < bytesToRead - 3; i++){
+              cmd_packet2[i+2] = config_val[i]; 
+            }
+          }
+        }
+      }
+    }
     task = DEFAULT0;
     }
     }
@@ -392,4 +418,6 @@ void deactivate_pins(char index){
   digitalWrite(sync_pins[index - 48], LOW); 
   port[index - 48]->end(); 
 }
+
+
 

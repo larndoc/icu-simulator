@@ -15,12 +15,36 @@
   {
       if(index == 0){
         port->write(cmd_packet, PACKET_SIZE); 
+        if(change_command_packet[0] = true){
+          cmd_packet[0] = 1; 
+          cmd_packet[1] = 0; 
+          cmd_packet[2] = 0; 
+          cmd_packet[3] = 0; 
+          cmd_packet[4] = 0; 
+          cmd_packet[5] = 1;  
+        }
       }
       if(index == 1){
-        port->write(cmd_packet1, PACKET_SIZE); 
+        port->write(cmd_packet1, PACKET_SIZE);
+        if(change_command_packet[1]){
+          cmd_packet1[0] = 1; 
+          cmd_packet1[1] = 0; 
+          cmd_packet1[2] = 0; 
+          cmd_packet1[3] = 0; 
+          cmd_packet1[4] = 0; 
+          cmd_packet1[5] = 1;  
+        }
       }
       if(index == 2){
-        port->write(cmd_packet2, PACKET_SIZE); 
+        port->write(cmd_packet2, PACKET_SIZE);
+        if(change_command_packet[2]){
+          cmd_packet2[0] = 1; 
+          cmd_packet2[1] = 0; 
+          cmd_packet2[2] = 0; 
+          cmd_packet2[3] = 0; 
+          cmd_packet2[4] = 0; 
+          cmd_packet2[5] = 1;  
+        }
       }
   }
   
