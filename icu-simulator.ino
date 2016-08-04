@@ -42,7 +42,7 @@ enum set task  = DEFAULT0;
 enum set input = DEFAULT0; 
 fee_paket fee_packet[3];
 fee_paket* fee_packet_ptr[3]         = {&fee_packet[0], &fee_packet[1], &fee_packet[2]} ;
-pc_data pc_packet                    = {SCIENCE_DATA, 0, 1, 0, 1};        
+pc_data pc_packet                    = {SCIENCE_DATA, 0, 0, 0, 1};        
 pc_data* pc_packet_ptr               = &pc_packet;
 byte* pc_data[3]                     = {pc_packet_ptr->sci_fib, pc_packet_ptr->sci_fob, pc_packet_ptr->sci_fib};
 uint8_t cmd_packet[3][PACKET_SIZE]         = {{1, 0, 0, 0, 0, 1}, {1, 0, 0, 0, 0,  1}, {1, 0, 0, 0, 0, 1}};
@@ -98,7 +98,10 @@ void wait(unsigned long delta_us) {
    the wait function will stall for the amount of time defined by the variable time_us(in microseconds) before we proces the previous packet and send the next packet to the interface
 */
 void timer_isr() {
-  if (task == DEFAULT0 || task == CONFIG_MODE){}            //if the current state is config_mode or default0 then we want to stop generating any sync signals 
+  if(input == DEFAULT0 || input == CONFIG_MODE){
+    sync_counter = 0; 
+  }
+            //if the current state is config_mode or default0 then we want to stop generating any sync signals 
   else {
     t = micros();
     unsigned long time_us = 1000;
@@ -134,10 +137,10 @@ void timer_isr() {
         digitalWrite(sync_pins[i], LOW);
       }
     }
-      sync_counter++;
-      pc_packet.time1 = uint32_t (__builtin_bswap32(sync_counter));
- 
+    sync_counter++; 
+pc_packet.time1 = uint32_t (__builtin_bswap32(sync_counter));
 }
+
 }
 
 
@@ -195,26 +198,8 @@ void loop() {
         input = ADD_DATA;
         task = DEFAULT0;                                                           
       break; 
-
-
-     case CONFIG_COMMAND: 
      
      case CONFIG_MODE: 
-      if(!fee_enabled[0]){
-        for(int i = 0; i < 10; i++){
-          pc_packet_ptr->sci_fib[i] = 0; 
-        }
-      }
-      if(!fee_enabled[1]){
-        for(int i = 0; i < 10; i++){
-          pc_packet_ptr->sci_fob[i] = 0; 
-        }
-      if(fee_enabled[2]){
-        for(int i = 0; i < 10; i++){
-          pc_packet_ptr->sci_fsc[i] = 0; 
-        }
-      }
-      }
       input = CONFIG_MODE;                                                              //disable the timer isr in config_mode i.e stop generating any sync pulses
       task = DEFAULT0;
      break; 
@@ -326,10 +311,10 @@ void loop() {
           
           if(fee_number == 0){
             change_command_packet[0] = true; 
+            cmd_packet[0][0] = 5; 
             cmd_packet[0][1] = config_id;
             for(int i = 0; i < 3; i++){
-               cmd_packet[0][i+2] = config_val[i];
-                
+               cmd_packet[0][i+2] = config_val[i];  
             }
           }
           if(fee_number == 1){

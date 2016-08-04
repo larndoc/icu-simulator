@@ -7,9 +7,14 @@ import binascii
 import logging
 from abc import ABCMeta, abstractmethod
 from threading import Thread
-from enum import Enum
 
-logging.basicConfig(filename='example.log',format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+
+
+
+logging.basicConfig(filename='example.log', format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
+start_science = False
 
 def debug_information(data): 
 	print(binascii.hexlify(data))
@@ -27,6 +32,16 @@ class fee_science_reciever(Thread):
 		super(fee_science_reciever, self).__init__()
 		self.port = serial_port
 		self.receive_serial = True 
+		self.start_science = False
+		self.fib_counter = 0; 
+		self.fob_counter = 0; 
+		self.old_minutes = 0; 
+		self.fsc_counter = 0; 
+		
+	def get_bit_rate(self): 
+		logging.debug('current bit rate for fsc per second is ' + str(self.fsc_counter * self.total_bytes/60))
+		logging.debug('current bit rate for fib per second is ' + str(self.fib_counter * self.total_bytes/60)) 
+		logging.debug('current bit rate for fob per second is ' + str(self.fob_counter * self.total_bytes/60)) 
 
 	def update(self, current_time):	
 		data = bytearray((self.port).read(size = 8))
@@ -38,7 +53,15 @@ class fee_science_reciever(Thread):
 		self.n_fib 				= int(data[5])
 		self.n_fob 				= int(data[6])
 		self.n_fsc 				= int(data[7])
-		logging.debug('RECIEVED SCIENCE PACKET (FIB:%3d, FOB:%3d, FSC%3d)', self.n_fib, self.n_fob, self.n_fsc)
+		self.total_bytes        = self.n_fib*10 + self.n_fob*10 + self.n_fsc*10 + 8
+		self.fib_counter = self.fib_counter + self.n_fib 
+		self.fob_counter = self.fob_counter + self.n_fob
+		self.fsc_counter = self.fsc_counter + self.n_fsc
+		print(self.time)
+		if(self.time.minute != self.old_minutes): 
+			self.get_bit_rate();
+		#self.fsc_counter = self.fsc_counter + self.n_fsc
+		#logging.debug('RECIEVED SCIENCE PACKET (FIB:%3d, FOB:%3d, FSC%3d)', self.n_fib, self.n_fob, self.n_fsc)
 		total_data_to_read 			= self.n_fib*10 + self.n_fob*10 + self.n_fsc*10
 		self.fib_lower_limit 			= 8  
 		self.fib_upper_limit    		= self.fib_lower_limit   + 10*self.n_fib
@@ -46,7 +69,7 @@ class fee_science_reciever(Thread):
 		self.fob_upper_limit			= self.fob_lower_limit + 10*self.n_fob 
 		self.fsc_lower_limit 			= self.fob_upper_limit 
 		self.fsc_upper_limit 			= self.fsc_lower_limit + 10*self.n_fsc
-		
+		self.old_minutes				= self.time.minute
 		self.write_fib()
 		self.write_fob()
 		self.write_fsc()		
@@ -69,7 +92,7 @@ class fee_science_reciever(Thread):
 			science_data_id 				= self.buffer[2][3]
 			science_data_val				= ("{}".format(int.from_bytes(self.buffer[2][4:8], byteorder = 'big')))				
 			time_stamp						= ("{}".format(int.from_bytes(self.buffer[2][8:11], byteorder = 'big')))
-			self.fsc_handler.write(self.time.strftime("%Y%m%d %H:%M:%S.%f") + "," + str(self.id) + "," + str(self.n_fsc) + "," + str(self.n_fob) + "," + str(self.n_fsc) + ",")
+			self.fsc_handler.write(self.time.strftime("%Y%m%d %H:%M:%S.%f") + "," + str(self.id) + "," + str(self.n_fib) + "," + str(self.n_fob) + "," + str(self.n_fsc) + ",")
 			self.fsc_handler.write(str(sensor_temp_controller) + "," + str(laser_temp_controller) + "," + str(laser_current_controller) + "," + str(microwave_reference_controller) + "," +  str(zeeman_controller) + "," + str(science_data_id) + "," + str(science_data_val) + "," + str(time_stamp) + "\n")
 	
 	def write_fob(self):
@@ -95,6 +118,8 @@ class fee_science_reciever(Thread):
 	# arduino startup time
 	#timestamp for each of the filenames
 		#time.sleep(1)
+		while(self.start_science == False): 
+			pass
 		t  = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 		self.port.flushInput()
 	#opening all the 3 files with the time_stamp 
@@ -110,6 +135,7 @@ class fee_science_reciever(Thread):
 
 	
 if __name__ == '__main__':
+
 		baud_rate = 115200
 		parser = argparse.ArgumentParser();
 		parser.add_argument(dest = 'port', help = "display the interface port to the computer ", type = str)
@@ -122,6 +148,15 @@ if __name__ == '__main__':
 					 "3) Science Mode \n"
 					 "4) Config Mode \n"
 					 "5) End the script \n")
+		
+		
+		fee_interface_menu = ("50) enable fib \n"
+							   "51) enable fob \n"
+							   "52) enable fsc  \n"
+							   "60) disable fib \n"
+							   "61) disable fob \n" 
+							   "62) disable fsc \n"
+							   )
 		fee_interface = ['1) fib interface', '2) fob interface', '3) fsc interface']
 		fee_activate = ['1) fee activate (5)', '2) fee deactivate (6)']
 		inputstring = ''
@@ -130,16 +165,14 @@ if __name__ == '__main__':
 		while not myThreadOb1.is_alive():
 			pass
 			
-		while(True):
+		while(myThreadOb1.receive_serial):
 			if(inputstring == 'fee_interface'): 
-				print('50) enable fib') 
-				print('51) enabled fob') 
-				print ('52) enabled fsc') 
-				print ('60) disable fib') 
-				print ('61) disable fob') 
-				print ('62) disable fsc') 
-				
+				print(fee_interface_menu) 	
 				nb = input('please choose an option: ')
+				try: 
+					choice = int(nb)
+				except ValueError as error_msg: 
+					print(error_msg)
 				if(nb == '50'): 
 					inputstring = 'fee_interface' 
 					print('enabled fib')
@@ -161,6 +194,7 @@ if __name__ == '__main__':
 					print ('disabled fsc')
 				elif(nb == '3'): 
 					inputstring = ''
+					myThreadOb1.start_science = True;
 					print ('entering science mode')
 				else: 
 					print('invalid command')
@@ -170,15 +204,23 @@ if __name__ == '__main__':
 			elif (inputstring == ''):
 				print(cmd_menu)
 				nb = input('please choose an option: ')
+				try: 
+					choice = int(nb)
+				except ValueError as error_msg: 
+					print('unable to parse choice as an integer %s' % error_msg)
+					logging.debug(error_msg)
+					continue 
+					
 				if(nb == '4'):
 					inputstring = 'fee_interface'
 				elif(nb == '3'): 
 					print('initiating science mode')
-				elif(nb != '2' or nb != '1' or nb != '5' or nb != '6'): 
-					print('invalid command')
-					inputstring = ''
+				elif(nb == '5'): 
+					myThreadOb1.receive_serial = False; 
 				else: 
 					inputstring = ''
+				encoded = nb.encode('utf-8')
+				s.write(encoded)
 				
 				
 		#time.sleep(2)

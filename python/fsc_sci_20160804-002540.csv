@@ -1,0 +1,2 @@
+time,status,n_fib,n_fob,n_fsc,sensor temperature controller,laser temperature controller,laser current controller,microwave reference controller,zeeman_controller,science_data_id,science_data,time_stamp
+20160804 00:25:40.333094,0,0,0,1,32,5,32,5,37,37,26917,105
