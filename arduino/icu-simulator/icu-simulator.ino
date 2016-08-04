@@ -55,15 +55,23 @@ byte* pc_data[3]                     = {pc_packet_ptr->sci_fib, pc_packet_ptr->s
 
 /*a 2-D (3 x 6) array for the command packets that includes the command packet to be sent to each interface */
 uint8_t cmd_packet[3][PACKET_SIZE]   = {{1, 0, 0, 0, 0, 1}, {1, 0, 0, 0, 0,  1}, {1, 0, 0, 0, 0, 1}};
+
+/*used to keep track of the total number of fee packets recieved by the icu simulator from the fib, fob and fsc interfaces respectively*/
 uint16_t global_packet_counter[3]    = {0, 0, 0};
-byte interface_counter[3]            = {0, 0, 0}; 
+
+/*response packet counter is used to keep track of how many packets are recieved from the three interfaces by the icu-simulator before the icu simulator has recieved a packet for processing */ 
 uint8_t response_packet_counter[3]   = {0, 0, 0};
 bool checksum[3]                     = {false, false, false};
 bool packet_exists[3]                = {false, false, false};
+
+/*used to configure the appropiate fee interface */ 
 bool fee_enabled[3]                  = {false, false, false};
+
+/*pointer to the three serial ports on the arduino due board */ 
 HardwareSerial* port[3]              = {&Serial1, &Serial2, &Serial3};
+
+/*the three synchronisation pins on the arduino due board */ 
 const uint8_t sync_pins[3]           = {11, 13, 12};
-int bytes1; 
 const uint8_t led_pin                = 10;
 unsigned long current_time;
 unsigned long t;
@@ -72,7 +80,6 @@ unsigned sync_counter           = 0;
 unsigned long old_counter = 0;
 bool change_command_packet[3]     = {false, false, false};
 bool send_command = false;
-bool serial_port1 = false;
 bool check_cap[3];
 bool recieved_reply = false;
 /*prototype of the functions implemented in the filed /* 
@@ -243,10 +250,8 @@ void loop() {
     break; 
  
   case DEFAULT0:
-
-    bytes1 = Serial.available(); 
-    if(bytes1 > 0){
-    if(bytes1 == 1){ 
+    if(Serial.available() > 0){
+    if(Serial.available()== 1){ 
     int cmd_id = Serial.read(); 
     
     if(cmd_id == '3'){
