@@ -1,17 +1,11 @@
 #ifndef PC_DATA_DUMP_H
 #define PC_DATA_DUMP_H
-
-#define FIB_SCI_DATA_SIZE   10
-#define FOB_SCI_DATA_SIZE   10
-#define FSC_SCI_DATA_SIZE   10
-#define N_FIB               0
-#define N_FOB               0
-#define N_FSC               1
-#define TOTAL_FIB_SIZE      N_FIB*FIB_SCI_DATA_SIZE
-#define TOTAL_FOB_SIZE      N_FOB*FOB_SCI_DATA_SIZE 
-#define TOTAL_FSC_SIZE      N_FSC*FSC_SCI_DATA_SIZE
-#define TOTAL_PC_PCKT_SIZE  TOTAL_FIB_SIZE + TOTAL_FOB_SIZE + TOTAL_FSC_SIZE  + 8
-#pragma pack(1)                                                 /*eliminates byte padding*/
+#pragma pack(1)  
+ int number_fib = 0; 
+ int number_fob = 0; 
+ int number_fsc = 0; 
+ int total_packets = 8 + 10*number_fib + 10*number_fob + 10*number_fsc;
+                                               /*eliminates byte padding*/
 union pc_data
 {
   struct
@@ -21,11 +15,11 @@ union pc_data
     byte n_fib; 
     byte n_fob; 
     byte n_fsc; 
-    byte sci_fib[TOTAL_FIB_SIZE]; 
-    byte sci_fob[TOTAL_FOB_SIZE]; 
-    byte sci_fsc[TOTAL_FSC_SIZE]; 
+    byte sci_fib[10]; 
+    byte sci_fob[10]; 
+    byte sci_fsc[10]; 
   };
-  byte arr[8+TOTAL_FIB_SIZE+TOTAL_FOB_SIZE+TOTAL_FSC_SIZE]; 
+  byte arr[38]; 
 };
 
 #endif

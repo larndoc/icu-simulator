@@ -30,16 +30,13 @@
 
 /*set of states that the user transverses through based on the input(which can be intrinsic or defined by the user(external)*/ 
 enum set {
-  ADD_DATA =0, 
-  SEND,
+  SCIENCE_MODE=0, 
   CREATE_PC_PACKET, 
   CLEAR_PC_PACKET,
   STORE_TO_PC, 
   BEGIN_SYNC,
-  SCIENCE_MODE, 
   CONFIG_MODE, 
   CONFIG_COMMAND, 
-  DONE_SYNC,
   DEFAULT0
   };
 
@@ -51,7 +48,7 @@ fee_paket fee_packet[3];
 fee_paket* fee_packet_ptr[3]         = {&fee_packet[0], &fee_packet[1], &fee_packet[2]} ;
 
 /*declaration of the pc packet, used to package the recieved bytes from the three interfaces and write it out the serial port, the struct used for pc packet is a union defined in pc_data_dump.h */
-pc_data pc_packet                    = {STATUS, 0, 0, 0, 1};       
+pc_data pc_packet                    = {STATUS, 0, number_fib, number_fob, number_fsc};       
 pc_data* pc_packet_ptr               = &pc_packet;
 byte* pc_data[3]                     = {pc_packet_ptr->sci_fib, pc_packet_ptr->sci_fob, pc_packet_ptr->sci_fsc};
 
@@ -78,6 +75,7 @@ bool send_command = false;
 bool serial_port1 = false;
 bool check_cap[3];
 bool recieved_reply = false;
+
 /*prototype of the functions implemented in the filed /* 
  * void wait(unsigned long delta_us)  //when the sync pins are set high, this function is used to wait the time given by delta_us in microseconds before setting them to zero again 
  * void timer_isr()                   //called at 7.8125 ms 
@@ -205,31 +203,32 @@ void print_packet(union fee_paket* test_packet, uint8_t index) {
 */
 
 void loop() {
-  switch (task) {
-    case SCIENCE_MODE: 
-        input = ADD_DATA;              
-        task = DEFAULT0;                                             
-    break; 
-     
+  switch (task) {   
      case CONFIG_MODE: 
       input = CONFIG_MODE; 
       task = DEFAULT0;            //disable the timer isr in config_mode i.e stop generating any sync pulses
      break; 
       
     case STORE_TO_PC:   
-      Serial.write(pc_packet.arr , TOTAL_PC_PCKT_SIZE);
-      input = ADD_DATA; 
+      Serial.write(pc_packet.arr, 8); 
+      if(number_fib == 1){
+        Serial.write(pc_packet.sci_fib, 10);
+      }
+      else if(number_fsc == 1){
+        Serial.write(pc_packet.sci_fsc, 10);
+      }
+      input = SCIENCE_MODE; 
       task = DEFAULT0;
      break; 
       
-    case ADD_DATA:
+    case SCIENCE_MODE:
       if (sync_counter == old_counter) {
         for (int i = 0; i < 3; i++) {
           if(fee_enabled[i]){
             check_port(port[i], i);
           }
         }
-        input = ADD_DATA;
+        input = SCIENCE_MODE;
       }
       else if (sync_counter > old_counter) {
         old_counter = sync_counter;
@@ -325,28 +324,13 @@ void loop() {
   
      //***********************************************************NOTHING TO READ FROM THE SERIAL PORT******************************************************//
      else{
-       if(input == DEFAULT0){
-        task = DEFAULT0; 
-        input = DEFAULT0; 
-       }
-       else if (input == SCIENCE_MODE){
-        task = SCIENCE_MODE; 
-       }
-       else if(input == CONFIG_MODE){
-        task = CONFIG_MODE; 
-       }
-       else if(input == CONFIG_COMMAND){
-        task = CONFIG_COMMAND; 
-       }
-       else if(input == ADD_DATA){
-        task = ADD_DATA; 
-       }
-       else if(input == CREATE_PC_PACKET){
-        task = CREATE_PC_PACKET; 
-       }
-       else if(input == STORE_TO_PC){
-        task = STORE_TO_PC; 
-       }     
+      task = 
+        input == DEFAULT0 ? DEFAULT0 : 
+        input == SCIENCE_MODE ? SCIENCE_MODE : 
+        input == CONFIG_MODE ? CONFIG_MDOE : 
+        input == CONFIG_COMMAND ? CONFIG_COMMAND : 
+        input == CREATE_PC_PACKET ? CREATE_PC_PACKET : 
+        STORE_TO_PC   
      }
     break ;
     
@@ -360,8 +344,23 @@ void fee_activate(char index){
     return;  
   }
   else{
-    fee_enabled[index - 48] = true; 
+    fee_enabled[index - 48] = true;
     activate_pins(index); 
+    if(index - 48 == 2){
+      pc_packet_ptr->n_fsc = 1; 
+      number_fsc = 1; 
+      total_packets = 8 + 10*number_fib + 10*number_fob + 10*number_fsc;
+    }
+    else if(index - 48 == 1){
+      pc_packet_ptr->n_fob = 1; 
+      number_fob = 1;
+      total_packets = 8 + 10*number_fib + 10*number_fob + 10*number_fsc;
+    }
+    else if(index - 48 == 0){
+      pc_packet_ptr->n_fib = 1; 
+      number_fib = 1;
+      total_packets = 8 + 10*number_fib + 10*number_fob + 10*number_fsc;
+    }
   }
 }
 
@@ -370,7 +369,19 @@ void fee_deactivate(char index){
     return; 
   }
   else{
-    fee_enabled[index - 48] = false; 
+    fee_enabled[index - 48] = false;
+    if(index - 48 == 2){
+      pc_packet_ptr->n_fsc = 0;  
+      number_fsc = 0;
+    }
+    else if(index - 48 == 1){
+      pc_packet_ptr->n_fob = 0; 
+      number_fob = 0; 
+    }
+    else if(index - 48 == 0){
+      pc_packet_ptr->n_fib = 0;
+      number_fib = 0;  
+    }
   }
 }
 
@@ -390,12 +401,12 @@ void create_pc_packet(int index){
   /*if index == 0 then set size_of_data to FIB_SCI_DATA, if index == 1 then set size_of_data to FOB_SCI_DATA_SIZE and if index == 2 then set size_of_data to FSC_SCI_DATA_SIZE */
   
   int size_of_data = 
-    index == 0 ? FIB_SCI_DATA_SIZE :
-    index == 1 ? FOB_SCI_DATA_SIZE : 
-    FSC_SCI_DATA_SIZE;  
+    index == 0 ? number_fib*10 :
+    index == 1 ? number_fob*10 : 
+    number_fsc*10;  
     
   if(packet_exists[index]){
-     for(int i = 0; i < size_of_data; i++){
+     for(int i = 0; i < 10; i++){
              pc_data[index][i] = (fee_packet_ptr[index] -> science_data[i]); 
      }
       packet_exists[index] = false; 
