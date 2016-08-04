@@ -26,6 +26,8 @@
 #define PACKETS_RECIEVED      3
 #define STATUS                0
 
+
+/*set of states that the user transverses through based on the input(which can be intrinsic or defined by the user(external)*/ 
 enum set {
   ADD_DATA =0, 
   SEND,
@@ -39,14 +41,19 @@ enum set {
   DONE_SYNC,
   DEFAULT0
   };
-
 enum set task  = DEFAULT0;
 enum set input = DEFAULT0; 
+
+/*fee packet and pointer to the three fee_packets, the data structure used for fee_packet is a union which is included in the folder fee_packet_structure*/ 
 fee_paket fee_packet[3];
 fee_paket* fee_packet_ptr[3]         = {&fee_packet[0], &fee_packet[1], &fee_packet[2]} ;
-pc_data pc_packet                    = {STATUS, 0, 0, 0, 1};        
+
+/*declaration of the pc packet, used to package the recieved bytes from the three interfaces and write it out the serial port, the struct used for pc packet is a union defined in pc_data_dump.h */
+pc_data pc_packet                    = {STATUS, 0, 0, 0, 1};       
 pc_data* pc_packet_ptr               = &pc_packet;
 byte* pc_data[3]                     = {pc_packet_ptr->sci_fib, pc_packet_ptr->sci_fob, pc_packet_ptr->sci_fsc};
+
+/*a 2-D (3 x 6) array for the command packets that includes the command packet to be sent to each interface */
 uint8_t cmd_packet[3][PACKET_SIZE]   = {{1, 0, 0, 0, 0, 1}, {1, 0, 0, 0, 0,  1}, {1, 0, 0, 0, 0, 1}};
 uint16_t global_packet_counter[3]    = {0, 0, 0};
 byte interface_counter[3]            = {0, 0, 0}; 
