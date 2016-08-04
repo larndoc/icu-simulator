@@ -10,19 +10,21 @@
 #include "errors.h"
 #include "fee_packet_structure.h"
 #include "pc_data_dump.h"
-#define SCIENCE_DATA 0x0
 
-/*clock information*/
+//**********************************************************************************CLOCK INFORMATION****************************************************************//
 #define FREQUENCY             128
 #define PERIOD_US             100000/FREQUENCY
+#define BAUD_RATE             115200
 
-/*UART and FEE packet information*/
+//*********************************************************************************ICU COMMAND PACKET INFO**********************************************************//
 #define BYTE_SIZE             8
 #define PACKET_SIZE           6
 #define PACKETS_TO_TRANSFER   3 
-#define BAUD_RATE             115200 
+
+//******************************************************************************FEE PACKET INFORMATION************************************************************//
 #define FEE_PACKET_SIZE       100 
 #define PACKETS_RECIEVED      3
+#define STATUS                0
 
 enum set {
   ADD_DATA =0, 
@@ -42,7 +44,7 @@ enum set task  = DEFAULT0;
 enum set input = DEFAULT0; 
 fee_paket fee_packet[3];
 fee_paket* fee_packet_ptr[3]         = {&fee_packet[0], &fee_packet[1], &fee_packet[2]} ;
-pc_data pc_packet                    = {SCIENCE_DATA, 0, 0, 0, 1};        
+pc_data pc_packet                    = {STATUS, 0, 0, 0, 1};        
 pc_data* pc_packet_ptr               = &pc_packet;
 byte* pc_data[3]                     = {pc_packet_ptr->sci_fib, pc_packet_ptr->sci_fob, pc_packet_ptr->sci_fsc};
 uint8_t cmd_packet[3][PACKET_SIZE]   = {{1, 0, 0, 0, 0, 1}, {1, 0, 0, 0, 0,  1}, {1, 0, 0, 0, 0, 1}};
