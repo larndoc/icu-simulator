@@ -279,7 +279,9 @@ void loop() {
         const uint8_t fee_number = arr[0] - 48;
         const uint8_t read_write = arr[1] - 48; 
         const uint8_t config_id =  arr[2] - 48;
-        uint8_t config_val[3]; 
+        uint8_t config_val[3];
+        const uint8_t * config_val_ptr;
+        config_val_ptr = config_val;  
         for (int i = 0; i < bytesToRead - 3; i++){
           config_val[i] =  arr[2 + i]; 
         }
@@ -291,29 +293,7 @@ void loop() {
         else if(read_write == 1){
           //we want to write 
           //the rest of the code should go here
-          
-          if(fee_number == 0){
-            change_command_packet[0] = true; 
-            cmd_packet[0][0] = 5; 
-            cmd_packet[0][1] = config_id;
-            for(int i = 0; i < 3; i++){
-               cmd_packet[0][i+2] = config_val[i];  
-            }
-          }
-          if(fee_number == 1){
-            change_command_packet[1] = true;
-            cmd_packet[1][1] = config_id; 
-            for(int i = 0; i < 3; i++){
-              cmd_packet[1][i+2] = config_val[i];
-            }
-          }
-          if(fee_number == 2){
-            change_command_packet[2] = true; 
-            cmd_packet[2][2] = config_id; 
-            for(int i = 0; i <  3; i++){
-              cmd_packet[2][i+2] = config_val[i]; 
-            }
-          }
+          write_command_packet(fee_number, config_val_ptr, config_id); 
         }
       }
     }
@@ -399,6 +379,15 @@ void create_pc_packet(int index){
      }
       packet_exists[index] = false; 
   }
+}
+
+void write_command_packet(const uint8_t fee_interface, const uint8_t* config_val, const uint8_t config_id){
+            change_command_packet[fee_interface] = true; 
+            cmd_packet[fee_interface][0] = 5; 
+            cmd_packet[fee_interface][1] = config_id;
+            for(int i = 0; i < 3; i++){
+               cmd_packet[fee_interface][i+2] = config_val[i];  
+            } 
 }
 
 
