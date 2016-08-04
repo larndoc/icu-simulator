@@ -5,6 +5,8 @@ import time
 import datetime
 import binascii
 import logging
+import numpy
+import statistics
 from abc import ABCMeta, abstractmethod
 from threading import Thread
 
@@ -37,29 +39,50 @@ class fee_science_reciever(Thread):
 		self.fob_counter = 0; 
 		self.old_minutes = 0; 
 		self.fsc_counter = 0; 
+		self.zeeman_controller = []
+		self.mc_controller	   = []
+		with open("avg_zeeman.csv", 'w') as self.avg_zeeman_h: 
+			self.avg_zeeman_h.write("population mean" + "," + "population standard deveation" + "\n")
+		with open("avg_mc.csv", 'w')     as self.avg_mc_controller: 
+			self.avg_mc_controller.write("population_mean" + "," + "population standard deveation" + "\n")
 		
 	def get_bit_rate(self): 
 		logging.debug('current bit rate for fsc per second is ' + str(self.fsc_counter * self.total_bytes/60))
 		logging.debug('current bit rate for fib per second is ' + str(self.fib_counter * self.total_bytes/60)) 
 		logging.debug('current bit rate for fob per second is ' + str(self.fob_counter * self.total_bytes/60)) 
+	def update_average_zeeman(self):
+			if(len(self.zeeman_controller) != 0):
+				with open("avg_zeeman.csv", 'a') as self.avg_zeeman_h: 
+					self.avg_zeeman_h.write(str(statistics.mean(self.zeeman_controller)) + "," + str(statistics.stdev(self.zeeman_controller)) + "\n")
+					self.zeeman_controller = []
+	def update_average_mc_controller(self): 
+			if(len(self.mc_controller) != 0): 
+				with open("avg_mc.csv", 'a') as self.avg_mc_controller: 
+					self.avg_mc_controller.write(str(statistics.mean(self.mc_controller)) + "," + str(statistics.stdev(self.mc_controller)) + "\n")
+					self.mc_controller = []
 
+	def update_fsc(self): 
+		self.update_average_zeeman()
+		self.update_average_mc_controller()
+		
 	def update(self, current_time):	
 		data = bytearray((self.port).read(size = 8))
 		self.id	= str(data[0])
-		self.sync_counter       		= ("{}".format(int.from_bytes(data[1 : 5], byteorder = 'big'))); 
+		self.sync_counter       		= ("{}".format(int.from_bytes(data[1 : 5], byteorder = 'big')));  
+		delta_val 						= float(self.sync_counter) * 7.8125 
+		self.time 						= current_time + datetime.timedelta(milliseconds = delta_val) ;
+		self.n_fib 						= int(data[5])
+		self.n_fob 						= int(data[6])
+		self.n_fsc 						= int(data[7])
+		self.total_bytes        		= self.n_fib*10 + self.n_fob*10 + self.n_fsc*10 + 8
+		self.fib_counter 				= self.fib_counter + self.n_fib 
+		self.fob_counter 				= self.fob_counter + self.n_fob
+		self.fsc_counter 				= self.fsc_counter + self.n_fsc
 		
-		delta_val 				= float(self.sync_counter) * 7.8125 
-		self.time 				= current_time + datetime.timedelta(milliseconds = delta_val) ;
-		self.n_fib 				= int(data[5])
-		self.n_fob 				= int(data[6])
-		self.n_fsc 				= int(data[7])
-		self.total_bytes        = self.n_fib*10 + self.n_fob*10 + self.n_fsc*10 + 8
-		self.fib_counter = self.fib_counter + self.n_fib 
-		self.fob_counter = self.fob_counter + self.n_fob
-		self.fsc_counter = self.fsc_counter + self.n_fsc
-		print(self.time)
 		if(self.time.minute != self.old_minutes): 
 			self.get_bit_rate();
+			self.update_fsc(); 
+			
 		#self.fsc_counter = self.fsc_counter + self.n_fsc
 		#logging.debug('RECIEVED SCIENCE PACKET (FIB:%3d, FOB:%3d, FSC%3d)', self.n_fib, self.n_fob, self.n_fsc)
 		total_data_to_read 			= self.n_fib*10 + self.n_fob*10 + self.n_fsc*10
@@ -92,6 +115,8 @@ class fee_science_reciever(Thread):
 			science_data_id 				= self.buffer[2][3]
 			science_data_val				= ("{}".format(int.from_bytes(self.buffer[2][4:8], byteorder = 'big')))				
 			time_stamp						= ("{}".format(int.from_bytes(self.buffer[2][8:11], byteorder = 'big')))
+			self.zeeman_controller.append(zeeman_controller)
+			self.mc_controller.append(microwave_reference_controller)
 			self.fsc_handler.write(self.time.strftime("%Y%m%d %H:%M:%S.%f") + "," + str(self.id) + "," + str(self.n_fib) + "," + str(self.n_fob) + "," + str(self.n_fsc) + ",")
 			self.fsc_handler.write(str(sensor_temp_controller) + "," + str(laser_temp_controller) + "," + str(laser_current_controller) + "," + str(microwave_reference_controller) + "," +  str(zeeman_controller) + "," + str(science_data_id) + "," + str(science_data_val) + "," + str(time_stamp) + "\n")
 	
