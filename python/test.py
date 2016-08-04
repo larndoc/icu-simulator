@@ -20,48 +20,44 @@ start_science = False
 
 
 def build_config_command_val(): 
-			fee_number = (
-			"0> FIB \n"
-			"1> FOB \n"
-			"2> FSC \n"
-			)
-			print(fee_number)
-			cmd = input('> please choose an input: ')
-			
-			read_write = (
-			"0) read \n" 
-			"1) write \n"
-			)
-			print(read_write)
-			rm_wr = input('> please choose an input: ')
-			
-			config_id = input('>please enter config id: ')
-			
-			config_val = input('>please enter config val: ')
-			return cmd + rm_wr + config_id + config_val 
+	fee_number = (
+	"0> FIB \n"
+	"1> FOB \n"
+	"2> FSC \n"
+	)
+	print(fee_number)
+	cmd = input('> please choose an input: ')	
+	read_write = (
+	"0) read \n" 
+	"1) write \n"
+	)
+	print(read_write)
+	rm_wr = input('> please choose an input: ')
+	config_id = input('>please enter config id: ')		
+	config_val = input('>please enter config val: ')
+	return cmd + rm_wr + config_id + config_val 
 	
-def build_fee_packet(): 
-							
-		activate_fee = (
-			"5) activate_fee \n"
-			"6) de-activate fee \n"
-			"3) go to science mode \n"
-		)
-		print(activate_fee)
-		cmd = input('please choose an input: ')
-		if(cmd != '3'):
-			interface 	= (
+def build_fee_packet(): 						
+	activate_fee = (
+	"5) activate_fee \n"
+	"6) de-activate fee \n"
+	"3) go to science mode \n"
+	)
+	print(activate_fee)
+	cmd = input('please choose an input: ')
+	if(cmd != '3'):
+		interface 	= (
 						"1) fib interface \n"
 						"2) fob interface \n"
 						"3) fsc interface \n"
 						)
-			print(interface)
-			fee_interface = input('please choose an input: ')
+		print(interface)
+		fee_interface = input('please choose an input: ')
 		#fee_interface = int(nb, base = 16)
 		#command = (cmd.to_bytes(1, byteorder = 'big') + fee_interface.to_bytes(1, byteorder = 'big') )
-			return cmd + fee_interface
-		else:
-			return '3'
+		return cmd + fee_interface
+	else:
+		return '3'
 	
 
 def debug_information(data): 
@@ -119,7 +115,6 @@ class fee_science_reciever(Thread):
 		delta_val 						= float(self.sync_counter) * 1/128 
 		self.time 						= self.current_time + datetime.timedelta(milliseconds = delta_val) ;
 		self.n_fib 						= int(data[5])
-		print(int(data[5]))
 		self.n_fob 						= int(data[6])
 		self.n_fsc 						= int(data[7])
 		self.total_bytes        		= self.n_fib*10 + self.n_fob*10 + self.n_fsc*10 + 8

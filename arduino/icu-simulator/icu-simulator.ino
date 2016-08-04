@@ -26,7 +26,7 @@
 #define PACKETS_RECIEVED      3
 #define STATUS                0
 
-//*****************************************************************************GLOBAL VARIABLES***************************************************************//
+//******************************************************************************GLOBAL VARIABLES***************************************************************//
 
 /*set of states that the user transverses through based on the input(which can be intrinsic or defined by the user(external)*/ 
 enum set {
@@ -48,9 +48,10 @@ fee_paket fee_packet[3];
 fee_paket* fee_packet_ptr[3]         = {&fee_packet[0], &fee_packet[1], &fee_packet[2]} ;
 
 /*declaration of the pc packet, used to package the recieved bytes from the three interfaces and write it out the serial port, the struct used for pc packet is a union defined in pc_data_dump.h */
-pc_data pc_packet                    = {STATUS, 0, number_fib, number_fob, number_fsc};       
+pc_data pc_packet                    = {STATUS, 0, 0, 0, 0};       
 pc_data* pc_packet_ptr               = &pc_packet;
 byte* pc_data[3]                     = {pc_packet_ptr->sci_fib, pc_packet_ptr->sci_fob, pc_packet_ptr->sci_fsc};
+byte* pc_fee_counter[3]              = {pc_packet_ptr->n_fib, pc_packet_ptr-> n_fob, pc_packet_ptr->n_fsc};
 
 /*a 2-D (3 x 6) array for the command packets that includes the command packet to be sent to each interface */ 
 uint8_t cmd_packet[3][PACKET_SIZE]   = {{1, 0, 0, 0, 0, 1}, {1, 0, 0, 0, 0,  1}, {1, 0, 0, 0, 0, 1}};
@@ -211,10 +212,13 @@ void loop() {
       
     case STORE_TO_PC:   
       Serial.write(pc_packet.arr, 8); 
-      if(number_fib == 1){
+      if(pc_fee_counter[0] == 1){
         Serial.write(pc_packet.sci_fib, 10);
       }
-      else if(number_fsc == 1){
+      else if(pc_fee_counter[1] == 1){
+        Serial.write(pc_packet.sci_fob, 10); 
+      }
+      else if(pc_fee_counter[2] == 1){
         Serial.write(pc_packet.sci_fsc, 10);
       }
       input = SCIENCE_MODE; 
@@ -296,7 +300,7 @@ void loop() {
         const uint8_t * config_val_ptr;
         config_val_ptr = config_val;  
         for (int i = 0; i < bytesToRead - 3; i++){
-          config_val[i] =  arr[2 + i]; 
+          config_val[i] =  arr[2 + i] - 48; 
         }
         if(read_write == 0){
           //we want to read 
@@ -340,26 +344,27 @@ void loop() {
 
 
 void fee_activate(char index){
+  
   if ( (index - 48) > 2 || (index - 48) < 0){
     return;  
   }
   else{
-    fee_enabled[index - 48] = true;
-    activate_pins(index); 
-    if(index - 48 == 2){
-      pc_packet_ptr->n_fsc = 1; 
-      number_fsc = 1; 
-    }
-    else if(index - 48 == 1){
-      pc_packet_ptr->n_fob = 1; 
-      number_fob = 1;
-    }
-    else if(index - 48 == 0){
-      pc_packet_ptr->n_fib = 1; 
-      number_fib = 1;
-    }
-     total_packets = 8 + 10*number_fib + 10*number_fob + 10*number_fsc;
+    create_interface(index);  
   }
+}
+
+void delete_interface(char index){
+  
+  deactivate_pins(index); 
+  fee_enabled(index - 48) = false; 
+  pc_fee_counter[index - 48] = 0; 
+}
+
+void create_interface(char index){
+  
+  activate_pins(index); 
+  fee_enabled[index - 48] = true; 
+  pc_fee_counter[index - 48] = 1; 
 }
 
 void fee_deactivate(char index){
@@ -367,19 +372,7 @@ void fee_deactivate(char index){
     return; 
   }
   else{
-    fee_enabled[index - 48] = false;
-    if(index - 48 == 2){
-      pc_packet_ptr->n_fsc = 0;  
-      number_fsc = 0;
-    }
-    else if(index - 48 == 1){
-      pc_packet_ptr->n_fob = 0; 
-      number_fob = 0; 
-    }
-    else if(index - 48 == 0){
-      pc_packet_ptr->n_fib = 0;
-      number_fib = 0;  
-    }
+    delete_interface(index);  
   }
 }
 
@@ -411,13 +404,15 @@ void create_pc_packet(int index){
   }
 }
 
-void write_command_packet(const uint8_t fee_interface, const uint8_t* config_val, const uint8_t config_id){
-            change_command_packet[fee_interface] = true; 
-            cmd_packet[fee_interface][0] = 5; 
-            cmd_packet[fee_interface][1] = config_id;
-            for(int i = 0; i < 3; i++){
-               cmd_packet[fee_interface][i+2] = config_val[i];  
-            } 
+void write_command_packet(const uint8_t fee_interface, const uint8_t* config_val, const uint8_t config_id)
+{
+  
+  change_command_packet[fee_interface] = true; 
+  cmd_packet[fee_interface][0] = 5; 
+  cmd_packet[fee_interface][1] = config_id;
+  for(int i = 0; i < 3; i++){
+    cmd_packet[fee_interface][i+2] = config_val[i];  
+  } 
 }
 
 
