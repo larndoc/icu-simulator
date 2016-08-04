@@ -29,16 +29,12 @@
 
 /*set of states that the user transverses through based on the input(which can be intrinsic or defined by the user(external)*/ 
 enum set {
-  ADD_DATA =0, 
-  SEND,
+  SCIENCE_MODE=0,
+  CONFIG_MODE,
   CREATE_PC_PACKET, 
   CLEAR_PC_PACKET,
   STORE_TO_PC, 
-  BEGIN_SYNC,
-  SCIENCE_MODE, 
-  CONFIG_MODE, 
   CONFIG_COMMAND, 
-  DONE_SYNC,
   DEFAULT0
   };
 enum set task  = DEFAULT0;
@@ -72,16 +68,17 @@ HardwareSerial* port[3]              = {&Serial1, &Serial2, &Serial3};
 
 /*the three synchronisation pins on the arduino due board */ 
 const uint8_t sync_pins[3]           = {11, 13, 12};
+
+/*used for debugging purposes */ 
 const uint8_t led_pin                = 10;
-unsigned long current_time;
-unsigned long t;
-bool overflow = false;
-unsigned sync_counter           = 0;
+
+/*used to denote time at the start of the interrupt service routine provided that we are not in the config or default state */
+volatile unsigned long t;
+volatile unsigned sync_counter           = 0;
+
 unsigned long old_counter = 0;
 bool change_command_packet[3]     = {false, false, false};
-bool send_command = false;
-bool check_cap[3];
-bool recieved_reply = false;
+
 /*prototype of the functions implemented in the filed /* 
  * void wait(unsigned long delta_us)  //when the sync pins are set high, this function is used to wait the time given by delta_us in microseconds before setting them to zero again 
  * void timer_isr()                   //called at 7.8125 ms 
@@ -197,8 +194,7 @@ void check_checksum(union fee_paket* fee_packet_ptr, int index)
 
 void print_packet(union fee_paket* test_packet, uint8_t index) {
   digitalWrite(10, HIGH);
-  current_time = now();
-  String time_elapsed = "time elapased in s: " + String(current_time) + "\t";
+  String time_elapsed = "time elapased in s: " + String(now()) + "\t";
   String interface = "recieved from interface: " + String(index + 1) + "\t";
   digitalWrite(10, LOW);
 }
@@ -210,28 +206,26 @@ void print_packet(union fee_paket* test_packet, uint8_t index) {
 
 void loop() {
   switch (task) {
-    case SCIENCE_MODE: 
-        input = ADD_DATA;                                                          
-    break; 
-     
+  
      case CONFIG_MODE: 
       input = CONFIG_MODE;                                                              //disable the timer isr in config_mode i.e stop generating any sync pulses
+      task = DEFAULT0; 
      break; 
       
     case STORE_TO_PC:   
       Serial.write(pc_packet.arr , TOTAL_PC_PCKT_SIZE);
-      input = ADD_DATA; 
+      input = SCIENCE_MODE; 
       task = DEFAULT0;
      break; 
       
-    case ADD_DATA:
+    case SCIENCE_MODE:
       if (sync_counter == old_counter) {
         for (int i = 0; i < 3; i++) {
           if(fee_enabled[i]){
             check_port(port[i], i);
           }
         }
-        input = ADD_DATA;
+        input = SCIENCE_MODE;
       }
       else if (sync_counter > old_counter) {
         old_counter = sync_counter;
@@ -250,12 +244,11 @@ void loop() {
     break; 
  
   case DEFAULT0:
-    if(Serial.available() > 0){
-    if(Serial.available()== 1){ 
+    if(Serial.available() > 0){ 
     int cmd_id = Serial.read(); 
     
     if(cmd_id == '3'){
-      input = SCIENCE_MODE; 
+      input = SCIENCE_MODE;                                                                             /*entering science mode */  
     }
 
     else if(cmd_id == '2'){
@@ -313,33 +306,18 @@ void loop() {
     }
     task = DEFAULT0;
     }
-    }
   
   
      //***********************************************************NOTHING TO READ FROM THE SERIAL PORT******************************************************//
-     else{
-       if(input == DEFAULT0){
-        task = DEFAULT0; 
-        input = DEFAULT0; 
-       }
-       else if (input == SCIENCE_MODE){
-        task = SCIENCE_MODE; 
-       }
-       else if(input == CONFIG_MODE){
-        task = CONFIG_MODE; 
-       }
-       else if(input == CONFIG_COMMAND){
-        task = CONFIG_COMMAND; 
-       }
-       else if(input == ADD_DATA){
-        task = ADD_DATA; 
-       }
-       else if(input == CREATE_PC_PACKET){
-        task = CREATE_PC_PACKET; 
-       }
-       else if(input == STORE_TO_PC){
-        task = STORE_TO_PC; 
-       }     
+     else
+     {
+       task = 
+        input == SCIENCE_MODE     ? SCIENCE_MODE : 
+        input == CONFIG_MODE      ? CONFIG_MODE  : 
+        input == CONFIG_COMMAND   ? CONFIG_COMMAND : 
+        input == CREATE_PC_PACKET ? CREATE_PC_PACKET : 
+        input == STORE_TO_PC      ? STORE_TO_PC : 
+        DEFAULT0;     
      }
     break ;
     
@@ -364,6 +342,7 @@ void fee_deactivate(char index){
   }
   else{
     fee_enabled[index - 48] = false; 
+    deactivate_pins(index);
   }
 }
 
