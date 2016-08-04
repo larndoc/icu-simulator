@@ -18,6 +18,53 @@ logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 start_science = False
 
+
+def build_config_command_val(): 
+			fee_number = (
+			"0> FIB \n"
+			"1> FOB \n"
+			"2> FSC \n"
+			)
+			print(fee_number)
+			cmd = input('> please choose an input: ')
+			
+			read_write = (
+			"0) read \n" 
+			"1) write \n"
+			)
+			print(read_write)
+			rm_wr = input('> please choose an input: ')
+			
+			config_id = input('>please enter config id: ')
+			
+			config_val = input('>please enter config val: ')
+			return cmd + rm_wr + config_id + config_val 
+	
+def build_fee_packet(): 
+							
+		activate_fee = (
+			"5) activate_fee \n"
+			"6) de-activate fee \n"
+			"3) go to science mode \n"
+		)
+		print(activate_fee)
+		cmd = input('please choose an input: ')
+		if(cmd != '3'):
+			interface 	= (
+						"1) fib interface \n"
+						"2) fob interface \n"
+						"3) fsc interface \n"
+						)
+			print(interface)
+			fee_interface = input('please choose an input: ')
+		#fee_interface = int(nb, base = 16)
+		#command = (cmd.to_bytes(1, byteorder = 'big') + fee_interface.to_bytes(1, byteorder = 'big') )
+			print(cmd + fee_interface)
+			return cmd + fee_interface
+		else:
+			return '3'
+	
+
 def debug_information(data): 
 	print(binascii.hexlify(data))
 	
@@ -41,6 +88,7 @@ class fee_science_reciever(Thread):
 		self.fsc_counter = 0; 
 		self.zeeman_controller = []
 		self.mc_controller	   = []
+		self.current_time = datetime.datetime.now()
 		with open("avg_zeeman.csv", 'w') as self.avg_zeeman_h: 
 			self.avg_zeeman_h.write("population mean" + "," + "population standard deveation" + "\n")
 		with open("avg_mc.csv", 'w')     as self.avg_mc_controller: 
@@ -65,12 +113,12 @@ class fee_science_reciever(Thread):
 		self.update_average_zeeman()
 		self.update_average_mc_controller()
 		
-	def update(self, current_time):	
+	def update(self):	
 		data = bytearray((self.port).read(size = 8))
 		self.id	= str(data[0])
 		self.sync_counter       		= ("{}".format(int.from_bytes(data[1 : 5], byteorder = 'big')));  
-		delta_val 						= float(self.sync_counter) * 7.8125 
-		self.time 						= current_time + datetime.timedelta(milliseconds = delta_val) ;
+		delta_val 						= float(self.sync_counter) * 1/128 
+		self.time 						= self.current_time + datetime.timedelta(milliseconds = delta_val) ;
 		self.n_fib 						= int(data[5])
 		self.n_fob 						= int(data[6])
 		self.n_fsc 						= int(data[7])
@@ -152,12 +200,13 @@ class fee_science_reciever(Thread):
 			header = "time" + "," + "status" + "," + "n_fib" + "," + "n_fob" + "," + "n_fsc" + ","
 			self.fib_handler.write(header + "x" + "," + "y" + "," + "z" + "\n")
 			self.fob_handler.write(header + "x" + "," + "y" + "," + "z" + "\n")
-			self.fsc_handler.write(header + "sensor temperature controller" + "," + "laser temperature controller" + "," + "laser current controller" + "," + "microwave reference controller" + "," + "zeeman_controller" + "," +  "science_data_id" + "," +  "science_data" + "," + "time_stamp" + "\n" )
-			current_time = datetime.datetime.now() 
+			self.fsc_handler.write(header + "sensor temperature controller" + "," + "laser temperature controller" + "," + "laser current controller" + "," + "microwave reference controller" + "," + "zeeman_controller" + "," +  "science_data_id" + "," +  "science_data" + "," + "time_stamp" + "\n" ) 
 			while self.receive_serial:
 				if self.port.in_waiting > 0:
-					self.update(current_time)
+					self.update()
 
+	def update_current_time(self):
+		self.curent_time = datetime.datetime.now()
 	
 if __name__ == '__main__':
 
@@ -175,13 +224,7 @@ if __name__ == '__main__':
 					 "5) End the script \n")
 		
 		
-		fee_interface_menu = ("50) enable fib \n"
-							   "51) enable fob \n"
-							   "52) enable fsc  \n"
-							   "60) disable fib \n"
-							   "61) disable fob \n" 
-							   "62) disable fsc \n"
-							   )
+		
 		fee_interface = ['1) fib interface', '2) fob interface', '3) fsc interface']
 		fee_activate = ['1) fee activate (5)', '2) fee deactivate (6)']
 		inputstring = ''
@@ -191,41 +234,13 @@ if __name__ == '__main__':
 			pass
 			
 		while(myThreadOb1.receive_serial):
-			if(inputstring == 'fee_interface'): 
-				print(fee_interface_menu) 	
-				nb = input('please choose an option: ')
-				try: 
-					choice = int(nb)
-				except ValueError as error_msg: 
-					print(error_msg)
-				if(nb == '50'): 
-					inputstring = 'fee_interface' 
-					print('enabled fib')
-				
-				elif(nb == '51'):
-					inputstring = 'fee_interface'
-					print('enabled fob')
-				elif(nb == '52'): 
-					inputstring = 'fee_interface'
-					print ('enabled fsc')
-				elif(nb == '60'): 
-					inputstring = 'fee_interface'
-					print ('disabled fib')
-				elif(nb == '61'): 
-					inputstring = 'fee_interface'
-					print ('disabled fob')
-				elif(nb == '62'): 
-					inputstring = 'fee_interface' 
-					print ('disabled fsc')
-				elif(nb == '3'): 
-					inputstring = ''
-					myThreadOb1.start_science = True;
-					print ('entering science mode')
-				else: 
-					print('invalid command')
-					inputstring = 'fee_interface'
-				encoded = nb.encode('utf-8')
-				s.write(encoded)
+			if(inputstring == 'fee_interface'):  
+				command = build_fee_packet();
+				myThreadOb1.start_science = True
+				print(command)
+				encoded = command.encode('utf-8')
+				myThreadOb1.port.write(encoded)
+				inputstring = ''
 			elif (inputstring == ''):
 				print(cmd_menu)
 				nb = input('please choose an option: ')
@@ -235,15 +250,29 @@ if __name__ == '__main__':
 					print('unable to parse choice as an integer %s' % error_msg)
 					logging.debug(error_msg)
 					continue 
+				if(nb == '2'): 
+					command = nb + build_config_command_val();
+					encoded = command.encode('utf-8')
+					s.write(encoded)
+					inputstring = ''
 					
 				if(nb == '4'):
+					command = nb; 
+					encoded = command.encode('utf-8')
+					s.write(encoded)
 					inputstring = 'fee_interface'
 				elif(nb == '3'): 
+					myThreadOb1.start_science = True; 
+					myThreadOb1.update_current_time()
 					print('initiating science mode')
+					encoded = nb.encode('utf-8')
+					s.write(encoded)
 				elif(nb == '5'): 
 					myThreadOb1.receive_serial = False; 
+					break; 
 				else: 
 					inputstring = ''
+			
 				encoded = nb.encode('utf-8')
 				s.write(encoded)
 				
@@ -259,10 +288,6 @@ if __name__ == '__main__':
 		##
 		##
 
-			 
-		
-		
-		
 		myThreadOb1.join()
 		print("program end")
 	

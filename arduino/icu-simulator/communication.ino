@@ -8,6 +8,7 @@
     }
     cmd_packet[index][0] = 1; 
     cmd_packet[index][5] = 1; 
+    change_command_packet[index] = false; 
  }
 
  

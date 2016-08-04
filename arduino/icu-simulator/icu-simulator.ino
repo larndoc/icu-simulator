@@ -11,12 +11,12 @@
 #include "fee_packet_structure.h"
 #include "pc_data_dump.h"
 
-//**********************************************************************************CLOCK INFORMATION****************************************************************//
+//********************************************************************************CLOCK INFORMATION****************************************************************//
 #define FREQUENCY             128
 #define PERIOD_US             100000/FREQUENCY
 #define BAUD_RATE             115200
 
-//*********************************************************************************ICU COMMAND PACKET INFO**********************************************************//
+//*******************************************************************************ICU COMMAND PACKET INFO**********************************************************//
 #define BYTE_SIZE             8
 #define PACKET_SIZE           6
 #define PACKETS_TO_TRANSFER   3 
@@ -26,17 +26,23 @@
 #define PACKETS_RECIEVED      3
 #define STATUS                0
 
+//*****************************************************************************GLOBAL VARIABLES***************************************************************//
 
 /*set of states that the user transverses through based on the input(which can be intrinsic or defined by the user(external)*/ 
 enum set {
-  SCIENCE_MODE=0,
-  CONFIG_MODE,
+  ADD_DATA =0, 
+  SEND,
   CREATE_PC_PACKET, 
   CLEAR_PC_PACKET,
   STORE_TO_PC, 
+  BEGIN_SYNC,
+  SCIENCE_MODE, 
+  CONFIG_MODE, 
   CONFIG_COMMAND, 
+  DONE_SYNC,
   DEFAULT0
   };
+
 enum set task  = DEFAULT0;
 enum set input = DEFAULT0; 
 
@@ -49,36 +55,29 @@ pc_data pc_packet                    = {STATUS, 0, 0, 0, 1};
 pc_data* pc_packet_ptr               = &pc_packet;
 byte* pc_data[3]                     = {pc_packet_ptr->sci_fib, pc_packet_ptr->sci_fob, pc_packet_ptr->sci_fsc};
 
-/*a 2-D (3 x 6) array for the command packets that includes the command packet to be sent to each interface */
+/*a 2-D (3 x 6) array for the command packets that includes the command packet to be sent to each interface */ 
 uint8_t cmd_packet[3][PACKET_SIZE]   = {{1, 0, 0, 0, 0, 1}, {1, 0, 0, 0, 0,  1}, {1, 0, 0, 0, 0, 1}};
 
-/*used to keep track of the total number of fee packets recieved by the icu simulator from the fib, fob and fsc interfaces respectively*/
 uint16_t global_packet_counter[3]    = {0, 0, 0};
-
-/*response packet counter is used to keep track of how many packets are recieved from the three interfaces by the icu-simulator before the icu simulator has recieved a packet for processing */ 
+byte interface_counter[3]            = {0, 0, 0}; 
 uint8_t response_packet_counter[3]   = {0, 0, 0};
 bool checksum[3]                     = {false, false, false};
 bool packet_exists[3]                = {false, false, false};
-
-/*used to configure the appropiate fee interface */ 
 bool fee_enabled[3]                  = {false, false, false};
-
-/*pointer to the three serial ports on the arduino due board */ 
 HardwareSerial* port[3]              = {&Serial1, &Serial2, &Serial3};
-
-/*the three synchronisation pins on the arduino due board */ 
 const uint8_t sync_pins[3]           = {11, 13, 12};
-
-/*used for debugging purposes */ 
+int bytes1; 
 const uint8_t led_pin                = 10;
-
-/*used to denote time at the start of the interrupt service routine provided that we are not in the config or default state */
-volatile unsigned long t;
-volatile unsigned sync_counter           = 0;
-
+unsigned long current_time;
+unsigned long t;
+bool overflow = false;
+unsigned sync_counter           = 0;
 unsigned long old_counter = 0;
 bool change_command_packet[3]     = {false, false, false};
-
+bool send_command = false;
+bool serial_port1 = false;
+bool check_cap[3];
+bool recieved_reply = false;
 /*prototype of the functions implemented in the filed /* 
  * void wait(unsigned long delta_us)  //when the sync pins are set high, this function is used to wait the time given by delta_us in microseconds before setting them to zero again 
  * void timer_isr()                   //called at 7.8125 ms 
@@ -194,7 +193,8 @@ void check_checksum(union fee_paket* fee_packet_ptr, int index)
 
 void print_packet(union fee_paket* test_packet, uint8_t index) {
   digitalWrite(10, HIGH);
-  String time_elapsed = "time elapased in s: " + String(now()) + "\t";
+  current_time = now();
+  String time_elapsed = "time elapased in s: " + String(current_time) + "\t";
   String interface = "recieved from interface: " + String(index + 1) + "\t";
   digitalWrite(10, LOW);
 }
@@ -206,26 +206,30 @@ void print_packet(union fee_paket* test_packet, uint8_t index) {
 
 void loop() {
   switch (task) {
-  
+    case SCIENCE_MODE: 
+        input = ADD_DATA;              
+        task = DEFAULT0;                                             
+    break; 
+     
      case CONFIG_MODE: 
-      input = CONFIG_MODE;                                                              //disable the timer isr in config_mode i.e stop generating any sync pulses
-      task = DEFAULT0; 
+      input = CONFIG_MODE; 
+      task = DEFAULT0;            //disable the timer isr in config_mode i.e stop generating any sync pulses
      break; 
       
     case STORE_TO_PC:   
       Serial.write(pc_packet.arr , TOTAL_PC_PCKT_SIZE);
-      input = SCIENCE_MODE; 
+      input = ADD_DATA; 
       task = DEFAULT0;
      break; 
       
-    case SCIENCE_MODE:
+    case ADD_DATA:
       if (sync_counter == old_counter) {
         for (int i = 0; i < 3; i++) {
           if(fee_enabled[i]){
             check_port(port[i], i);
           }
         }
-        input = SCIENCE_MODE;
+        input = ADD_DATA;
       }
       else if (sync_counter > old_counter) {
         old_counter = sync_counter;
@@ -244,11 +248,14 @@ void loop() {
     break; 
  
   case DEFAULT0:
-    if(Serial.available() > 0){ 
+
+    bytes1 = Serial.available(); 
+    if(bytes1 > 0){
+    if(bytes1 == 1){ 
     int cmd_id = Serial.read(); 
     
     if(cmd_id == '3'){
-      input = SCIENCE_MODE;                                                                             /*entering science mode */  
+      input = SCIENCE_MODE; 
     }
 
     else if(cmd_id == '2'){
@@ -300,24 +307,46 @@ void loop() {
         else if(read_write == 1){
           //we want to write 
           //the rest of the code should go here
-          write_command_packet(fee_number, config_val_ptr, config_id); 
+          bool checksum_for_config_val = 0; 
+          uint8_t checksum; 
+          write_command_packet(fee_number, config_val_ptr, config_id);
+          for(int i = 0; i < 3; i++){
+             checksum_for_config_val ^= config_val[i];  
+          }
+         checksum = checksum_for_config_val ^ fee_number ^ read_write ^config_id;
+         cmd_packet[fee_number][5] = checksum; 
         }
       }
     }
     task = DEFAULT0;
     }
+    }
   
   
      //***********************************************************NOTHING TO READ FROM THE SERIAL PORT******************************************************//
-     else
-     {
-       task = 
-        input == SCIENCE_MODE     ? SCIENCE_MODE : 
-        input == CONFIG_MODE      ? CONFIG_MODE  : 
-        input == CONFIG_COMMAND   ? CONFIG_COMMAND : 
-        input == CREATE_PC_PACKET ? CREATE_PC_PACKET : 
-        input == STORE_TO_PC      ? STORE_TO_PC : 
-        DEFAULT0;     
+     else{
+       if(input == DEFAULT0){
+        task = DEFAULT0; 
+        input = DEFAULT0; 
+       }
+       else if (input == SCIENCE_MODE){
+        task = SCIENCE_MODE; 
+       }
+       else if(input == CONFIG_MODE){
+        task = CONFIG_MODE; 
+       }
+       else if(input == CONFIG_COMMAND){
+        task = CONFIG_COMMAND; 
+       }
+       else if(input == ADD_DATA){
+        task = ADD_DATA; 
+       }
+       else if(input == CREATE_PC_PACKET){
+        task = CREATE_PC_PACKET; 
+       }
+       else if(input == STORE_TO_PC){
+        task = STORE_TO_PC; 
+       }     
      }
     break ;
     
@@ -342,7 +371,6 @@ void fee_deactivate(char index){
   }
   else{
     fee_enabled[index - 48] = false; 
-    deactivate_pins(index);
   }
 }
 
