@@ -349,18 +349,16 @@ void fee_activate(char index){
     if(index - 48 == 2){
       pc_packet_ptr->n_fsc = 1; 
       number_fsc = 1; 
-      total_packets = 8 + 10*number_fib + 10*number_fob + 10*number_fsc;
     }
     else if(index - 48 == 1){
       pc_packet_ptr->n_fob = 1; 
       number_fob = 1;
-      total_packets = 8 + 10*number_fib + 10*number_fob + 10*number_fsc;
     }
     else if(index - 48 == 0){
       pc_packet_ptr->n_fib = 1; 
       number_fib = 1;
-      total_packets = 8 + 10*number_fib + 10*number_fob + 10*number_fsc;
     }
+     total_packets = 8 + 10*number_fib + 10*number_fob + 10*number_fsc;
   }
 }
 
