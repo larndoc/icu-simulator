@@ -203,6 +203,78 @@ void print_packet(union fee_paket* test_packet, uint8_t index) {
 */
 
 void loop() {
+  
+    bytes1 = Serial.available(); 
+    if(bytes1 > 0){
+    if(bytes1 == 1){ 
+    byte cmd_id = Serial.read(); 
+    
+    if(cmd_id == '\x03'){
+      input = SCIENCE_MODE; 
+    }
+
+    else if(cmd_id == '\x02'){
+           int bytesToRead = Serial.available(); 
+      while(bytesToRead == 0); 
+      if(bytesToRead > 0){
+        uint8_t arr[bytesToRead];
+        Serial.readBytes(arr, bytesToRead); 
+        const byte fee_number = arr[0];
+        const byte read_write = arr[1]; 
+        const byte config_id =  arr[2];
+        byte config_val[3];
+        const byte * config_val_ptr;
+        config_val_ptr = config_val;  
+        for (int i = 0; i < bytesToRead - 3; i++){
+          config_val[i] =  arr[2 + i]; 
+        }
+        if(read_write == 0){
+          //we want to read 
+          //the rest of the code should go here 
+          check_port(port[fee_number], fee_number); 
+        }
+        else if(read_write == 1){
+          //we want to write 
+          //the rest of the code should go here
+          byte checksum_for_config_val = 0; 
+          byte checksum; 
+          write_command_packet(fee_number, config_val_ptr, config_id);
+          for(int i = 0; i < 3; i++){
+             checksum_for_config_val ^= config_val[i];  
+          }
+         checksum = checksum_for_config_val ^ fee_number ^ read_write ^config_id;
+         cmd_packet[fee_number][5] = checksum; 
+        }
+      }
+      input = SCIENCE_MODE;
+    }
+
+    else if(cmd_id == '\x04'){
+      input = CONFIG_MODE;
+    }
+
+    else if(input == CONFIG_MODE && cmd_id == '\x05'){
+      while(Serial.available() == 0); 
+      if(Serial.available() > 0){
+        byte interface = Serial.read(); 
+        fee_activate(interface);
+        input = CONFIG_MODE; 
+      }
+      
+    }
+    else if(input == CONFIG_MODE && cmd_id == '\x06'){
+      while(Serial.available() == 0); 
+      if(Serial.available() > 0){
+        uint8_t interface = Serial.read(); 
+        fee_deactivate(interface);
+        input = CONFIG_MODE; 
+      }
+    }
+    }
+    task = DEFAULT0;
+    }
+    
+    
   switch (task) {   
      case CONFIG_MODE: 
       input = CONFIG_MODE; 
@@ -250,88 +322,15 @@ void loop() {
     break; 
  
   case DEFAULT0:
-
-    bytes1 = Serial.available(); 
-    if(bytes1 > 0){
-    if(bytes1 == 1){ 
-    byte cmd_id = Serial.read(); 
-    
-    if(cmd_id == '\x03'){
-      input = SCIENCE_MODE; 
-    }
-
-    else if(cmd_id == '\x02'){
-           int bytesToRead = Serial.available(); 
-      while(bytesToRead == 0); 
-      if(bytesToRead > 0){
-        uint8_t arr[bytesToRead];
-        Serial.readBytes(arr, bytesToRead); 
-        const byte fee_number = arr[0];
-        const byte read_write = arr[1]; 
-        const byte config_id =  arr[2];
-        byte config_val[3];
-        const byte * config_val_ptr;
-        config_val_ptr = config_val;  
-        for (int i = 0; i < bytesToRead - 3; i++){
-          config_val[i] =  arr[2 + i]; 
-        }
-        if(read_write == 0){
-          //we want to read 
-          //the rest of the code should go here 
-          check_port(port[fee_number], fee_number); 
-        }
-        else if(read_write == 1){
-          //we want to write 
-          //the rest of the code should go here
-          byte checksum_for_config_val = 0; 
-          byte checksum; 
-          write_command_packet(fee_number, config_val_ptr, config_id);
-          for(int i = 0; i < 3; i++){
-             checksum_for_config_val ^= config_val[i];  
-          }
-         checksum = checksum_for_config_val ^ fee_number ^ read_write ^config_id;
-         cmd_packet[fee_number][5] = checksum; 
-        }
-      }
-      task = DEFAULT0; 
-    }
-
-    else if(cmd_id == '\x04'){
-      input = CONFIG_MODE;
-    }
-
-    else if(input == CONFIG_MODE && cmd_id == '\x05'){
-      while(Serial.available() == 0); 
-      if(Serial.available() > 0){
-        byte interface = Serial.read(); 
-        fee_activate(interface);
-        input = CONFIG_MODE; 
-      }
-      
-    }
-    else if(input == CONFIG_MODE && cmd_id == '\x06'){
-      while(Serial.available() == 0); 
-      if(Serial.available() > 0){
-        uint8_t interface = Serial.read(); 
-        fee_deactivate(interface);
-        input = CONFIG_MODE; 
-      }
-    }
-
-    task = DEFAULT0;
-    }
-    }
   
   
      //***********************************************************NOTHING TO READ FROM THE SERIAL PORT******************************************************//
-     else{
       task = 
         input == DEFAULT0 ? DEFAULT0 : 
         input == SCIENCE_MODE ? SCIENCE_MODE : 
         input == CONFIG_MODE ? CONFIG_MODE : 
         input == CREATE_PC_PACKET ? CREATE_PC_PACKET : 
         STORE_TO_PC;  
-     }
     break ;
     
     default: ;

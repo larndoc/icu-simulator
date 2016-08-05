@@ -50,8 +50,11 @@ def build_fee_packet():
 	)
 	print(activate_fee)
 	cmd = input('please choose an input: ')
-	print(int(cmd, 0).to_bytes(1, byteorder = 'big'))
-	if(cmd != '3'):
+	cmd_val = (int(cmd, 0).to_bytes(1, byteorder = 'big'))
+	print(cmd_val) 
+	if(cmd == '3'): 
+		return cmd_val
+	else:
 		interface 	= (
 						"0) fib interface \n"
 						"1) fob interface \n"
@@ -183,7 +186,7 @@ class fee_science_reciever(Thread):
 			self.buffer[0] = self.port.read(size = 10)
 			x	=   ("{}".format(int.from_bytes([self.buffer[0][0], self.buffer[0][1], self.buffer[0][2]], byteorder = 'big')))
 			y	=   ("{}".format(int.from_bytes([self.buffer[0][3], self.buffer[0][4], self.buffer[0][5]], byteorder = 'big')))
-			z	=   ("{}".format(int.from_bytes([self.buffer[0][6], self.buffer[0][7], self.buffer[0][6]], byteorder = 'big')))
+			z	=   ("{}".format(int.from_bytes([self.buffer[0][6], self.buffer[0][7], self.buffer[0][8]], byteorder = 'big')))
 			self.fib_handler.write(self.time.strftime("%Y%m%d %H:%M:%S.%f") + "," + str(self.id) + ",")
 			self.fib_handler.write(x + "," + y + "," + z + "\n")
 		
@@ -195,6 +198,7 @@ class fee_science_reciever(Thread):
 			pass
 		self.port.flushInput() 
 		t  = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+		self.update_current_time(); 
 	#opening all the 3 files with the time_stamp 
 		with open("fib_sci_" + t + ".csv", 'a') as self.fib_handler, open ("fob_sci_" + t + ".csv", 'a') as self.fob_handler,  open ("fsc_sci_" + t + ".csv", 'a') as self.fsc_handler:
 			header = "time"  + ","
