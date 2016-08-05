@@ -19,7 +19,6 @@ logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 start_science = False
 
-
 def build_config_command_val(): 
 	fee_number = (
 	"0> FIB \n"
@@ -90,6 +89,7 @@ class fee_science_reciever(Thread):
 		self.zeeman_controller = []
 		self.mc_controller	   = []
 		self.current_time = datetime.datetime.now()
+		self.init_clock = True
 		with open("avg_zeeman.csv", 'w') as self.avg_zeeman_h: 
 			self.avg_zeeman_h.write("population mean" + "," + "population standard deveation" + "\n")
 		with open("avg_mc.csv", 'w')     as self.avg_mc_controller: 
@@ -119,7 +119,7 @@ class fee_science_reciever(Thread):
 		self.id	= str(data[0])
 		self.sync_counter       		= ("{}".format(int.from_bytes(data[1 : 5], byteorder = 'big')));  
 		delta_val 						= float(self.sync_counter) * 1/128 
-		self.time 						= self.current_time + datetime.timedelta(milliseconds = delta_val) ;
+		self.time 						= self.current_time + datetime.timedelta(milliseconds = delta_val*1000 + 3000);						#3000 milliseconds is the time bias
 		self.n_fib 						= int(data[5])
 		self.n_fob 						= int(data[6])
 		self.n_fsc 						= int(data[7])
@@ -127,7 +127,6 @@ class fee_science_reciever(Thread):
 		self.fib_counter 				= self.fib_counter + self.n_fib 
 		self.fob_counter 				= self.fob_counter + self.n_fob
 		self.fsc_counter 				= self.fsc_counter + self.n_fsc
-		
 		if(self.time.minute != self.old_minutes): 
 			self.get_bit_rate();
 			self.update_fsc(); 
@@ -166,7 +165,7 @@ class fee_science_reciever(Thread):
 			time_stamp						= ("{}".format(int.from_bytes(self.buffer[2][8:11], byteorder = 'big')))
 			self.zeeman_controller.append(zeeman_controller)
 			self.mc_controller.append(microwave_reference_controller)
-			self.fsc_handler.write(self.time.strftime("%Y%m%d %H:%M:%S.%f") + "," + str(self.id) + "," + str(self.n_fib) + "," + str(self.n_fob) + "," + str(self.n_fsc) + ",")
+			self.fsc_handler.write(self.time.strftime("%Y%m%d %H:%M:%S.%f") + "," + str(self.id) + ",")
 			self.fsc_handler.write(str(sensor_temp_controller) + "," + str(laser_temp_controller) + "," + str(laser_current_controller) + "," + str(microwave_reference_controller) + "," +  str(zeeman_controller) + "," + str(science_data_id) + "," + str(science_data_val) + "," + str(time_stamp) + "\n")
 	
 	def write_fob(self):
@@ -176,16 +175,16 @@ class fee_science_reciever(Thread):
 			y	=   ("{}".format(int.from_bytes([self.buffer[1][5], self.buffer[1][4], self.buffer[1][3]], byteorder = 'little')))
 			z	=   ("{}".format(int.from_bytes([self.buffer[1][8], self.buffer[1][7], self.buffer[1][6]], byteorder = 'little')))
 			sensor_range = self.buffer[1][9]
-			self.fob_handler.write(self.time.strftime("%Y%m%d %H:%M:%S.%f") + "," + str(self.id) + "," + str(self.n_fsc) + "," + str(self.n_fob) + "," + str(self.n_fsc) + ",")
+			self.fob_handler.write(self.time.strftime("%Y%m%d %H:%M:%S.%f") + "," + str(self.id) + ",")
 			self.fob_handler.write(str(x) + "," + y + "," + z + "," + str(sensor_range) + "," + "\n")
 	
 	def write_fib(self):
 		for i in range(0, self.get_nfib()): 
 			self.buffer[0] = self.port.read(size = 10)
-			x	=   ("{}".format(int.from_bytes([self.buffer[0][0], self.buffer[0][1], self.buffer[0][2]], byteorder = 'little')))
-			y	=   ("{}".format(int.from_bytes([self.buffer[0][3], self.buffer[0][4], self.buffer[0][5]], byteorder = 'little')))
-			z	=   ("{}".format(int.from_bytes([self.buffer[0][6], self.buffer[0][7], self.buffer[0][6]], byteorder = 'little')))
-			self.fib_handler.write(self.time.strftime("%Y%m%d %H:%M:%S.%f") + "," + str(self.id) + "," + str(self.n_fib) + "," + str(self.n_fob) + "," + str(self.n_fsc) + ",")
+			x	=   ("{}".format(int.from_bytes([self.buffer[0][0], self.buffer[0][1], self.buffer[0][2]], byteorder = 'big')))
+			y	=   ("{}".format(int.from_bytes([self.buffer[0][3], self.buffer[0][4], self.buffer[0][5]], byteorder = 'big')))
+			z	=   ("{}".format(int.from_bytes([self.buffer[0][6], self.buffer[0][7], self.buffer[0][6]], byteorder = 'big')))
+			self.fib_handler.write(self.time.strftime("%Y%m%d %H:%M:%S.%f") + "," + str(self.id) + ",")
 			self.fib_handler.write(x + "," + y + "," + z + "\n")
 		
 	def run(self):
@@ -194,11 +193,11 @@ class fee_science_reciever(Thread):
 		#time.sleep(1)
 		if(self.start_science == False): 
 			pass
+		self.port.flushInput() 
 		t  = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-		self.port.flushInput()
 	#opening all the 3 files with the time_stamp 
 		with open("fib_sci_" + t + ".csv", 'a') as self.fib_handler, open ("fob_sci_" + t + ".csv", 'a') as self.fob_handler,  open ("fsc_sci_" + t + ".csv", 'a') as self.fsc_handler:
-			header = "time" + "," + "status" + "," + "n_fib" + "," + "n_fob" + "," + "n_fsc" + ","
+			header = "time"  + ","
 			self.fib_handler.write(header + "x" + "," + "y" + "," + "z" + "\n")
 			self.fob_handler.write(header + "x" + "," + "y" + "," + "z" + "\n")
 			self.fsc_handler.write(header + "sensor temperature controller" + "," + "laser temperature controller" + "," + "laser current controller" + "," + "microwave reference controller" + "," + "zeeman_controller" + "," +  "science_data_id" + "," +  "science_data" + "," + "time_stamp" + "\n" ) 
@@ -233,7 +232,6 @@ if __name__ == '__main__':
 		myThreadOb1.start()
 		while not myThreadOb1.is_alive():
 			pass
-			
 		while(myThreadOb1.receive_serial):
 			if(inputstring == 'fee_interface'):  
 				command = build_fee_packet();

@@ -293,6 +293,7 @@ void loop() {
          cmd_packet[fee_number][5] = checksum; 
         }
       }
+      task = DEFAULT0; 
     }
 
     else if(cmd_id == '\x04'){
