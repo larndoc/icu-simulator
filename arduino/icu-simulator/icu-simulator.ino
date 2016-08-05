@@ -214,9 +214,9 @@ void loop() {
     }
 
     else if(cmd_id == '\x02'){
-           int bytesToRead = Serial.available(); 
-      while(bytesToRead == 0); 
-      if(bytesToRead > 0){
+      while(Serial.available() == 0); 
+      if(Serial.available() > 0){
+        int bytesToRead = Serial.available(); 
         uint8_t arr[bytesToRead];
         Serial.readBytes(arr, bytesToRead); 
         const byte fee_number = arr[0];
@@ -245,7 +245,7 @@ void loop() {
          checksum = checksum_for_config_val ^ fee_number ^ read_write ^config_id;
          cmd_packet[fee_number][5] = checksum; 
         }
-      }
+      }  
       input = SCIENCE_MODE;
     }
 

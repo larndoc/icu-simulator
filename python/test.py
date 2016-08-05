@@ -198,7 +198,7 @@ class fee_science_reciever(Thread):
 			pass
 		self.port.flushInput() 
 		t  = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-		self.update_current_time(); 
+		self.current_time = datetime.datetime.now()
 	#opening all the 3 files with the time_stamp 
 		with open("fib_sci_" + t + ".csv", 'a') as self.fib_handler, open ("fob_sci_" + t + ".csv", 'a') as self.fob_handler,  open ("fsc_sci_" + t + ".csv", 'a') as self.fsc_handler:
 			header = "time"  + ","
@@ -228,53 +228,48 @@ if __name__ == '__main__':
 					 "5) End the script \n")
 		
 		
-		
-		fee_interface = ['1) fib interface', '2) fob interface', '3) fsc interface']
-		fee_activate = ['1) fee activate (5)', '2) fee deactivate (6)']
-		inputstring = ''
+		dict = {"0": build_fee_packet()
+				"1": build_config_command_val()
+				}
+				
+
 		myThreadOb1 = fee_science_reciever(s)
 		myThreadOb1.start()
 		while not myThreadOb1.is_alive():
 			pass
-		while(myThreadOb1.receive_serial):
-			if(inputstring == 'fee_interface'):  
-				command = build_fee_packet();
-				myThreadOb1.start_science = True
+		while(myThreadOb1.receive_serial):  
+			print(cmd_menu)
+			nb = input('please choose an option: ')
+			try: 
+				choice = int(nb)
+			except ValueError as error_msg: 
+				print('unable to parse choice as an integer %s' % error_msg)
+				logging.debug(error_msg)
+				continue 
+			if(nb == '2'): 
+				command = ((int(nb, 0)).to_bytes(1, byteorder = 'big') + build_config_command_val());
 				print(command)
+				s.write(command)
+				inputstring = ''	
+			if(nb == '4'):
+				command = ((int(nb, 0).to_bytes(1, byteorder = 'big')))
+				print(command)
+				s.write(command)
+				print(dict["0"])
 				myThreadOb1.port.write(command)
+					
+			elif(nb == '3'): 
+				myThreadOb1.start_science = True; 
+				myThreadOb1.update_current_time()
+				print('initiating science mode')
+				print((int(nb, 0)).to_bytes(1, byteorder = 'big'))
+				s.write((int(nb, 0)).to_bytes(1, byteorder = 'big'))
+			
+			elif(nb == '5'): 
+				myThreadOb1.receive_serial = False; 
+				break; 
+			else: 
 				inputstring = ''
-			elif (inputstring == ''):
-				print(cmd_menu)
-				nb = input('please choose an option: ')
-				try: 
-					choice = int(nb)
-				except ValueError as error_msg: 
-					print('unable to parse choice as an integer %s' % error_msg)
-					logging.debug(error_msg)
-					continue 
-				if(nb == '2'): 
-					command = ((int(nb, 0)).to_bytes(1, byteorder = 'big') + build_config_command_val());
-					print(command)
-					s.write(command)
-					inputstring = ''
-					
-				if(nb == '4'):
-					command = ((int(nb, 0).to_bytes(1, byteorder = 'big')))
-					print(command)
-					s.write(command)
-					inputstring = 'fee_interface'
-					
-				elif(nb == '3'): 
-					myThreadOb1.start_science = True; 
-					myThreadOb1.update_current_time()
-					print('initiating science mode')
-					print((int(nb, 0)).to_bytes(1, byteorder = 'big'))
-					s.write((int(nb, 0)).to_bytes(1, byteorder = 'big'))
-				elif(nb == '5'): 
-					myThreadOb1.receive_serial = False; 
-					break; 
-				else: 
-					inputstring = ''
 				
 		myThreadOb1.join()
 		print("program end")
