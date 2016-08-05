@@ -19,7 +19,7 @@ int16_t adc_get_chip_select(int16_t adc)
 	}	
 }
 
-void adc_read_one(uint8_t chip, uint8_t pin);
+void adc_read_one(uint8_t chip, uint8_t pin)
 {
 	int16_t result, chip_select = adc_get_chip_select(chip);
 	if (chip_select < 0) return;
