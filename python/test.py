@@ -226,11 +226,7 @@ if __name__ == '__main__':
 					 "3) Science Mode \n"
 					 "4) Config Mode \n"
 					 "5) End the script \n")
-		
-		
-		dict = {"0": build_fee_packet()
-				"1": build_config_command_val()
-				}
+
 				
 
 		myThreadOb1 = fee_science_reciever(s)
@@ -238,6 +234,7 @@ if __name__ == '__main__':
 		while not myThreadOb1.is_alive():
 			pass
 		while(myThreadOb1.receive_serial):  
+			command = ''
 			print(cmd_menu)
 			nb = input('please choose an option: ')
 			try: 
@@ -248,29 +245,19 @@ if __name__ == '__main__':
 				continue 
 			if(nb == '2'): 
 				command = ((int(nb, 0)).to_bytes(1, byteorder = 'big') + build_config_command_val());
-				print(command)
-				s.write(command)
-				inputstring = ''	
-			if(nb == '4'):
+			elif(nb == '4'):
 				command = ((int(nb, 0).to_bytes(1, byteorder = 'big')))
-				print(command)
-				s.write(command)
-				print(dict["0"])
-				myThreadOb1.port.write(command)
-					
+				command = command + build_fee_packet();
 			elif(nb == '3'): 
 				myThreadOb1.start_science = True; 
 				myThreadOb1.update_current_time()
 				print('initiating science mode')
-				print((int(nb, 0)).to_bytes(1, byteorder = 'big'))
-				s.write((int(nb, 0)).to_bytes(1, byteorder = 'big'))
-			
+				command = ((int(nb, 0)).to_bytes(1, byteorder = 'big'))
 			elif(nb == '5'): 
 				myThreadOb1.receive_serial = False; 
 				break; 
-			else: 
-				inputstring = ''
-				
+			myThreadOb1.port.write(command)
+			print(command)	
 		myThreadOb1.join()
 		print("program end")
 	
