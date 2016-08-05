@@ -9,6 +9,7 @@ import numpy
 import statistics
 from abc import ABCMeta, abstractmethod
 from threading import Thread
+import math
 
 
 
@@ -27,15 +28,20 @@ def build_config_command_val():
 	)
 	print(fee_number)
 	cmd = input('> please choose an input: ')	
+	cmd_val = (int(cmd, 0)).to_bytes(1, byteorder = 'big')
 	read_write = (
 	"0) read \n" 
 	"1) write \n"
 	)
 	print(read_write)
 	rm_wr = input('> please choose an input: ')
+	rm_wr_val = (int(rm_wr, 0)).to_bytes(1, byteorder = 'big')
 	config_id = input('>please enter config id: ')		
+	config_id_val = (int(config_id, 0)).to_bytes(1, byteorder = 'big')
 	config_val = input('>please enter config val: ')
-	return cmd + rm_wr + config_id + config_val 
+	temp = int(config_val, 0)
+	choice = (temp).to_bytes(3, byteorder='big')
+	return cmd_val + rm_wr_val + config_id_val + choice
 	
 def build_fee_packet(): 						
 	activate_fee = (
@@ -45,19 +51,19 @@ def build_fee_packet():
 	)
 	print(activate_fee)
 	cmd = input('please choose an input: ')
+	print(int(cmd, 0).to_bytes(1, byteorder = 'big'))
 	if(cmd != '3'):
 		interface 	= (
-						"1) fib interface \n"
-						"2) fob interface \n"
-						"3) fsc interface \n"
+						"0) fib interface \n"
+						"1) fob interface \n"
+						"2) fsc interface \n"
 						)
 		print(interface)
 		fee_interface = input('please choose an input: ')
+		
 		#fee_interface = int(nb, base = 16)
 		#command = (cmd.to_bytes(1, byteorder = 'big') + fee_interface.to_bytes(1, byteorder = 'big') )
-		return cmd + fee_interface
-	else:
-		return '3'
+		return (int(cmd, 0)).to_bytes(1, byteorder = 'big') + (int(fee_interface, 0)).to_bytes(1, byteorder = 'big')
 	
 
 def debug_information(data): 
@@ -124,7 +130,7 @@ class fee_science_reciever(Thread):
 		
 		if(self.time.minute != self.old_minutes): 
 			self.get_bit_rate();
-			#self.update_fsc(); 
+			self.update_fsc(); 
 			
 		#self.fsc_counter = self.fsc_counter + self.n_fsc
 		#logging.debug('RECIEVED SCIENCE PACKET (FIB:%3d, FOB:%3d, FSC%3d)', self.n_fib, self.n_fob, self.n_fsc)
@@ -186,7 +192,7 @@ class fee_science_reciever(Thread):
 	# arduino startup time
 	#timestamp for each of the filenames
 		#time.sleep(1)
-		while(self.start_science == False): 
+		if(self.start_science == False): 
 			pass
 		t  = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 		self.port.flushInput()
@@ -233,8 +239,7 @@ if __name__ == '__main__':
 				command = build_fee_packet();
 				myThreadOb1.start_science = True
 				print(command)
-				encoded = command.encode('utf-8')
-				myThreadOb1.port.write(encoded)
+				myThreadOb1.port.write(command)
 				inputstring = ''
 			elif (inputstring == ''):
 				print(cmd_menu)
@@ -246,43 +251,29 @@ if __name__ == '__main__':
 					logging.debug(error_msg)
 					continue 
 				if(nb == '2'): 
-					command = nb + build_config_command_val();
-					encoded = command.encode('utf-8')
-					s.write(encoded)
+					command = ((int(nb, 0)).to_bytes(1, byteorder = 'big') + build_config_command_val());
+					print(command)
+					s.write(command)
 					inputstring = ''
 					
 				if(nb == '4'):
-					command = nb; 
-					encoded = command.encode('utf-8')
-					s.write(encoded)
+					command = ((int(nb, 0).to_bytes(1, byteorder = 'big')))
+					print(command)
+					s.write(command)
 					inputstring = 'fee_interface'
+					
 				elif(nb == '3'): 
 					myThreadOb1.start_science = True; 
 					myThreadOb1.update_current_time()
 					print('initiating science mode')
-					encoded = nb.encode('utf-8')
-					s.write(encoded)
+					print((int(nb, 0)).to_bytes(1, byteorder = 'big'))
+					s.write((int(nb, 0)).to_bytes(1, byteorder = 'big'))
 				elif(nb == '5'): 
 					myThreadOb1.receive_serial = False; 
 					break; 
 				else: 
 					inputstring = ''
-			
-				encoded = nb.encode('utf-8')
-				s.write(encoded)
 				
-				
-		#time.sleep(2)
-		#s.flushInput()
-		
-		#myThreadOb1.s.write(b'A')
-		#time.sleep(1)
-		#waiting for the join to finish 
-		##
-		## here is all the code that needs to run in the main program
-		##
-		##
-
 		myThreadOb1.join()
 		print("program end")
 	

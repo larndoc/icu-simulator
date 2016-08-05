@@ -1,8 +1,7 @@
 #ifndef PC_DATA_DUMP_H
 #define PC_DATA_DUMP_H
 #pragma pack(1)  
- 
- int total_packets = 8 + 10*number_fib + 10*number_fob + 10*number_fsc;
+
                                                /*eliminates byte padding*/
 union pc_data
 {

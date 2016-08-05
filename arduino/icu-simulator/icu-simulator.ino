@@ -35,8 +35,7 @@ enum set {
   CLEAR_PC_PACKET,
   STORE_TO_PC, 
   BEGIN_SYNC,
-  CONFIG_MODE, 
-  CONFIG_COMMAND, 
+  CONFIG_MODE,  
   DEFAULT0
   };
 
@@ -50,8 +49,8 @@ fee_paket* fee_packet_ptr[3]         = {&fee_packet[0], &fee_packet[1], &fee_pac
 /*declaration of the pc packet, used to package the recieved bytes from the three interfaces and write it out the serial port, the struct used for pc packet is a union defined in pc_data_dump.h */
 pc_data pc_packet                    = {STATUS, 0, 0, 0, 0};       
 pc_data* pc_packet_ptr               = &pc_packet;
-byte* pc_data[3]                     = {pc_packet_ptr->sci_fib, pc_packet_ptr->sci_fob, pc_packet_ptr->sci_fsc};
-byte* pc_fee_counter[3]              = {pc_packet_ptr->n_fib, pc_packet_ptr-> n_fob, pc_packet_ptr->n_fsc};
+byte* pc_data[3]                  = {pc_packet_ptr->sci_fib, pc_packet_ptr->sci_fob, pc_packet_ptr->sci_fsc};
+byte* pc_fee_counter[3]              = {&pc_packet_ptr->n_fib, &pc_packet_ptr-> n_fob, &pc_packet_ptr->n_fsc};
 
 /*a 2-D (3 x 6) array for the command packets that includes the command packet to be sent to each interface */ 
 uint8_t cmd_packet[3][PACKET_SIZE]   = {{1, 0, 0, 0, 0, 1}, {1, 0, 0, 0, 0,  1}, {1, 0, 0, 0, 0, 1}};
@@ -212,13 +211,13 @@ void loop() {
       
     case STORE_TO_PC:   
       Serial.write(pc_packet.arr, 8); 
-      if(pc_fee_counter[0] == 1){
+      if(*pc_fee_counter[0] == 1){
         Serial.write(pc_packet.sci_fib, 10);
       }
-      else if(pc_fee_counter[1] == 1){
+      if(*pc_fee_counter[1] == 1){
         Serial.write(pc_packet.sci_fob, 10); 
       }
-      else if(pc_fee_counter[2] == 1){
+      if(*pc_fee_counter[2] == 1){
         Serial.write(pc_packet.sci_fsc, 10);
       }
       input = SCIENCE_MODE; 
@@ -255,52 +254,26 @@ void loop() {
     bytes1 = Serial.available(); 
     if(bytes1 > 0){
     if(bytes1 == 1){ 
-    int cmd_id = Serial.read(); 
+    byte cmd_id = Serial.read(); 
     
-    if(cmd_id == '3'){
+    if(cmd_id == '\x03'){
       input = SCIENCE_MODE; 
     }
 
-    else if(cmd_id == '2'){
-      input = CONFIG_COMMAND; 
-    }
-
-    else if(cmd_id == '4'){
-      input = CONFIG_MODE;
-    }
-
-    else if(input == CONFIG_MODE && cmd_id == '5'){
-      while(Serial.available() == 0); 
-      if(Serial.available() > 0){
-        uint8_t interface = Serial.read(); 
-        fee_activate(interface); 
-        input = CONFIG_MODE; 
-      }
-      
-    }
-    else if(input == CONFIG_MODE && cmd_id == '6'){
-      while(Serial.available() == 0); 
-      if(Serial.available() > 0){
-        uint8_t interface = Serial.read(); 
-        fee_deactivate(interface); 
-        input = CONFIG_MODE; 
-      }
-    }
-
-    else if(input == CONFIG_COMMAND){
-      int bytesToRead = Serial.available(); 
+    else if(cmd_id == '\x02'){
+           int bytesToRead = Serial.available(); 
       while(bytesToRead == 0); 
       if(bytesToRead > 0){
         uint8_t arr[bytesToRead];
         Serial.readBytes(arr, bytesToRead); 
-        const uint8_t fee_number = arr[0] - 48;
-        const uint8_t read_write = arr[1] - 48; 
-        const uint8_t config_id =  arr[2] - 48;
-        uint8_t config_val[3];
-        const uint8_t * config_val_ptr;
+        const byte fee_number = arr[0];
+        const byte read_write = arr[1]; 
+        const byte config_id =  arr[2];
+        byte config_val[3];
+        const byte * config_val_ptr;
         config_val_ptr = config_val;  
         for (int i = 0; i < bytesToRead - 3; i++){
-          config_val[i] =  arr[2 + i] - 48; 
+          config_val[i] =  arr[2 + i]; 
         }
         if(read_write == 0){
           //we want to read 
@@ -310,8 +283,8 @@ void loop() {
         else if(read_write == 1){
           //we want to write 
           //the rest of the code should go here
-          bool checksum_for_config_val = 0; 
-          uint8_t checksum; 
+          byte checksum_for_config_val = 0; 
+          byte checksum; 
           write_command_packet(fee_number, config_val_ptr, config_id);
           for(int i = 0; i < 3; i++){
              checksum_for_config_val ^= config_val[i];  
@@ -321,6 +294,29 @@ void loop() {
         }
       }
     }
+
+    else if(cmd_id == '\x04'){
+      input = CONFIG_MODE;
+    }
+
+    else if(input == CONFIG_MODE && cmd_id == '\x05'){
+      while(Serial.available() == 0); 
+      if(Serial.available() > 0){
+        byte interface = Serial.read(); 
+        fee_activate(interface);
+        input = CONFIG_MODE; 
+      }
+      
+    }
+    else if(input == CONFIG_MODE && cmd_id == '\x06'){
+      while(Serial.available() == 0); 
+      if(Serial.available() > 0){
+        uint8_t interface = Serial.read(); 
+        fee_deactivate(interface);
+        input = CONFIG_MODE; 
+      }
+    }
+
     task = DEFAULT0;
     }
     }
@@ -331,10 +327,9 @@ void loop() {
       task = 
         input == DEFAULT0 ? DEFAULT0 : 
         input == SCIENCE_MODE ? SCIENCE_MODE : 
-        input == CONFIG_MODE ? CONFIG_MDOE : 
-        input == CONFIG_COMMAND ? CONFIG_COMMAND : 
+        input == CONFIG_MODE ? CONFIG_MODE : 
         input == CREATE_PC_PACKET ? CREATE_PC_PACKET : 
-        STORE_TO_PC   
+        STORE_TO_PC;  
      }
     break ;
     
@@ -343,9 +338,9 @@ void loop() {
 }
 
 
-void fee_activate(char index){
+void fee_activate(int index){
   
-  if ( (index - 48) > 2 || (index - 48) < 0){
+  if ( (index) > 2 || (index) < 0){
     return;  
   }
   else{
@@ -356,19 +351,19 @@ void fee_activate(char index){
 void delete_interface(char index){
   
   deactivate_pins(index); 
-  fee_enabled(index - 48) = false; 
-  pc_fee_counter[index - 48] = 0; 
+  fee_enabled[index] = false; 
+  *pc_fee_counter[index] = 0; 
 }
 
-void create_interface(char index){
+void create_interface(int index){
   
   activate_pins(index); 
-  fee_enabled[index - 48] = true; 
-  pc_fee_counter[index - 48] = 1; 
+  fee_enabled[index] = true; 
+  *pc_fee_counter[index] = 1;
 }
 
 void fee_deactivate(char index){
-  if ((index - 48) > 2 || (index - 48) < 0){
+  if ((index) > 2 || (index) < 0){
     return; 
   }
   else{
@@ -376,25 +371,21 @@ void fee_deactivate(char index){
   }
 }
 
-void activate_pins(char index){
-   pinMode(sync_pins[index - 48],  OUTPUT); 
-   digitalWrite(sync_pins[index - 48], LOW); 
-   port[index - 48]->begin(BAUD_RATE);
+void activate_pins(int index){
+   pinMode(sync_pins[index],  OUTPUT); 
+   digitalWrite(sync_pins[index], LOW); 
+   port[index]->begin(BAUD_RATE);
 }
 
 void deactivate_pins(char index){
-  pinMode(sync_pins[index - 48], INPUT);
-  digitalWrite(sync_pins[index - 48], LOW); 
-  port[index - 48]->end(); 
+  pinMode(sync_pins[index], INPUT);
+  digitalWrite(sync_pins[index], LOW); 
+  port[index]->end(); 
 }
 
 void create_pc_packet(int index){
   /*if index == 0 then set size_of_data to FIB_SCI_DATA, if index == 1 then set size_of_data to FOB_SCI_DATA_SIZE and if index == 2 then set size_of_data to FSC_SCI_DATA_SIZE */
   
-  int size_of_data = 
-    index == 0 ? number_fib*10 :
-    index == 1 ? number_fob*10 : 
-    number_fsc*10;  
     
   if(packet_exists[index]){
      for(int i = 0; i < 10; i++){
