@@ -1,9 +1,6 @@
 /* Lab model of ICU: set varaible load.*/ 
-#define LOAD_VDD_IO	0
-#define LOAD_VDD_CORE	1
 
-#define I_MIN 0.0f
-#define I_MAX 1.0f
+#include "variable-load.h"
 
 void set_load(uint8_t rail, float current)
 {
