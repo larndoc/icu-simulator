@@ -7,14 +7,11 @@ import binascii
 import logging
 import numpy
 import statistics
-from abc import ABCMeta, abstractmethod
 from threading import Thread
 import math
 
 
-
-
-logging.basicConfig(filename='example.log', format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+logging.basicConfig(filename='debugger.log', format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 start_science = False
@@ -228,12 +225,16 @@ if __name__ == '__main__':
 					 "5) End the script \n")
 
 				
-
-		myThreadOb1 = fee_science_reciever(s)
-		myThreadOb1.start()
-		while not myThreadOb1.is_alive():
+		#thread object to handler science_data
+		science_handler = fee_science_reciever(s)
+		science_handler.start()
+		
+		#waiting for the thread object to initialize 
+		while not science_handler.is_alive():
 			pass
-		while(myThreadOb1.receive_serial):  
+		
+		#continue to stay in the loop until the user wants to exit the script in which case we must end the thread
+		while(science_handler.receive_serial):  
 			command = ''
 			print(cmd_menu)
 			nb = input('please choose an option: ')
@@ -249,16 +250,19 @@ if __name__ == '__main__':
 				command = ((int(nb, 0).to_bytes(1, byteorder = 'big')))
 				command = command + build_fee_packet();
 			elif(nb == '3'): 
-				myThreadOb1.start_science = True; 
-				myThreadOb1.update_current_time()
+				science_handler.start_science = True; 
+				science_handler.update_current_time()
 				print('initiating science mode')
 				command = ((int(nb, 0)).to_bytes(1, byteorder = 'big'))
 			elif(nb == '5'): 
-				myThreadOb1.receive_serial = False; 
+				science_handler.receive_serial = False; 
 				break; 
-			myThreadOb1.port.write(command)
+			science_handler.port.write(command)
 			print(command)	
-		myThreadOb1.join()
+		
+		#waaiting for the thread to finish executing
+		science_handler.join()
+		#now we know that we terminated the program
 		print("program end")
 	
 		
