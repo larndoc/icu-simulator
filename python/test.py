@@ -15,6 +15,16 @@ logging.basicConfig(filename='debugger.log', format='%(asctime)s %(message)s', d
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 start_science = False
+recieve_serial = True; 
+
+def init_science(science_mode): 
+	if(science_mode): 
+		science_handler = fee_science_reciever(s)
+		while not science_handler.is_alive(): 
+			pass 
+		science.handler().start
+		science_handler.start_science = True; 
+		science_handler.update_current_time() 
 
 def build_config_command_val(): 
 	fee_number = (
@@ -80,8 +90,7 @@ class fee_science_reciever(Thread):
 	def __init__(self, serial_port): 
 		super(fee_science_reciever, self).__init__()
 		self.port = serial_port
-		self.receive_serial = True 
-		self.start_science = False
+		self.coordinate = ['', '', ''] 
 		self.fib_counter = 0; 
 		self.fob_counter = 0; 
 		self.old_minutes = 0; 
@@ -133,7 +142,7 @@ class fee_science_reciever(Thread):
 			
 		#self.fsc_counter = self.fsc_counter + self.n_fsc
 		#logging.debug('RECIEVED SCIENCE PACKET (FIB:%3d, FOB:%3d, FSC%3d)', self.n_fib, self.n_fob, self.n_fsc)
-		total_data_to_read 			= self.n_fib*10 + self.n_fob*10 + self.n_fsc*10
+		total_data_to_read 				= self.n_fib*10 + self.n_fob*10 + self.n_fsc*10
 		self.fib_lower_limit 			= 8  
 		self.fib_upper_limit    		= self.fib_lower_limit   + 10*self.n_fib
 		self.fob_lower_limit 			= self.fib_upper_limit 
@@ -144,6 +153,7 @@ class fee_science_reciever(Thread):
 		self.write_fib()
 		self.write_fob()
 		self.write_fsc()		
+		self.coordinate 				= ['', '', '']
 	
 	def get_nfib(self): 
 		return self.n_fib 
@@ -171,27 +181,27 @@ class fee_science_reciever(Thread):
 	def write_fob(self):
 		for i in range(0,self.get_nfob()) :
 			self.buffer[1] = self.port.read(size = 10)
-			x	=   ("{}".format(int.from_bytes([self.buffer[1][2], self.buffer[1][1], self.buffer[1][0]], byteorder = 'little')))
-			y	=   ("{}".format(int.from_bytes([self.buffer[1][5], self.buffer[1][4], self.buffer[1][3]], byteorder = 'little')))
-			z	=   ("{}".format(int.from_bytes([self.buffer[1][8], self.buffer[1][7], self.buffer[1][6]], byteorder = 'little')))
+			for i in range(0, 3):
+				self.coordinate[i] = ("{}".format(int.from_bytes([self.buffer[1][3*i + 2], self.buffer[1][3*i + 1], self.buffer[3*i])
+				self.coordinate[i] = self.coordinate[i] - 2**24 * (self.coordinate[i] >= 2**24/2)
 			sensor_range = self.buffer[1][9]
 			self.fob_handler.write(self.time.strftime("%Y%m%d %H:%M:%S.%f") + "," + str(self.id) + ",")
-			self.fob_handler.write(str(x) + "," + y + "," + z + "," + str(sensor_range) + "," + "\n")
+			self.fob_handler.write(self.coordinate[0] + "," + self.coordinate[1] + "," + self.coordinate[2] + "," + str(sensor_range) + "," + "\n")
 	
 	def write_fib(self):
 		for i in range(0, self.get_nfib()): 
 			self.buffer[0] = self.port.read(size = 10)
-			x	=   ("{}".format(int.from_bytes([self.buffer[0][0], self.buffer[0][1], self.buffer[0][2]], byteorder = 'big')))
-			y	=   ("{}".format(int.from_bytes([self.buffer[0][3], self.buffer[0][4], self.buffer[0][5]], byteorder = 'big')))
-			z	=   ("{}".format(int.from_bytes([self.buffer[0][6], self.buffer[0][7], self.buffer[0][8]], byteorder = 'big')))
+			for i in range(0, 3): 
+				self.coordinate[i] = ("{}".format(int.from_bytes([self.buffer[0][3*i], self.buffer[0][3*i + 1], self.buffer[0][3*i + 2]))
+				self.coordinate[i] = self.coordinate[i] - 2**24 * (self.coordinate[i] >= 2**24/2)
 			self.fib_handler.write(self.time.strftime("%Y%m%d %H:%M:%S.%f") + "," + str(self.id) + ",")
-			self.fib_handler.write(x + "," + y + "," + z + "\n")
+			self.fib_handler.write(self.coordinate[0] + "," + self.coordinate[1] + "," + self.coordinate[2] + "\n")
 		
 	def run(self):
 	# arduino startup time
 	#timestamp for each of the filenames
 		#time.sleep(1)
-		if(self.start_science == False): 
+		if(start_science == False): 
 			pass
 		self.port.flushInput() 
 		t  = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -202,13 +212,13 @@ class fee_science_reciever(Thread):
 			self.fib_handler.write(header + "x" + "," + "y" + "," + "z" + "\n")
 			self.fob_handler.write(header + "x" + "," + "y" + "," + "z" + "\n")
 			self.fsc_handler.write(header + "sensor temperature controller" + "," + "laser temperature controller" + "," + "laser current controller" + "," + "microwave reference controller" + "," + "zeeman_controller" + "," +  "science_data_id" + "," +  "science_data" + "," + "time_stamp" + "\n" ) 
-			while self.receive_serial:
+			while receive_serial:
 				if self.port.in_waiting > 0:
 					self.update()
 
 	def update_current_time(self):
 		self.curent_time = datetime.datetime.now()
-	
+science_handler = '' 	
 if __name__ == '__main__':
 
 		baud_rate = 115200
@@ -223,19 +233,17 @@ if __name__ == '__main__':
 					 "3) Science Mode \n"
 					 "4) Config Mode \n"
 					 "5) End the script \n")
-
-				
-		#thread object to handler science_data
-		science_handler = fee_science_reciever(s)
-		science_handler.start()
-		
-		#waiting for the thread object to initialize 
-		while not science_handler.is_alive():
-			pass
 		
 		#continue to stay in the loop until the user wants to exit the script in which case we must end the thread
-		while(science_handler.receive_serial):  
-			command = ''
+		while(1):  
+			if start_science: 
+				science_handler = fee_science_reciever(s)
+				while not science_handler.is_alive(): 
+					pass 
+				science.handler().start
+				science_handler.start_science = True; 
+				science_handler.update_current_time() 
+				command = ''
 			print(cmd_menu)
 			nb = input('please choose an option: ')
 			try: 
@@ -245,26 +253,26 @@ if __name__ == '__main__':
 				logging.debug(error_msg)
 				continue 
 			if(nb == '2'): 
+				start_science = False; 
 				command = ((int(nb, 0)).to_bytes(1, byteorder = 'big') + build_config_command_val());
 			elif(nb == '4'):
-				command = ((int(nb, 0).to_bytes(1, byteorder = 'big')))
-				command = command + build_fee_packet();
+				start_science = build_fee_packet() == 3
+				command = ((int(nb, 0).to_bytes(1, byteorder = 'big'))) + build_fee_packet(); 
 			elif(nb == '3'): 
-				science_handler.start_science = True; 
-				science_handler.update_current_time()
 				print('initiating science mode')
 				command = ((int(nb, 0)).to_bytes(1, byteorder = 'big'))
+				start_science = True; 
 			elif(nb == '5'): 
-				science_handler.receive_serial = False; 
-				break; 
+				start_science = False
+				receive_serial = False
+				science_handler.join()
+			break; 
 			science_handler.port.write(command)
 			print(command)	
 		
 		#waaiting for the thread to finish executing
-		science_handler.join()
 		#now we know that we terminated the program
 		print("program end")
 	
-		
-	
+
 	
