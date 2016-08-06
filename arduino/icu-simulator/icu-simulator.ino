@@ -282,14 +282,16 @@ void loop() {
      break; 
       
     case STORE_TO_PC:   
+    if(packet_exists[0] || packet_exists[1] || packet_exists[2]){
       Serial.write(pc_packet.arr, 8); 
-      if(*pc_fee_counter[0] == 1){
+    }
+      if(*pc_fee_counter[0] == 1 && packet_exists[0]){
         Serial.write(pc_packet.sci_fib, 10);
       }
-      if(*pc_fee_counter[1] == 1){
+      if(*pc_fee_counter[1] == 1 && packet_exists[1]){
         Serial.write(pc_packet.sci_fob, 10); 
       }
-      if(*pc_fee_counter[2] == 1){
+      if(*pc_fee_counter[2] == 1 && packet_exists[2]){
         Serial.write(pc_packet.sci_fsc, 10);
       }
       input = SCIENCE_MODE; 
