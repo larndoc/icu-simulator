@@ -14,7 +14,7 @@ import math
 logging.basicConfig(filename='debugger.log', format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
-start_science = False
+start_science = True
 recieve_serial = True; 
 
 def init_science(science_mode): 
@@ -53,7 +53,7 @@ def build_fee_packet():
 	activate_fee = (
 	"5) activate_fee \n"
 	"6) de-activate fee \n"
-	"3) go to science mode \n"
+	"3) go back to previous menu \n"
 	)
 	print(activate_fee)
 	cmd = input('please choose an input: ')
@@ -95,6 +95,7 @@ class fee_science_reciever(Thread):
 		self.fob_counter = 0; 
 		self.old_minutes = 0; 
 		self.fsc_counter = 0; 
+		self.start_science = True; 
 		self.zeeman_controller = []
 		self.mc_controller	   = []
 		self.current_time = datetime.datetime.now()
@@ -125,35 +126,36 @@ class fee_science_reciever(Thread):
 		
 	def update(self):	
 		data = bytearray((self.port).read(size = 8))
-		self.id	= str(data[0])
-		self.sync_counter       		= ("{}".format(int.from_bytes(data[1 : 5], byteorder = 'big')));  
-		delta_val 						= float(self.sync_counter) * 1/128 
-		self.time 						= self.current_time + datetime.timedelta(milliseconds = delta_val*1000 + 3000);						#3000 milliseconds is the time bias
-		self.n_fib 						= int(data[5])
-		self.n_fob 						= int(data[6])
-		self.n_fsc 						= int(data[7])
-		self.total_bytes        		= self.n_fib*10 + self.n_fob*10 + self.n_fsc*10 + 8
-		self.fib_counter 				= self.fib_counter + self.n_fib 
-		self.fob_counter 				= self.fob_counter + self.n_fob
-		self.fsc_counter 				= self.fsc_counter + self.n_fsc
-		if(self.time.minute != self.old_minutes): 
-			self.get_bit_rate();
-			self.update_fsc(); 
+		if(data != ''): 
+			self.id	= str(data[0])
+			self.sync_counter       		= ("{}".format(int.from_bytes(data[1 : 5], byteorder = 'big')));  
+			delta_val 						= float(self.sync_counter) * 1/128 
+			self.time 						= self.current_time + datetime.timedelta(milliseconds = delta_val*1000 + 3000);						#3000 milliseconds is the time bias
+			self.n_fib 						= int(data[5])
+			self.n_fob 						= int(data[6])
+			self.n_fsc 						= int(data[7])
+			self.total_bytes        		= self.n_fib*10 + self.n_fob*10 + self.n_fsc*10 + 8
+			self.fib_counter 				= self.fib_counter + self.n_fib 
+			self.fob_counter 				= self.fob_counter + self.n_fob
+			self.fsc_counter 				= self.fsc_counter + self.n_fsc
+			if(self.time.minute != self.old_minutes): 
+				self.get_bit_rate();
+				self.update_fsc(); 
 			
-		#self.fsc_counter = self.fsc_counter + self.n_fsc
-		#logging.debug('RECIEVED SCIENCE PACKET (FIB:%3d, FOB:%3d, FSC%3d)', self.n_fib, self.n_fob, self.n_fsc)
-		total_data_to_read 				= self.n_fib*10 + self.n_fob*10 + self.n_fsc*10
-		self.fib_lower_limit 			= 8  
-		self.fib_upper_limit    		= self.fib_lower_limit   + 10*self.n_fib
-		self.fob_lower_limit 			= self.fib_upper_limit 
-		self.fob_upper_limit			= self.fob_lower_limit + 10*self.n_fob 
-		self.fsc_lower_limit 			= self.fob_upper_limit 
-		self.fsc_upper_limit 			= self.fsc_lower_limit + 10*self.n_fsc
-		self.old_minutes				= self.time.minute
-		self.write_fib()
-		self.write_fob()
-		self.write_fsc()		
-		self.coordinate 				= ['', '', '']
+			#self.fsc_counter = self.fsc_counter + self.n_fsc
+			#logging.debug('RECIEVED SCIENCE PACKET (FIB:%3d, FOB:%3d, FSC%3d)', self.n_fib, self.n_fob, self.n_fsc)
+			total_data_to_read 				= self.n_fib*10 + self.n_fob*10 + self.n_fsc*10
+			self.fib_lower_limit 			= 8  
+			self.fib_upper_limit    		= self.fib_lower_limit   + 10*self.n_fib
+			self.fob_lower_limit 			= self.fib_upper_limit 
+			self.fob_upper_limit			= self.fob_lower_limit   + 10*self.n_fob 
+			self.fsc_lower_limit 			= self.fob_upper_limit 
+			self.fsc_upper_limit 			= self.fsc_lower_limit   + 10*self.n_fsc
+			self.old_minutes				= self.time.minute
+			self.write_fib()
+			self.write_fob()
+			self.write_fsc()		
+			self.coordinate 				= ['', '', '']
 	
 	def get_nfib(self): 
 		return self.n_fib 
@@ -182,7 +184,7 @@ class fee_science_reciever(Thread):
 		for i in range(0,self.get_nfob()) :
 			self.buffer[1] = self.port.read(size = 10)
 			for i in range(0, 3):
-				self.coordinate[i] = ("{}".format(int.from_bytes([self.buffer[1][3*i + 2], self.buffer[1][3*i + 1], self.buffer[3*i])
+				self.coordinate[i] = ("{}".format(int.from_bytes( self.buffer[1][3*i + 2], self.buffer[1][3*i + 1], self.buffer[1][3*i] )))
 				self.coordinate[i] = self.coordinate[i] - 2**24 * (self.coordinate[i] >= 2**24/2)
 			sensor_range = self.buffer[1][9]
 			self.fob_handler.write(self.time.strftime("%Y%m%d %H:%M:%S.%f") + "," + str(self.id) + ",")
@@ -192,7 +194,7 @@ class fee_science_reciever(Thread):
 		for i in range(0, self.get_nfib()): 
 			self.buffer[0] = self.port.read(size = 10)
 			for i in range(0, 3): 
-				self.coordinate[i] = ("{}".format(int.from_bytes([self.buffer[0][3*i], self.buffer[0][3*i + 1], self.buffer[0][3*i + 2]))
+				self.coordinate[i] = ("{}".format(int.from_bytes(self.buffer[0][3*i], self.buffer[0][3*i + 1], self.buffer[0][3*i + 2])))
 				self.coordinate[i] = self.coordinate[i] - 2**24 * (self.coordinate[i] >= 2**24/2)
 			self.fib_handler.write(self.time.strftime("%Y%m%d %H:%M:%S.%f") + "," + str(self.id) + ",")
 			self.fib_handler.write(self.coordinate[0] + "," + self.coordinate[1] + "," + self.coordinate[2] + "\n")
@@ -201,7 +203,7 @@ class fee_science_reciever(Thread):
 	# arduino startup time
 	#timestamp for each of the filenames
 		#time.sleep(1)
-		if(start_science == False): 
+		if(self.start_science == False): 
 			pass
 		self.port.flushInput() 
 		t  = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -212,20 +214,21 @@ class fee_science_reciever(Thread):
 			self.fib_handler.write(header + "x" + "," + "y" + "," + "z" + "\n")
 			self.fob_handler.write(header + "x" + "," + "y" + "," + "z" + "\n")
 			self.fsc_handler.write(header + "sensor temperature controller" + "," + "laser temperature controller" + "," + "laser current controller" + "," + "microwave reference controller" + "," + "zeeman_controller" + "," +  "science_data_id" + "," +  "science_data" + "," + "time_stamp" + "\n" ) 
-			while receive_serial:
+			while self.start_science:
 				if self.port.in_waiting > 0:
 					self.update()
 
 	def update_current_time(self):
 		self.curent_time = datetime.datetime.now()
-science_handler = '' 	
+		
 if __name__ == '__main__':
-
 		baud_rate = 115200
 		parser = argparse.ArgumentParser();
 		parser.add_argument(dest = 'port', help = "display the interface port to the computer ", type = str)
 		args = parser.parse_args() 
 		s = serial.Serial(args.port, baud_rate, timeout = 1)
+		science_handlerList = []
+		switch_off = False
 		time.sleep(2)
 		## needed as arduino needs to come up
 		cmd_menu = ("1) Set Time Command \n"
@@ -235,14 +238,14 @@ if __name__ == '__main__':
 					 "5) End the script \n")
 		
 		#continue to stay in the loop until the user wants to exit the script in which case we must end the thread
-		while(1):  
-			if start_science: 
+		while(switch_off == False):  
+			if start_science == True: 
 				science_handler = fee_science_reciever(s)
-				while not science_handler.is_alive(): 
-					pass 
-				science.handler().start
-				science_handler.start_science = True; 
-				science_handler.update_current_time() 
+				if(len(science_handlerList) == 0): 
+					science_handlerList.append(science_handler)
+				else: 
+					science_handlerList[0] = science_handler
+				#science.handler().start
 				command = ''
 			print(cmd_menu)
 			nb = input('please choose an option: ')
@@ -256,18 +259,27 @@ if __name__ == '__main__':
 				start_science = False; 
 				command = ((int(nb, 0)).to_bytes(1, byteorder = 'big') + build_config_command_val());
 			elif(nb == '4'):
-				start_science = build_fee_packet() == 3
 				command = ((int(nb, 0).to_bytes(1, byteorder = 'big'))) + build_fee_packet(); 
+				start_science = True
 			elif(nb == '3'): 
 				print('initiating science mode')
-				command = ((int(nb, 0)).to_bytes(1, byteorder = 'big'))
-				start_science = True; 
+				command = ((int(nb, 0)).to_bytes(1, byteorder = 'big')) 
+				if(science_handlerList[0].is_alive() == False): 
+					science_handlerList[0].start()
+					while not science_handlerList[0].is_alive(): 
+						pass
+					science_handlerList[0].start_science = True
+					start_science = False
+					science_handlerList[0].update_current_time()
 			elif(nb == '5'): 
 				start_science = False
 				receive_serial = False
-				science_handler.join()
-			break; 
-			science_handler.port.write(command)
+				switch_off = True
+				if(science_handlerList[0].is_alive() == True): 
+					science_handlerList[0].start_science = False
+					science_handlerList[0].join()
+			if(science_handlerList[0].is_alive() == True): 
+				science_handlerList[0].port.write(command)
 			print(command)	
 		
 		#waaiting for the thread to finish executing
