@@ -178,9 +178,10 @@ class fee_science_reciever(Thread):
 			self.zeeman_controller.append(zeeman_controller)
 			self.mc_controller.append(microwave_reference_controller)
 			with open(self.fsc_sci_name + ".csv", 'a') as self.fsc_handler:
-				self.fsc_handler.write(self.time.strftime("%Y%m%d %H:%M:%S.%f") + "," + str(self.id) + ",")
-				self.fsc_handler.write(str(sensor_temp_controller) + "," + str(laser_temp_controller) + "," + str(laser_current_controller) + "," + str(microwave_reference_controller) + "," +  str(zeeman_controller) + "," + str(science_data_id) + "," + str(science_data_val) + "," + str(time_stamp) + "\n")
+				fsc_handler.write(self.time.strftime("%Y%m%d %H:%M:%S.%f") + "," + str(self.id) + ",")
+				fsc_handler.write(str(sensor_temp_controller) + "," + str(laser_temp_controller) + "," + str(laser_current_controller) + "," + str(microwave_reference_controller) + "," +  str(zeeman_controller) + "," + str(science_data_id) + "," + str(science_data_val) + "," + str(time_stamp) + "\n")
 			self.buffer[2] = ''
+			
 	def write_fob(self):
 		for i in range(0,self.get_nfob()) :
 			self.buffer[1] = self.port.read(size = 10)
@@ -188,9 +189,10 @@ class fee_science_reciever(Thread):
 				self.coordinate[i] = ((int.from_bytes( self.buffer[1][3*i + 2 : 3*i], byteorder = 'big' )))
 				self.coordinate[i] = self.coordinate[i] - 2**24 * (self.coordinate[i] >= 2**24/2)
 			sensor_range = self.buffer[1][9]
-			with open(self.fob_sci_name + ".csv", 'a') as self.fob_handler:
-				self.fob_handler.write(self.time.strftime("%Y%m%d %H:%M:%S.%f") + "," + str(self.id) + ",")
-				self.fob_handler.write(str(self.coordinate[0]) + "," + str(self.coordinate[1]) + "," + str(self.coordinate[2]) + "," + str(sensor_range) + "," + "\n")
+			with open(self.fob_sci_name + ".csv", 'a') as fob_handler:
+				fob_handler.write(self.time.strftime("%Y%m%d %H:%M:%S.%f") + "," + str(self.id) + ",")
+				fob_handler.write(str(self.coordinate[0]) + "," + str(self.coordinate[1]) + "," + str(self.coordinate[2]) + "," + str(sensor_range) + "," + "\n")
+		self.buffer[1] = ''
 	
 	def write_fib(self):
 		for i in range(0, self.get_nfib()): 
@@ -199,8 +201,10 @@ class fee_science_reciever(Thread):
 				self.coordinate[i] = ((int.from_bytes(self.buffer[0][3*i : 3*i + 3], byteorder = 'big')))
 				self.coordinate[i] = ((self.coordinate[i]) - 2**24 * ((self.coordinate[i]) >= 2**24/2))
 			with open(self.fib_sci_name + ".csv", 'a') as self.fib_handler: 
-				self.fib_handler.write(self.time.strftime("%Y%m%d %H:%M:%S.%f") + "," + str(self.id) + ",")
-				self.fib_handler.write(str(self.coordinate[0]) + "," + str(self.coordinate[1]) + "," + str(self.coordinate[2]) + "\n")
+				fib_handler.write(self.time.strftime("%Y%m%d %H:%M:%S.%f") + "," + str(self.id) + ",")
+				fib_handler.write(str(self.coordinate[0]) + "," + str(self.coordinate[1]) + "," + str(self.coordinate[2]) + "\n")
+		self.buffer[0] = '' 
+		
 		
 	def update_files(self): 
 		t  = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -229,8 +233,6 @@ class fee_science_reciever(Thread):
 
 	def update_current_time(self):
 		self.curent_time = datetime.datetime.now()
-		
-
 		
 if __name__ == '__main__':
 		baud_rate = 115200

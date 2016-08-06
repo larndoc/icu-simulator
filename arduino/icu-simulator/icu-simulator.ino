@@ -31,10 +31,7 @@
 /*set of states that the user transverses through based on the input(which can be intrinsic or defined by the user(external)*/ 
 enum set {
   SCIENCE_MODE=0, 
-  CREATE_PC_PACKET, 
-  CLEAR_PC_PACKET,
-  STORE_TO_PC, 
-  BEGIN_SYNC,
+  PC_TRANSMIT, 
   CONFIG_MODE,  
   DEFAULT0
   };
@@ -49,7 +46,7 @@ fee_paket* fee_packet_ptr[3]         = {&fee_packet[0], &fee_packet[1], &fee_pac
 /*declaration of the pc packet, used to package the recieved bytes from the three interfaces and write it out the serial port, the struct used for pc packet is a union defined in pc_data_dump.h */
 pc_data pc_packet                    = {STATUS, 0, 0, 0, 0};       
 pc_data* pc_packet_ptr               = &pc_packet;
-byte* pc_data[3]                  = {pc_packet_ptr->sci_fib, pc_packet_ptr->sci_fob, pc_packet_ptr->sci_fsc};
+byte* pc_data[3]                     = {pc_packet_ptr->sci_fib, pc_packet_ptr->sci_fob, pc_packet_ptr->sci_fsc};
 byte* pc_fee_counter[3]              = {&pc_packet_ptr->n_fib, &pc_packet_ptr-> n_fob, &pc_packet_ptr->n_fsc};
 
 /*a 2-D (3 x 6) array for the command packets that includes the command packet to be sent to each interface */ 
@@ -281,23 +278,6 @@ void loop() {
       task = DEFAULT0;            //disable the timer isr in config_mode i.e stop generating any sync pulses
      break; 
       
-    case STORE_TO_PC:   
-    if(packet_exists[0] || packet_exists[1] || packet_exists[2]){
-      Serial.write(pc_packet.arr, 8); 
-    }
-      if(*pc_fee_counter[0] == 1 && packet_exists[0]){
-        Serial.write(pc_packet.sci_fib, 10);
-      }
-      if(*pc_fee_counter[1] == 1 && packet_exists[1]){
-        Serial.write(pc_packet.sci_fob, 10); 
-      }
-      if(*pc_fee_counter[2] == 1 && packet_exists[2]){
-        Serial.write(pc_packet.sci_fsc, 10);
-      }
-      input = SCIENCE_MODE; 
-      task = DEFAULT0;
-     break; 
-      
     case SCIENCE_MODE:
       if (sync_counter == old_counter) {
         for (int i = 0; i < 3; i++) {
@@ -309,16 +289,25 @@ void loop() {
       }
       else if (sync_counter > old_counter) {
         old_counter = sync_counter;
-        input = CREATE_PC_PACKET;
+        input = PC_TRANSMIT;
       }
       task = DEFAULT0; 
      break; 
 
-      case CREATE_PC_PACKET: 
-        create_pc_packet(0); 
-        create_pc_packet(1); 
-        create_pc_packet(2); 
-        input = STORE_TO_PC; 
+      case PC_TRANSMIT: 
+        for(int i = 0; i < 3; i++){
+          create_pc_packet(i); 
+        }
+        if(packet_exists[0] || packet_exists[1] || packet_exists[2]){
+          Serial.write(pc.packet.arr, 8); 
+        }
+        for(int i = 0; i < 3; i++){
+          if(*pc_fee_counter[i] == 1 && packet_exists[i]){
+            Serial.write(pc_data[i], 10); 
+          }
+        }
+     
+        input = SCIENCE_MODE; 
         task = DEFAULT0; 
      
     break; 
@@ -331,8 +320,7 @@ void loop() {
         input == DEFAULT0 ? DEFAULT0 : 
         input == SCIENCE_MODE ? SCIENCE_MODE : 
         input == CONFIG_MODE ? CONFIG_MODE : 
-        input == CREATE_PC_PACKET ? CREATE_PC_PACKET : 
-        STORE_TO_PC;  
+        PC_TRANSMIT
     break ;
     
     default: ;
