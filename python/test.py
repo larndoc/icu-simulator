@@ -199,13 +199,7 @@ class fee_science_reciever(Thread):
 			self.fib_handler.write(self.time.strftime("%Y%m%d %H:%M:%S.%f") + "," + str(self.id) + ",")
 			self.fib_handler.write(self.coordinate[0] + "," + self.coordinate[1] + "," + self.coordinate[2] + "\n")
 		
-	def run(self):
-	# arduino startup time
-	#timestamp for each of the filenames
-		#time.sleep(1)
-		if(self.start_science == False): 
-			pass
-		self.port.flushInput() 
+	def update_files(self): 
 		t  = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 		self.current_time = datetime.datetime.now()
 	#opening all the 3 files with the time_stamp 
@@ -214,9 +208,17 @@ class fee_science_reciever(Thread):
 			self.fib_handler.write(header + "x" + "," + "y" + "," + "z" + "\n")
 			self.fob_handler.write(header + "x" + "," + "y" + "," + "z" + "\n")
 			self.fsc_handler.write(header + "sensor temperature controller" + "," + "laser temperature controller" + "," + "laser current controller" + "," + "microwave reference controller" + "," + "zeeman_controller" + "," +  "science_data_id" + "," +  "science_data" + "," + "time_stamp" + "\n" ) 
-			while self.start_science:
-				if self.port.in_waiting > 0:
-					self.update()
+	
+	def run(self):
+	# arduino startup time
+	#timestamp for each of the filenames
+		#time.sleep(1)
+		if(self.start_science == False): 
+			pass
+		self.port.flushInput() 
+		while self.start_science:
+			if self.port.in_waiting > 0:
+				self.update()
 
 	def update_current_time(self):
 		self.curent_time = datetime.datetime.now()
@@ -227,7 +229,11 @@ if __name__ == '__main__':
 		parser.add_argument(dest = 'port', help = "display the interface port to the computer ", type = str)
 		args = parser.parse_args() 
 		s = serial.Serial(args.port, baud_rate, timeout = 1)
-		science_handlerList = []
+		science_handler = fee_science_reciever(s)
+		science_handler.start()
+		while not science_handler.is_alive(): 
+			pass 
+		science_handler.update_current_time(); 
 		switch_off = False
 		time.sleep(2)
 		## needed as arduino needs to come up
@@ -239,14 +245,6 @@ if __name__ == '__main__':
 		
 		#continue to stay in the loop until the user wants to exit the script in which case we must end the thread
 		while(switch_off == False):  
-			if start_science == True: 
-				science_handler = fee_science_reciever(s)
-				if(len(science_handlerList) == 0): 
-					science_handlerList.append(science_handler)
-				else: 
-					science_handlerList[0] = science_handler
-				#science.handler().start
-				command = ''
 			print(cmd_menu)
 			nb = input('please choose an option: ')
 			try: 
@@ -261,25 +259,17 @@ if __name__ == '__main__':
 			elif(nb == '4'):
 				command = ((int(nb, 0).to_bytes(1, byteorder = 'big'))) + build_fee_packet(); 
 				start_science = True
-			elif(nb == '3'): 
+			elif(nb == '3'):
+				science_handler.update_files()
 				print('initiating science mode')
 				command = ((int(nb, 0)).to_bytes(1, byteorder = 'big')) 
-				if(science_handlerList[0].is_alive() == False): 
-					science_handlerList[0].start()
-					while not science_handlerList[0].is_alive(): 
-						pass
-					science_handlerList[0].start_science = True
-					start_science = False
-					science_handlerList[0].update_current_time()
+				start_science = False
 			elif(nb == '5'): 
 				start_science = False
 				receive_serial = False
 				switch_off = True
-				if(science_handlerList[0].is_alive() == True): 
-					science_handlerList[0].start_science = False
-					science_handlerList[0].join()
-			if(science_handlerList[0].is_alive() == True): 
-				science_handlerList[0].port.write(command)
+			if(science_handler.is_alive() == True): 
+				science_handler.port.write(command)
 			print(command)	
 		
 		#waaiting for the thread to finish executing
