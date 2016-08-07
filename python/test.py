@@ -206,13 +206,25 @@ class fee_science_reciever(Thread):
 		self.buffer[0] = '' 
 		
 		
-	def update_files(self): 
-		t  = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-		self.current_time = datetime.datetime.now()
-	#opening all the 3 files with the time_stamp 
-		self.fib_sci_name = "fib_sci_" + t; 
-		self.fsc_sci_name = "fsc_sci" + t; 
-		self.fob_sci_name = "fob_sci" + t; 
+	def update_files(self, file_fib, file_fob, file_fsc):
+		t = datetime.datime.now().strftime("%Y%m%d-%H%M%S")
+		self.current_time = datetime.datetime.now() 
+		files = [file_fib, file_fob, file_fsc]
+		datetime_files = ["fib_sci_" + t, "fob_sci_" + t, "fsc_sci_" + t]
+		if(file_fib != ""): 
+			self.fib_sci_name = file_fib 
+		else: 
+			self.fib_sci_name = "fib_sci_" + t
+		
+		if (file_fob != ''): 
+			self.fob_sci_name = file_fob 
+		else:	
+			self.fsc_sci_name = "fsc_sci" + t; 
+		
+		if (file_fsc != ''): 
+			self.fsc_sci_name = file_fsc 
+		else: 
+			self.fob_sci_name = "fob_sci" + t; 
 		
 		with open(self.fib_sci_name + ".csv", 'a') as fib_handler, open (self.fob_sci_name + ".csv", 'a') as fob_handler,  open (self.fsc_sci_name + ".csv", 'a') as fsc_handler:
 			header = "time"  + ","
@@ -238,7 +250,10 @@ if __name__ == '__main__':
 		baud_rate = 115200
 		parser = argparse.ArgumentParser();
 		parser.add_argument(dest = 'port', help = "display the interface port to the computer ", type = str)
-		args = parser.parse_args() 
+		for i in range(0, 3): 
+			parser.add_argument('--filename' + str(i), dest = 'file' + str(i), help = "enter the fib where the user wants to store sci fib/sci fob/sci_fsc", type = str)
+		args = parser.parse_args()
+		print(args.file2)
 		s = serial.Serial(args.port, baud_rate, timeout = 1)
 		science_handler = fee_science_reciever(s)
 		science_handler.start()
@@ -272,13 +287,13 @@ if __name__ == '__main__':
 				command = ((int(nb, 0).to_bytes(1, byteorder = 'big'))) + build_fee_packet(); 
 			elif(nb == '3'):
 				science_handler.start_science = True
-				science_handler.update_files()
+				science_handler.update_files(parser.parse_args().file0, parser.parse_args().file1, parser.parse_args().file2)
 				print('initiating science mode')
 				command = ((int(nb, 0)).to_bytes(1, byteorder = 'big')) 
 			elif(nb == '5'): 
 				science_handler.start_science = False
 				switch_off = True
-			if(science_handler.is_alive() == True and nb != 5): 
+			if(science_handler.is_alive() == True and nb != '5'): 
 				science_handler.port.write(command)
 			print(command)	
 		
