@@ -14,13 +14,22 @@ from threading import Thread
 import math
 import os
 
-#wrap this inside a function 
-logging.basicConfig(filename='debugger.log', format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
-logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
-start_science = True
-recieve_serial = True; 
 
+#these are the number of bits in the x, y and z coordinates in the fib file.
+number_of_bits_coordinates_fib = [24, 24, 24]
+number_of_bits_coordinates_fob = [24, 24, 24]
+
+
+#wrap this inside a function 
+def init_debug_logger: 
+	logging.basicConfig(filename='debugger.log', format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+	logger = logging.getLogger()
+	logger.setLevel(logging.DEBUG)
+
+	
+start_science = True
+recieve_serial = True
+switch_off = False
 
 def build_config_command_val(): 
 	fee_number = (
@@ -183,7 +192,7 @@ class fee_science_reciever(Thread):
 			self.buffer[1] = self.port.read(size = 10)
 			for i in range(0, 3):
 				self.coordinate[i] = ((int.from_bytes( self.buffer[1][3*i + 2 : 3*i], byteorder = 'big' )))
-				self.coordinate[i] = self.coordinate[i] - 2**24 * (self.coordinate[i] >= 2**24/2)
+				self.coordinate[i] = self.coordinate[i] - (2**number_of_bits_coordinates_fob[i]) * (self.coordinate[i] >= 2**24/2)
 			sensor_range = self.buffer[1][9]
 			with open(self.fob_sci_name + ".csv", 'a') as fob_handler:
 				fob_handler.write(self.time.strftime("%Y%m%d %H:%M:%S.%f") + "," + str(self.id) + ",")
@@ -195,38 +204,26 @@ class fee_science_reciever(Thread):
 			self.buffer[0] = self.port.read(size = 10)
 			for i in range(0, 3): 
 				self.coordinate[i] = ((int.from_bytes(self.buffer[0][3*i : 3*i + 3], byteorder = 'big')))
-				self.coordinate[i] = ((self.coordinate[i]) - 2**24 * ((self.coordinate[i]) >= 2**24/2))
+				self.coordinate[i] = ((self.coordinate[i]) - (2**number_of_bits_coordinates_fib[i]) * ((self.coordinate[i]) >= 2**24/2))
 			with open(self.fib_sci_name + ".csv", 'a') as self.fib_handler: 
 				fib_handler.write(self.time.strftime("%Y%m%d %H:%M:%S.%f") + "," + str(self.id) + ",")
 				fib_handler.write(str(self.coordinate[0]) + "," + str(self.coordinate[1]) + "," + str(self.coordinate[2]) + "\n")
 		self.buffer[0] = '' 
 		
 		
-	def update_files(self, file_fib, file_fob, file_fsc, absolute_path):
+	def update_files(self, absolute_path):
 		t = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 		self.current_time = datetime.datetime.now() 
-		files = [file_fib, file_fob, file_fsc]
 		datetime_files = ["fib_sci_" + t, "fob_sci_" + t, "fsc_sci_" + t]
-		if(file_fib != ''): 
-			self.fib_sci_name = file_fib 
-		else: 
-			self.fib_sci_name = "fib_sci_" + t
-		
-		if (file_fob != ''): 
-			self.fob_sci_name = file_fob 
-		else:	
-			self.fsc_sci_name = "fsc_sci" + t; 
-		
-		if (file_fsc != ''): 
-			self.fsc_sci_name = file_fsc 
-		else: 
-			self.fob_sci_name = "fob_sci" + t; 
+		self.fib_sci_name = "fib_sci_" + t	
+		self.fsc_sci_name = "fsc_sci" + t; 
+		self.fob_sci_name = "fob_sci" + t; 
 		
 		if absolute_path != '': 
-				if(os.path.isdir(absolute_path)):
-					self.fsc_sci_name = absolute_path + '/' + self.fsc_sci_name
-					self.fib_sci_name = absolute_path + '/' + self.fib_sci_name
-					self.fob_sci_name = absolute_path + '/' + self.fob_sci_name
+			self.fsc_sci_name = absolute_path + '/' + self.fsc_sci_name
+			self.fib_sci_name = absolute_path + '/' + self.fib_sci_name
+			self.fob_sci_name = absolute_path + '/' + self.fob_sci_name
+					
 		with open(self.fib_sci_name + ".csv", 'a') as fib_handler, open (self.fob_sci_name + ".csv", 'a') as fob_handler,  open (self.fsc_sci_name + ".csv", 'a') as fsc_handler:
 			header = "time"  + ","
 			fib_handler.write(header + "x" + "," + "y" + "," + "z" + "\n")
@@ -251,18 +248,15 @@ if __name__ == '__main__':
 		baud_rate = 115200
 		parser = argparse.ArgumentParser();
 		parser.add_argument(dest = 'port', help = "display the interface port to the computer ", type = str)
-		for i in range(0, 3): 
-			parser.add_argument('--filename' + str(i), dest = 'file' + str(i), help = "enter the fib where the user wants to store sci fib/sci fob/sci_fsc", type = str)
-		parser.add_argument('--filename3', dest = 'file3', help = "check for absolute directory", type = str)
-		
+		parser.add_argument('--abs_path', dest = 'abs_path', help = "check for absolute directory", type = str)
 		args = parser.parse_args()
 		s = serial.Serial(args.port, baud_rate, timeout = 1)
+		init_debug_logger(); 
 		science_handler = fee_science_reciever(s)
 		science_handler.start()
 		while not science_handler.is_alive(): 
 			pass 
 		science_handler.update_current_time(); 
-		switch_off = False
 		time.sleep(2)
 		## needed as arduino needs to come up, do not remove. 
 		cmd_menu = ("1) Set Time Command \n"
@@ -289,7 +283,7 @@ if __name__ == '__main__':
 				command = ((int(nb, 0).to_bytes(1, byteorder = 'big'))) + build_fee_packet(); 
 			elif(nb == '3'):
 				science_handler.start_science = True
-				science_handler.update_files(parser.parse_args().file0, parser.parse_args().file1, parser.parse_args().file2, parser.parse_args().file3)
+				science_handler.update_files(parser.parse_args().abs_path)
 				print('initiating science mode')
 				command = ((int(nb, 0)).to_bytes(1, byteorder = 'big')) 
 			elif(nb == '5'): 
