@@ -201,51 +201,55 @@ void print_packet(union fee_paket* test_packet, uint8_t index) {
 
 void loop() {
   
-    bytes1 = Serial.available(); 
-    if(bytes1 > 0){
-    if(bytes1 == 1){ 
-    byte cmd_id = Serial.read(); 
-    
-    if(cmd_id == '\x03'){
-      input = SCIENCE_MODE; 
-    }
+  /****************************************************************************************************************EXTERNAL INPUTS THAT CHANGE THE CURRENT STATE WITHIN THE STATE DIAGRAM************************************************************************************/
+    if(Serial.available() > 0){
+      if(Serial.available() == 1){ 
+         byte cmd_id = Serial.read(); 
+         
+         if(cmd_id == '\x03'){
+          input = SCIENCE_MODE; 
+          }
 
-    else if(cmd_id == '\x02'){
-      build_config_command(); //the input remains the same, if we are in science mode we stay in science mode and if we are in config mode, then we stay in config mode, hence it is not required to update the input  
-    }
+          else if(cmd_id == '\x02'){
+            build_config_command(); //the input remains the same, if we are in science mode we stay in science mode and if we are in config mode, then we stay in config mode, hence it is not required to update the input  
+          }
 
-    else if(cmd_id == '\x04'){
-      input = CONFIG_MODE;
-    }
+          else if(cmd_id == '\x04'){
+            input = CONFIG_MODE;
+          }
 
-    else if(input == CONFIG_MODE && cmd_id == '\x05'){
-      while(Serial.available() == 0); 
-      if(Serial.available() > 0){
-        byte interface = Serial.read(); 
-        fee_activate(interface);
-        input = CONFIG_MODE; 
+          else if(input == CONFIG_MODE && cmd_id == '\x05'){
+            while(Serial.available() == 0); 
+              if(Serial.available() > 0){
+                byte interface = Serial.read(); 
+                fee_activate(interface);
+                input = CONFIG_MODE; 
+              }  
+            }
+          
+          else if(input == CONFIG_MODE && cmd_id == '\x06'){
+            while(Serial.available() == 0); 
+              if(Serial.available() > 0){
+                uint8_t interface = Serial.read(); 
+                fee_deactivate(interface);
+                input = CONFIG_MODE; 
+            }
+         }
       }
-      
-    }
-    else if(input == CONFIG_MODE && cmd_id == '\x06'){
-      while(Serial.available() == 0); 
-      if(Serial.available() > 0){
-        uint8_t interface = Serial.read(); 
-        fee_deactivate(interface);
-        input = CONFIG_MODE; 
-      }
-    }
-    }
     task = DEFAULT0;
     }
     
     
   switch (task) {   
+    
+ /****************************************************************************************************************************CONFIGURATION MODE***********************************************************************************************************************/
+     
      case CONFIG_MODE: 
       input = CONFIG_MODE; 
       task = DEFAULT0;            //disable the timer isr in config_mode i.e stop generating any sync pulses
      break; 
-      
+
+/*****************************************************************************************************************************SCIENCE MODE*****************************************************************************************************************************/
     case SCIENCE_MODE:
       if (sync_counter == old_counter) {
         for (int i = 0; i < 3; i++) {
@@ -262,6 +266,7 @@ void loop() {
       task = DEFAULT0; 
      break; 
 
+/******************************************************************************************************************************PC_TRANSMIT*********************************************************************************************************************************/
       case PC_TRANSMIT: 
         for(int i = 0; i < 3; i++){
           create_pc_packet(i); 
@@ -281,8 +286,6 @@ void loop() {
     break; 
  
   case DEFAULT0:
-  
-  
      //***********************************************************NOTHING TO READ FROM THE SERIAL PORT******************************************************//
       task = 
         input == DEFAULT0 ? DEFAULT0 : 

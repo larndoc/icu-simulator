@@ -1,3 +1,6 @@
+#plot power spectral density of the sawtooth waveform? 
+#plot frequency sprectrum of the sawtooth waveform? 
+
 import serial 
 import argparse
 import string
@@ -9,22 +12,15 @@ import numpy
 import statistics
 from threading import Thread
 import math
+import os
 
-
+#wrap this inside a function 
 logging.basicConfig(filename='debugger.log', format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 start_science = True
 recieve_serial = True; 
 
-def init_science(science_mode): 
-	if(science_mode): 
-		science_handler = fee_science_reciever(s)
-		while not science_handler.is_alive(): 
-			pass 
-		science.handler().start
-		science_handler.start_science = True; 
-		science_handler.update_current_time() 
 
 def build_config_command_val(): 
 	fee_number = (
@@ -95,7 +91,7 @@ class fee_science_reciever(Thread):
 		self.fob_counter = 0; 
 		self.old_minutes = 0; 
 		self.fsc_counter = 0; 
-		self.start_science = False; 
+		self.start_science = False;
 		self.zeeman_controller = []
 		self.mc_controller	   = []
 		self.current_time = datetime.datetime.now()
@@ -206,12 +202,12 @@ class fee_science_reciever(Thread):
 		self.buffer[0] = '' 
 		
 		
-	def update_files(self, file_fib, file_fob, file_fsc):
-		t = datetime.datime.now().strftime("%Y%m%d-%H%M%S")
+	def update_files(self, file_fib, file_fob, file_fsc, absolute_path):
+		t = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 		self.current_time = datetime.datetime.now() 
 		files = [file_fib, file_fob, file_fsc]
 		datetime_files = ["fib_sci_" + t, "fob_sci_" + t, "fsc_sci_" + t]
-		if(file_fib != ""): 
+		if(file_fib != ''): 
 			self.fib_sci_name = file_fib 
 		else: 
 			self.fib_sci_name = "fib_sci_" + t
@@ -226,6 +222,11 @@ class fee_science_reciever(Thread):
 		else: 
 			self.fob_sci_name = "fob_sci" + t; 
 		
+		if absolute_path != '': 
+				if(os.path.isdir(absolute_path)):
+					self.fsc_sci_name = absolute_path + '/' + self.fsc_sci_name
+					self.fib_sci_name = absolute_path + '/' + self.fib_sci_name
+					self.fob_sci_name = absolute_path + '/' + self.fob_sci_name
 		with open(self.fib_sci_name + ".csv", 'a') as fib_handler, open (self.fob_sci_name + ".csv", 'a') as fob_handler,  open (self.fsc_sci_name + ".csv", 'a') as fsc_handler:
 			header = "time"  + ","
 			fib_handler.write(header + "x" + "," + "y" + "," + "z" + "\n")
@@ -236,7 +237,7 @@ class fee_science_reciever(Thread):
 	# arduino startup time
 	#timestamp for each of the filenames
 		#time.sleep(1)
-		while(self.start_science == False): 
+		if(self.start_science == False): 
 			pass
 		self.port.flushInput() 
 		while self.start_science:
@@ -252,8 +253,9 @@ if __name__ == '__main__':
 		parser.add_argument(dest = 'port', help = "display the interface port to the computer ", type = str)
 		for i in range(0, 3): 
 			parser.add_argument('--filename' + str(i), dest = 'file' + str(i), help = "enter the fib where the user wants to store sci fib/sci fob/sci_fsc", type = str)
+		parser.add_argument('--filename3', dest = 'file3', help = "check for absolute directory", type = str)
+		
 		args = parser.parse_args()
-		print(args.file2)
 		s = serial.Serial(args.port, baud_rate, timeout = 1)
 		science_handler = fee_science_reciever(s)
 		science_handler.start()
@@ -262,7 +264,7 @@ if __name__ == '__main__':
 		science_handler.update_current_time(); 
 		switch_off = False
 		time.sleep(2)
-		## needed as arduino needs to come up
+		## needed as arduino needs to come up, do not remove. 
 		cmd_menu = ("1) Set Time Command \n"
 					 "2) Set Config Command \n"
 					 "3) Science Mode \n"
@@ -287,7 +289,7 @@ if __name__ == '__main__':
 				command = ((int(nb, 0).to_bytes(1, byteorder = 'big'))) + build_fee_packet(); 
 			elif(nb == '3'):
 				science_handler.start_science = True
-				science_handler.update_files(parser.parse_args().file0, parser.parse_args().file1, parser.parse_args().file2)
+				science_handler.update_files(parser.parse_args().file0, parser.parse_args().file1, parser.parse_args().file2, parser.parse_args().file3)
 				print('initiating science mode')
 				command = ((int(nb, 0)).to_bytes(1, byteorder = 'big')) 
 			elif(nb == '5'): 
