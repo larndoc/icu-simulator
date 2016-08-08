@@ -30,8 +30,7 @@
 
 /*set of states that the user transverses through based on the input(which can be intrinsic or defined by the user(external)*/ 
 enum set {
-  SCIENCE_MODE=0, 
-  PC_TRANSMIT, 
+  SCIENCE_MODE=0,  
   CONFIG_MODE,  
   };
 
@@ -42,7 +41,7 @@ fee_paket fee_packet[3];
 fee_paket* fee_packet_ptr[3]         = {&fee_packet[0], &fee_packet[1], &fee_packet[2]} ;
 
 /*declaration of the pc packet, used to package the recieved bytes from the three interfaces and write it out the serial port, the struct used for pc packet is a union defined in pc_data_dump.h */
-pc_data pc_packet                    = {STATUS, 0, 0, 0, 1};       
+pc_data pc_packet                    = {STATUS, 0, 0, 0, 0};       
 pc_data* pc_packet_ptr               = &pc_packet;
 byte* pc_fee_counter[3]              = {&pc_packet_ptr->n_fib, &pc_packet_ptr-> n_fob, &pc_packet_ptr->n_fsc};
 
@@ -54,10 +53,9 @@ byte interface_counter[3]            = {0, 0, 0};
 uint8_t response_packet_counter[3]   = {0, 0, 0};
 bool checksum[3]                     = {false, false, false};
 bool packet_exists[3]                = {false, false, false};
-bool fee_enabled[3]                  = {false, false, true};
+bool fee_enabled[3]                  = {false, false, false};
 HardwareSerial* port[3]              = {&Serial1, &Serial2, &Serial3};
 const uint8_t sync_pins[3]           = {11, 13, 12};
-int bytes1; 
 const uint8_t led_pin                = 10;
 unsigned long current_time;
 unsigned long t;
@@ -210,30 +208,26 @@ void loop() {
             // we were not able to read 6 bytes into the buffer, catching appropiate error
           }
           else{
-            const byte fee_number = fee_command[0];
-            const byte read_write = fee_command[1]; 
-            const byte config_id =  fee_command[2];
+            int fee_number = fee_command[0];
+            int read_write = fee_command[1]; 
+            int config_id =  fee_command[2];
             byte config_val[3];
-            const byte * config_val_ptr;
+            byte * config_val_ptr;
             config_val_ptr = config_val;  
             for (int i = 0; i < 3; i++){
               config_val_ptr[i] =  fee_command[2 + i]; 
           }
-          if(read_write == 0){
-            //we want to read 
-            //the rest of the code should go here 
-            check_port(port[fee_number], fee_number); 
-          }
-          else if(read_write == 1){
-            {
-               byte checksum = 0; 
-               write_command_packet(fee_number, config_val_ptr, config_id);
-               for(int i = 0; i < 5; i++){
-                  checksum ^= cmd_packet[fee_number][i];  
-                }
-                cmd_packet[fee_number][5] = checksum; 
-                change_command_packet = true; 
-           } 
+          cmd_packet[fee_interface][0] =
+              read_write == 0 ? 3 : 5
+           for(int i = 0; i < 5; i++)
+           {
+              checksum ^= cmd_packet[fee_number][i];  
+           }
+            cmd_packet[fee_number][5] = checksum; 
+            change_command_packet = true;                 //indicates that the upgrade was complete
+            write_command_packet(fee_number)              //update the config command value in the icu packet
+            cmd_packet[fee_number][5] = checksum; 
+            change_command_packet = true; 
           }
           }
           }
@@ -283,13 +277,13 @@ void loop() {
             check_port(port[i], i);
           }
         }
-        if(pacet_exists[0] || packet_exists{1] || packet_exists[2]) {
+        if(packet_exists[0] || packet_exists[1] || packet_exists[2]) {
           pc_packet.time1 = pc_packet.time1 - 1; 
           Serial.write(pc_packet.arr, 8); 
         }
         for(int i = 0; i < 3; i++){
           if(packet_exists[i]){
-            Serial.write(fee_packet_ptr[i].science_data, 10);
+            Serial.write(fee_packet_ptr[i]->science_data, 10);
             packet_exists[i] = false; 
           }
         }
@@ -302,7 +296,6 @@ void loop() {
       task = CONFIG_MODE;
   }
 }
-
 
 void fee_activate(int index){
   
@@ -351,11 +344,8 @@ for(int i = 0; i < 3; i++){
 return bytesToSend; 
 }
 
-void write_command_packet(const uint8_t fee_interface, const uint8_t* config_val, const uint8_t config_id)
+void write_command_packet(int fee_interface, const uint8_t* config_val, const uint8_t config_id)
 {
-  
-  change_command_packet[fee_interface] = true; 
-  cmd_packet[fee_interface][0] = 5; 
   cmd_packet[fee_interface][1] = config_id;
   for(int i = 0; i < 3; i++){
     cmd_packet[fee_interface][i+2] = config_val[i];  
