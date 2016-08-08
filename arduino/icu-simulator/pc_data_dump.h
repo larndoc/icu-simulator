@@ -12,11 +12,8 @@ union pc_data
     byte n_fib; 
     byte n_fob; 
     byte n_fsc; 
-    byte sci_fib[10]; 
-    byte sci_fob[10]; 
-    byte sci_fsc[10]; 
   };
-  byte arr[38]; 
+  byte arr[8]; 
 };
 
 #endif

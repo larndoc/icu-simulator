@@ -45,7 +45,6 @@ fee_paket* fee_packet_ptr[3]         = {&fee_packet[0], &fee_packet[1], &fee_pac
 /*declaration of the pc packet, used to package the recieved bytes from the three interfaces and write it out the serial port, the struct used for pc packet is a union defined in pc_data_dump.h */
 pc_data pc_packet                    = {STATUS, 0, 0, 0, 0};       
 pc_data* pc_packet_ptr               = &pc_packet;
-byte* pc_data[3]                     = {pc_packet_ptr->sci_fib, pc_packet_ptr->sci_fob, pc_packet_ptr->sci_fsc};
 byte* pc_fee_counter[3]              = {&pc_packet_ptr->n_fib, &pc_packet_ptr-> n_fob, &pc_packet_ptr->n_fsc};
 
 /*a 2-D (3 x 6) array for the command packets that includes the command packet to be sent to each interface */ 
@@ -70,6 +69,7 @@ bool change_command_packet[3]     = {false, false, false};
 bool send_command = false;
 bool serial_port1 = false;
 bool check_cap[3];
+byte selector;
 bool recieved_reply = false;
 
 /*prototype of the functions implemented in the filed /* 
@@ -104,11 +104,7 @@ void wait(unsigned long delta_us) {
    the wait function will stall for the amount of time defined by the variable time_us(in microseconds) before we proces the previous packet and send the next packet to the interface
 */
 void timer_isr() {
-  if(input == DEFAULT0 || input == CONFIG_MODE){
-    sync_counter = 0; 
-  }
-            //if the current state is config_mode or default0 then we want to stop generating any sync signals 
-  else {
+    sync_counter++; 
     t = micros();
     unsigned long time_us = 1000;
     
@@ -140,11 +136,8 @@ void timer_isr() {
       if (fee_enabled[i]) {
         digitalWrite(sync_pins[i], LOW);
       }
-    }
-    sync_counter++; 
+    } 
     pc_packet.time1 = uint32_t (__builtin_bswap32(sync_counter));
-}
-
 }
 
 
@@ -201,13 +194,14 @@ void loop() {
   /****************************************************************************************************************EXTERNAL INPUTS THAT CHANGE THE CURRENT STATE WITHIN THE STATE DIAGRAM************************************************************************************/
     if(Serial.available() > 0){ 
          byte cmd_id = Serial.read(); 
-         switch (cmd_id):  
+         switch(cmd_id){
          
          case 0x03:
-          input = SCIENCE_MODE; 
+          task = SCIENCE_MODE; 
           break; 
 
           case 0x02:
+          {
           int counter = 0; 
           uint8_t fee_command[6]; 
           //counter is the number of bytes that were read from the stream into a buffer
@@ -232,6 +226,7 @@ void loop() {
             check_port(port[fee_number], fee_number); 
           }
           else if(read_write == 1){
+            {
             //we want to write 
             //the rest of the code should go here
             byte checksum_for_config_val = 0; 
@@ -242,7 +237,9 @@ void loop() {
             }
           checksum = checksum_for_config_val ^ fee_number ^ read_write ^config_id;
           cmd_packet[fee_number][5] = checksum; 
-            
+            } 
+          }
+          }
           }
            //the input remains the same, if we are in science mode we stay in science mode and if we are in config mode, then we stay in config mode, hence it is not required to update the input  
            break; 
@@ -252,24 +249,31 @@ void loop() {
             break;
 
           case 0x05:
+          {
               while(Serial.available() == 0);
-              byte selector = Serial.read();
               if(task == CONFIG_MODE){  
-                fee_activate(selector);
+                byte active_selector = Serial.read(); 
+                fee_activate(active_selector);
               }
+          }
              break; 
           
           case 0x06: 
-             if(task == CONFIG_MODE){
+          {
               while(Serial.available() == 0); 
-              byte selector = Serial.read(); 
-              if(input == CONFIG_MODE){
-               fee_deactivate(selector); 
+              if(task == CONFIG_MODE){
+                byte deactive_selector = Serial.read(); 
+               fee_deactivate(deactive_selector); 
              }
+          }
          break; 
-         default:;
+         
+         default:
+          task = CONFIG_MODE;
+          break
+         ;
     }
-    
+    }
     
   switch (task) {   
     
@@ -291,12 +295,12 @@ void loop() {
 
 /******************************************************************************************************************************PC_TRANSMIT*********************************************************************************************************************************/
       case PC_TRANSMIT: 
-        int bytes_to_send = update_pc_packet(); 
-        if(bytes_to_send > 0){ 
-          Serial.write(pc.packet.arr, 8); 
+        if(update_pc_packet() > 0){ 
+          Serial.write(pc_packet.arr, 8); 
           for(int i = 0; i < 3; i++){
             if(*pc_fee_counter[i] == 1 && packet_exists[i]){
-              Serial.write(fee_packet_ptr[i], 10);  
+              Serial.write(fee_packet_ptr[i]->science_data, 10);  
+              packet_exists[i] = false;
             }
           }
         }
@@ -354,14 +358,11 @@ void deactivate_pins(char index){
   port[index]->end(); 
 }
 
-void update_pc_packet(int index){
+int update_pc_packet(){
   /*if index == 0 then set size_of_data to FIB_SCI_DATA, if index == 1 then set size_of_data to FOB_SCI_DATA_SIZE and if index == 2 then set size_of_data to FSC_SCI_DATA_SIZE */
 int bytesToSend = 0; 
 for(int i = 0; i < 3; i++){    
-  if(packet_exists[index]){
-     for(int i = 0; i < 10; i++){
-             pc_data[index][i] = (fee_packet_ptr[index] -> science_data[i]); 
-     } 
+  if(packet_exists[i]){
      bytesToSend = bytesToSend + 10; 
   }
 }
