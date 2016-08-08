@@ -25,10 +25,20 @@
 
   void send_packet(HardwareSerial* port, int index)
   {
-        port->write(cmd_packet[index], PACKET_SIZE); 
-        if(change_command_packet[index] == true){
-          update_command(index); 
+     /*cmd_packet[index][0] is the first byte of the icu packet, if it is set to 5 or 7 then it means we sent a command to change how icu packet is assembled, if change_command_packet is false, it means that this upgrade did not complete */
+        if(cmd_packet[index][0] == 5 || cmd_packet[index][0] == 3){
+          if(change_command_packet == false){
+            
+          }
+          else{
+            port->write(cmd_packet[index], PACKET_SIZE); 
+          }
         }
+        else{
+          port->write(cmd_packet[index], PACKET_SIZE); 
+        }
+        //set the icu command packet to 1000001; 
+        update_command(index); 
    }
  
   

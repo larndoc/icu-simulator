@@ -21,7 +21,7 @@ number_of_bits_coordinates_fob = [24, 24, 24]
 
 
 #wrap this inside a function 
-def init_debug_logger: 
+def init_debug_logger(): 
 	logging.basicConfig(filename='debugger.log', format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 	logger = logging.getLogger()
 	logger.setLevel(logging.DEBUG)
@@ -96,11 +96,11 @@ class fee_science_reciever(Thread):
 		super(fee_science_reciever, self).__init__()
 		self.port = serial_port
 		self.coordinate = ['', '', ''] 
-		self.fib_counter = 0; 
-		self.fob_counter = 0; 
-		self.old_minutes = 0; 
-		self.fsc_counter = 0; 
-		self.start_science = False;
+		self.fib_counter = 0 
+		self.fob_counter = 0 
+		self.old_minutes = 0 
+		self.fsc_counter = 0;
+		self.start_science =  False
 		self.zeeman_controller = []
 		self.mc_controller	   = []
 		self.current_time = datetime.datetime.now()
@@ -135,7 +135,7 @@ class fee_science_reciever(Thread):
 			self.id	= str(data[0])
 			self.sync_counter       		= ("{}".format(int.from_bytes(data[1 : 5], byteorder = 'big')));  
 			delta_val 						= float(self.sync_counter) * 1/128 
-			self.time 						= self.current_time + datetime.timedelta(milliseconds = delta_val*1000 + 3000);						#3000 milliseconds is the time bias
+			self.time 						= self.current_time + datetime.timedelta(milliseconds = delta_val*1000);						#3000 milliseconds is the time bias
 			self.n_fib 						= int(data[5])
 			self.n_fob 						= int(data[6])
 			self.n_fsc 						= int(data[7])
@@ -171,7 +171,7 @@ class fee_science_reciever(Thread):
 		
 	def write_fsc(self):
 		for i in range(0, self.get_nfsc()):
-			self.buffer[2]  = self.port.read(size = 10); 
+			self.buffer[2]  = self.port.read(size = 10);
 			sensor_temp_controller 			= self.buffer[2][0] & 0xF0
 			laser_temp_controller  			= self.buffer[2][0] & 0x0F
 			laser_current_controller 		= self.buffer[2][1] & 0xF0 
@@ -182,10 +182,9 @@ class fee_science_reciever(Thread):
 			time_stamp						= ("{}".format(int.from_bytes(self.buffer[2][8:11], byteorder = 'big')))
 			self.zeeman_controller.append(zeeman_controller)
 			self.mc_controller.append(microwave_reference_controller)
-			with open(self.fsc_sci_name + ".csv", 'a') as self.fsc_handler:
+			with open(self.fsc_sci_name + ".csv", 'a') as fsc_handler:
 				fsc_handler.write(self.time.strftime("%Y%m%d %H:%M:%S.%f") + "," + str(self.id) + ",")
 				fsc_handler.write(str(sensor_temp_controller) + "," + str(laser_temp_controller) + "," + str(laser_current_controller) + "," + str(microwave_reference_controller) + "," +  str(zeeman_controller) + "," + str(science_data_id) + "," + str(science_data_val) + "," + str(time_stamp) + "\n")
-			self.buffer[2] = ''
 			
 	def write_fob(self):
 		for i in range(0,self.get_nfob()) :
@@ -197,7 +196,6 @@ class fee_science_reciever(Thread):
 			with open(self.fob_sci_name + ".csv", 'a') as fob_handler:
 				fob_handler.write(self.time.strftime("%Y%m%d %H:%M:%S.%f") + "," + str(self.id) + ",")
 				fob_handler.write(str(self.coordinate[0]) + "," + str(self.coordinate[1]) + "," + str(self.coordinate[2]) + "," + str(sensor_range) + "," + "\n")
-		self.buffer[1] = ''
 	
 	def write_fib(self):
 		for i in range(0, self.get_nfib()): 
@@ -205,21 +203,21 @@ class fee_science_reciever(Thread):
 			for i in range(0, 3): 
 				self.coordinate[i] = ((int.from_bytes(self.buffer[0][3*i : 3*i + 3], byteorder = 'big')))
 				self.coordinate[i] = ((self.coordinate[i]) - (2**number_of_bits_coordinates_fib[i]) * ((self.coordinate[i]) >= 2**24/2))
-			with open(self.fib_sci_name + ".csv", 'a') as self.fib_handler: 
+			with open(self.fib_sci_name + ".csv", 'a') as fib_handler: 
 				fib_handler.write(self.time.strftime("%Y%m%d %H:%M:%S.%f") + "," + str(self.id) + ",")
 				fib_handler.write(str(self.coordinate[0]) + "," + str(self.coordinate[1]) + "," + str(self.coordinate[2]) + "\n")
-		self.buffer[0] = '' 
 		
 		
 	def update_files(self, absolute_path):
 		t = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+		self.start_science = True
 		self.current_time = datetime.datetime.now() 
 		datetime_files = ["fib_sci_" + t, "fob_sci_" + t, "fsc_sci_" + t]
 		self.fib_sci_name = "fib_sci_" + t	
 		self.fsc_sci_name = "fsc_sci" + t; 
 		self.fob_sci_name = "fob_sci" + t; 
 		
-		if absolute_path != '': 
+		if absolute_path != None: 
 			self.fsc_sci_name = absolute_path + '/' + self.fsc_sci_name
 			self.fib_sci_name = absolute_path + '/' + self.fib_sci_name
 			self.fob_sci_name = absolute_path + '/' + self.fob_sci_name
@@ -234,10 +232,10 @@ class fee_science_reciever(Thread):
 	# arduino startup time
 	#timestamp for each of the filenames
 		#time.sleep(1)
-		if(self.start_science == False): 
+		while(self.start_science == False): 
 			pass
 		self.port.flushInput() 
-		while self.start_science:
+		while self.start_science == True:
 			if self.port.in_waiting > 0:
 				self.update()
 
@@ -250,7 +248,7 @@ if __name__ == '__main__':
 		parser.add_argument(dest = 'port', help = "display the interface port to the computer ", type = str)
 		parser.add_argument('--abs_path', dest = 'abs_path', help = "check for absolute directory", type = str)
 		args = parser.parse_args()
-		s = serial.Serial(args.port, baud_rate, timeout = 1)
+		s = serial.Serial(args.port, baud_rate, timeout = 0.5)
 		init_debug_logger(); 
 		science_handler = fee_science_reciever(s)
 		science_handler.start()
@@ -282,14 +280,13 @@ if __name__ == '__main__':
 			elif(nb == '4'):
 				command = ((int(nb, 0).to_bytes(1, byteorder = 'big'))) + build_fee_packet(); 
 			elif(nb == '3'):
-				science_handler.start_science = True
 				science_handler.update_files(parser.parse_args().abs_path)
 				print('initiating science mode')
 				command = ((int(nb, 0)).to_bytes(1, byteorder = 'big')) 
 			elif(nb == '5'): 
 				science_handler.start_science = False
 				switch_off = True
-			if(science_handler.is_alive() == True and nb != '5'): 
+			if(nb != '5' and science_handler.is_alive() == True): 
 				science_handler.port.write(command)
 			print(command)	
 		

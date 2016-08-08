@@ -33,29 +33,28 @@ enum set {
   SCIENCE_MODE=0, 
   PC_TRANSMIT, 
   CONFIG_MODE,  
-  DEFAULT0
   };
 
-enum set task  = DEFAULT0;
+enum set task  = CONFIG_MODE;
 
 /*fee packet and pointer to the three fee_packets, the data structure used for fee_packet is a union which is included in the folder fee_packet_structure*/ 
 fee_paket fee_packet[3];
 fee_paket* fee_packet_ptr[3]         = {&fee_packet[0], &fee_packet[1], &fee_packet[2]} ;
 
 /*declaration of the pc packet, used to package the recieved bytes from the three interfaces and write it out the serial port, the struct used for pc packet is a union defined in pc_data_dump.h */
-pc_data pc_packet                    = {STATUS, 0, 0, 0, 0};       
+pc_data pc_packet                    = {STATUS, 0, 0, 0, 1};       
 pc_data* pc_packet_ptr               = &pc_packet;
 byte* pc_fee_counter[3]              = {&pc_packet_ptr->n_fib, &pc_packet_ptr-> n_fob, &pc_packet_ptr->n_fsc};
 
 /*a 2-D (3 x 6) array for the command packets that includes the command packet to be sent to each interface */ 
-uint8_t cmd_packet[3][PACKET_SIZE]   = {{1, 0, 0, 0, 0, 1}, {1, 0, 0, 0, 0,  1}, {1, 0, 0, 0, 0, 1}};
+uint8_t cmd_packet[3][PACKET_SIZE]   = {{1, 0, 0, 0, 0, 1}, {1, 0, 0, 0, 0,  1}, {0, 0, 0, 0, 0, 0}};
 
 uint16_t global_packet_counter[3]    = {0, 0, 0};
 byte interface_counter[3]            = {0, 0, 0}; 
 uint8_t response_packet_counter[3]   = {0, 0, 0};
 bool checksum[3]                     = {false, false, false};
 bool packet_exists[3]                = {false, false, false};
-bool fee_enabled[3]                  = {false, false, false};
+bool fee_enabled[3]                  = {false, false, true};
 HardwareSerial* port[3]              = {&Serial1, &Serial2, &Serial3};
 const uint8_t sync_pins[3]           = {11, 13, 12};
 int bytes1; 
@@ -63,9 +62,9 @@ const uint8_t led_pin                = 10;
 unsigned long current_time;
 unsigned long t;
 bool overflow = false;
-unsigned sync_counter           = 0;
+unsigned sync_counter                = 0;
 unsigned long old_counter = 0;
-bool change_command_packet[3]     = {false, false, false};
+bool change_command_packet          = false;
 bool send_command = false;
 bool serial_port1 = false;
 bool check_cap[3];
@@ -124,10 +123,10 @@ void timer_isr() {
  
    
         for(int i = 0; i < 3; i++){
-      if(fee_enabled[i]){
-        send_packet(port[i], i);
-      }
-    }
+          if(fee_enabled[i]){
+            send_packet(port[i], i);
+          }
+        }
 
 
    
@@ -137,7 +136,7 @@ void timer_isr() {
         digitalWrite(sync_pins[i], LOW);
       }
     } 
-    pc_packet.time1 = uint32_t (__builtin_bswap32(sync_counter));
+     pc_packet.time1 = uint32_t (__builtin_bswap32(sync_counter));
 }
 
 
@@ -192,7 +191,7 @@ void print_packet(union fee_paket* test_packet, uint8_t index) {
 void loop() {
   
   /****************************************************************************************************************EXTERNAL INPUTS THAT CHANGE THE CURRENT STATE WITHIN THE STATE DIAGRAM************************************************************************************/
-    if(Serial.available() > 0){ 
+    if(Serial.available() > 0){  
          byte cmd_id = Serial.read(); 
          switch(cmd_id){
          
@@ -218,7 +217,7 @@ void loop() {
             const byte * config_val_ptr;
             config_val_ptr = config_val;  
             for (int i = 0; i < 3; i++){
-              config_val[i] =  fee_command[2 + i]; 
+              config_val_ptr[i] =  fee_command[2 + i]; 
           }
           if(read_write == 0){
             //we want to read 
@@ -227,17 +226,14 @@ void loop() {
           }
           else if(read_write == 1){
             {
-            //we want to write 
-            //the rest of the code should go here
-            byte checksum_for_config_val = 0; 
-            byte checksum; 
-            write_command_packet(fee_number, config_val_ptr, config_id);
-            for(int i = 0; i < 3; i++){
-               checksum_for_config_val ^= config_val[i];  
-            }
-          checksum = checksum_for_config_val ^ fee_number ^ read_write ^config_id;
-          cmd_packet[fee_number][5] = checksum; 
-            } 
+               byte checksum = 0; 
+               write_command_packet(fee_number, config_val_ptr, config_id);
+               for(int i = 0; i < 5; i++){
+                  checksum ^= cmd_packet[fee_number][i];  
+                }
+                cmd_packet[fee_number][5] = checksum; 
+                change_command_packet = true; 
+           } 
           }
           }
           }
@@ -268,10 +264,7 @@ void loop() {
           }
          break; 
          
-         default:
-          task = CONFIG_MODE;
-          break
-         ;
+         default:;
     }
     }
     
@@ -290,22 +283,20 @@ void loop() {
             check_port(port[i], i);
           }
         }
-        task = PC_TRANSMIT; 
-     break; 
-
-/******************************************************************************************************************************PC_TRANSMIT*********************************************************************************************************************************/
-      case PC_TRANSMIT: 
-        if(update_pc_packet() > 0){ 
+        if(pacet_exists[0] || packet_exists{1] || packet_exists[2]) {
+          pc_packet.time1 = pc_packet.time1 - 1; 
           Serial.write(pc_packet.arr, 8); 
-          for(int i = 0; i < 3; i++){
-            if(*pc_fee_counter[i] == 1 && packet_exists[i]){
-              Serial.write(fee_packet_ptr[i]->science_data, 10);  
-              packet_exists[i] = false;
-            }
+        }
+        for(int i = 0; i < 3; i++){
+          if(packet_exists[i]){
+            Serial.write(fee_packet_ptr[i].science_data, 10);
+            packet_exists[i] = false; 
           }
         }
         task = SCIENCE_MODE; 
-    break; 
+     break; 
+
+/******************************************************************************************************************************PC_TRANSMIT*********************************************************************************************************************************/
     
     default:
       task = CONFIG_MODE;
@@ -319,30 +310,21 @@ void fee_activate(int index){
     return;  
   }
   else{
-    create_interface(index);  
+      activate_pins(index); 
+  fee_enabled[index] = true; 
+  *pc_fee_counter[index] = 1; 
   }
 }
 
-void delete_interface(char index){
-  
-  deactivate_pins(index); 
-  fee_enabled[index] = false; 
-  *pc_fee_counter[index] = 0; 
-}
-
-void create_interface(int index){
-  
-  activate_pins(index); 
-  fee_enabled[index] = true; 
-  *pc_fee_counter[index] = 1;
-}
 
 void fee_deactivate(char index){
   if ((index) > 2 || (index) < 0){
     return; 
   }
   else{
-    delete_interface(index);  
+    deactivate_pins(index); 
+  fee_enabled[index] = false; 
+  *pc_fee_counter[index] = 0; 
   }
 }
 
