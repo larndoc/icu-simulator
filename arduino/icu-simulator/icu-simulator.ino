@@ -37,7 +37,8 @@ enum set {
   };
 
 enum set task  = DEFAULT0;
-enum set input = DEFAULT0; 
+// why do you have two almost identical state variables?
+//enum set input = DEFAULT0; 
 
 /*fee packet and pointer to the three fee_packets, the data structure used for fee_packet is a union which is included in the folder fee_packet_structure*/ 
 fee_paket fee_packet[3];
@@ -105,11 +106,16 @@ void wait(unsigned long delta_us) {
    the wait function will stall for the amount of time defined by the variable time_us(in microseconds) before we proces the previous packet and send the next packet to the interface
 */
 void timer_isr() {
-  if(input == DEFAULT0 || input == CONFIG_MODE){
-    sync_counter = 0; 
-  }
-            //if the current state is config_mode or default0 then we want to stop generating any sync signals 
-  else {
+//CL> replaced input with task state variable  
+//  if(input == DEFAULT0 || input == CONFIG_MODE){
+//    sync_counter = 0; 
+//  }
+//            //if the current state is config_mode or default0 then we want to stop generating any sync signals 
+//  else {
+
+  //CL> increment of sync_counter regardless - we will use it as a 128Hz ticker
+  sync_counter++;
+  if(task == SCIENCE_MODE) {
     t = micros();
     unsigned long time_us = 1000;
     
@@ -125,29 +131,27 @@ void timer_isr() {
       }
     }
 
-     for(int i = 0; i < 3; i++) {
-      if(fee_enabled[i]){
+// CL> wait() has to be executed only once
+//     for(int i = 0; i < 3; i++) {
+//      if(fee_enabled[i]){
         wait(time_us); 
-      }
-    }
-        for(int i = 0; i < 3; i++){
+//      }
+//    }
+    for(int i = 0; i < 3; i++){
       if(fee_enabled[i]){
         send_packet(port[i], i);
       }
     }
-
-
    
-    
     for (int i = 0; i < 3; i++) {
       if (fee_enabled[i]) {
         digitalWrite(sync_pins[i], LOW);
       }
     }
-    sync_counter++; 
+    //CL> increment of sync_counter regardless - we will use it as a 128Hz ticker
+    //sync_counter++; 
     pc_packet.time1 = uint32_t (__builtin_bswap32(sync_counter));
-}
-
+  }
 }
 
 
@@ -200,132 +204,225 @@ void print_packet(union fee_paket* test_packet, uint8_t index) {
 */
 
 void loop() {
-  
-    bytes1 = Serial.available(); 
-    if(bytes1 > 0){
-    if(bytes1 == 1){ 
+
+//CL> the following code is executed always, regardless of the state.
+// this is why it is not placed inside the state machine "switch".
+//CL> replaced PC decoding block with this block here...
+// sending FEE command not fully implemented yet in this block
+  if(Serial.available() > 0) {
+    // received something, so let's attempt to decode the message
+    // read first byte
     byte cmd_id = Serial.read(); 
-    
-    if(cmd_id == '\x03'){
-      input = SCIENCE_MODE; 
-    }
-
-    else if(cmd_id == '\x02'){
-      while(Serial.available() == 0); 
-      if(Serial.available() > 0){
-        int bytesToRead = Serial.available(); 
-        uint8_t arr[bytesToRead];
-        Serial.readBytes(arr, bytesToRead); 
-        const byte fee_number = arr[0];
-        const byte read_write = arr[1]; 
-        const byte config_id =  arr[2];
-        byte config_val[3];
-        const byte * config_val_ptr;
-        config_val_ptr = config_val;  
-        for (int i = 0; i < bytesToRead - 3; i++){
-          config_val[i] =  arr[2 + i]; 
+    switch(cmd_id) {
+      case 0x02: // send FEE command
+        // we need to receive at least 6 bytes 
+        int counter = 0;
+        uint8_t fee_command[6];
+        // read 6 bytes into array - will timeout after 1sec 
+        counter = Serial.readBytes(fee_command, 6)
+        if (counter!=6) {
+          // error - timeout has occured, we did not receive 6 bytes
+          // goto: error label
+        } 
+        // set flag to send command ... more code to follow
+        // ...
+        // ...
+        break;
+      case 0x03: // go to science mode
+        task = SCIENCE_MODE;
+        break;
+      case 0x04: // go to config mode
+        task = CONFIG_MODE;
+        break;
+      case 0x05: // switch on FEE
+        // decode further content - maybe could also use Serial.readBytes() as it has a timeout :)
+        while(Serial.available() == 0);
+        byte selector = Serial.read();
+        if(task == CONFIG_MODE ) {
+          //can only be done when in config mode
+          fee_activate(selector)
         }
-        if(read_write == 0){
-          //we want to read 
-          //the rest of the code should go here 
-          check_port(port[fee_number], fee_number); 
+        break;
+      case 0x06: // switch off FEE
+        // decode further content - maybe could also use Serial.readBytes() as it has a timeout :)
+        while(Serial.available() == 0);
+        byte selector = Serial.read();
+        if(task == CONFIG_MODE ) {
+          //can only be done when in config mode
+          fee_deactivate(selector)
         }
-        else if(read_write == 1){
-          //we want to write 
-          //the rest of the code should go here
-          byte checksum_for_config_val = 0; 
-          byte checksum; 
-          write_command_packet(fee_number, config_val_ptr, config_id);
-          for(int i = 0; i < 3; i++){
-             checksum_for_config_val ^= config_val[i];  
-          }
-         checksum = checksum_for_config_val ^ fee_number ^ read_write ^config_id;
-         cmd_packet[fee_number][5] = checksum; 
-        }
-      }  
-      input = SCIENCE_MODE;
+        break;
+      default: // we received something else
+        // might be worth triggering an error, but for now just do nothing
     }
+  }        
+        
+//CL> If structure below seems overly complicated. The program needs to check
+// if the PC has sent something
+//    bytes1 = Serial.available(); 
+//    if(bytes1 > 0){
+//      if(bytes1 == 1){       
+//CL> comparing a byte to a 4 character string? I am not sure how that works...
+// Also, if structure is simpler replaced by switch structure above ^
+//        if(cmd_id == '\x03'){
+//          input = SCIENCE_MODE; 
+//        }
+//
+//        else if(cmd_id == '\x02'){
+//CL> The code that follows here might not work as nowhere is mentioned that you need to receive 6 bytes.
+// See above for a first attempt to read 6 bytes into one array, but this code needs to be discussed.
+//          while(Serial.available() == 0); 
+//          if(Serial.available() > 0){
+//            int bytesToRead = Serial.available(); 
+//            uint8_t arr[bytesToRead];
+//            Serial.readBytes(arr, bytesToRead); 
+//            const byte fee_number = arr[0];
+//            const byte read_write = arr[1]; 
+//            const byte config_id =  arr[2];
+//            byte config_val[3];
+//            const byte * config_val_ptr;
+//            config_val_ptr = config_val;  
+//            for (int i = 0; i < bytesToRead - 3; i++){
+//              config_val[i] =  arr[2 + i]; 
+//            }
+//CL> Calling check_port here might be dangerous, as you only receive FEE packets when sync_counter has been increased!
+// read_write should only afffect how the command packet for the FEE is assembled.
+//            if(read_write == 0){
+//              //we want to read 
+//              //the rest of the code should go here 
+//              check_port(port[fee_number], fee_number); 
+//            }
+//CL> Similarly here, read_write flag should not cause the program sequence to change, but only
+// how the command packet for the FEE looks like.
+//            else if(read_write == 1){
+//              //we want to write 
+//              //the rest of the code should go here
+//              byte checksum_for_config_val = 0; 
+//              byte checksum; 
+//              write_command_packet(fee_number, config_val_ptr, config_id);
+//              for(int i = 0; i < 3; i++){
+//                 checksum_for_config_val ^= config_val[i];  
+//              }
+//             checksum = checksum_for_config_val ^ fee_number ^ read_write ^config_id;
+//             cmd_packet[fee_number][5] = checksum; 
+//            }
+//          }  
+//CL> trying to send an FEE command does not affect the "mode"
+//          input = SCIENCE_MODE;
+//        }
+//    
+//        else if(cmd_id == '\x04'){
+//          input = CONFIG_MODE;
+//        }
 
-    else if(cmd_id == '\x04'){
-      input = CONFIG_MODE;
-    }
+//CL> switching on and off FEEs should not affect the "mode" variable "input". 
+// If we are in the wrong mode, command is (after bing fully received), discarded. See above^
+//        else if(input == CONFIG_MODE && cmd_id == '\x05'){
+//          while(Serial.available() == 0); 
+//          if(Serial.available() > 0){
+//            byte interface = Serial.read(); 
+//            fee_activate(interface);
+//            input = CONFIG_MODE; 
+//          }
+//          
+//        }
+//        else if(input == CONFIG_MODE && cmd_id == '\x06'){
+//          while(Serial.available() == 0); 
+//          if(Serial.available() > 0){
+//            uint8_t interface = Serial.read(); 
+//            fee_deactivate(interface);
+//            input = CONFIG_MODE; 
+//          }
+//        }
+//      }
+//      task = DEFAULT0;
+//    }
 
-    else if(input == CONFIG_MODE && cmd_id == '\x05'){
-      while(Serial.available() == 0); 
-      if(Serial.available() > 0){
-        byte interface = Serial.read(); 
-        fee_activate(interface);
-        input = CONFIG_MODE; 
-      }
-      
-    }
-    else if(input == CONFIG_MODE && cmd_id == '\x06'){
-      while(Serial.available() == 0); 
-      if(Serial.available() > 0){
-        uint8_t interface = Serial.read(); 
-        fee_deactivate(interface);
-        input = CONFIG_MODE; 
-      }
-    }
-    }
-    task = DEFAULT0;
-    }
-    
-    
-  switch (task) {   
-     case CONFIG_MODE: 
-      input = CONFIG_MODE; 
-      task = DEFAULT0;            //disable the timer isr in config_mode i.e stop generating any sync pulses
-     break; 
-      
+//CL> simpler state machine - we only have two states currently
+  switch (task) {
+    case CONFIG_MODE:
+      // do nothing specific in config mode now - late on, we will put some housekeeping work in here
+      break;
     case SCIENCE_MODE:
-      if (sync_counter == old_counter) {
-        for (int i = 0; i < 3; i++) {
-          if(fee_enabled[i]){
-            check_port(port[i], i);
-          }
+      // in science mode we need to receive data from the FEEs, regardless of anything else
+      // and we need to send it to the PC
+      for (int i = 0; i < 3; i++) {
+        if(fee_enabled[i]){
+          check_port(port[i], i);
         }
-        input = SCIENCE_MODE;
       }
-      else if (sync_counter > old_counter) {
-        old_counter = sync_counter;
-        input = PC_TRANSMIT;
-      }
-      task = DEFAULT0; 
-     break; 
-
-      case PC_TRANSMIT: 
-        for(int i = 0; i < 3; i++){
-          create_pc_packet(i); 
-        }
-        if(packet_exists[0] || packet_exists[1] || packet_exists[2]){
-          Serial.write(pc.packet.arr, 8); 
-        }
-        for(int i = 0; i < 3; i++){
-          if(*pc_fee_counter[i] == 1 && packet_exists[i]){
-            Serial.write(pc_data[i], 10); 
-          }
-        }
-     
-        input = SCIENCE_MODE; 
-        task = DEFAULT0; 
-     
-    break; 
- 
-  case DEFAULT0:
-  
-  
-     //***********************************************************NOTHING TO READ FROM THE SERIAL PORT******************************************************//
-      task = 
-        input == DEFAULT0 ? DEFAULT0 : 
-        input == SCIENCE_MODE ? SCIENCE_MODE : 
-        input == CONFIG_MODE ? CONFIG_MODE : 
-        PC_TRANSMIT
-    break ;
-    
-    default: ;
+      //CL> put for-loop inside the "create_pc_packet()" function and change
+      // function name to "update_pc_packet()". 
+      // Also, this function should return the number of bytes to send,
+      // if the packet is complete, otherwise it would return 0.
+      // So then the code would look like:
+      // int bytes_to_send = update_pc_packet();
+      //if(bytes_to_send > 0) {
+      //  Serial.write(data_array_to_send_to_pc, bytes_to_send);
+      //}    
+      break;
+    case default:
+      // we should never reach this, as we are either in config or in science mode
+      // maybe trigger an error, but for now just:
+      task = CONFIG_MODE; // set to config mode so we get out of this undefined state
   }
-}
+    
+//CL> replaced state machine with code above^    
+//  switch (task) {   
+//     case CONFIG_MODE: 
+//      input = CONFIG_MODE; 
+//      task = DEFAULT0;            //disable the timer isr in config_mode i.e stop generating any sync pulses
+//     break; 
+//      
+//    case SCIENCE_MODE:
+//      if (sync_counter == old_counter) {
+//        for (int i = 0; i < 3; i++) {
+//          if(fee_enabled[i]){
+//            check_port(port[i], i);
+//          }
+//        }
+//        input = SCIENCE_MODE;
+//      }
+//      else if (sync_counter > old_counter) {
+//        old_counter = sync_counter;
+//        input = PC_TRANSMIT;
+//      }
+//      task = DEFAULT0; 
+//     break; 
+//
+//      case PC_TRANSMIT: 
+//        for(int i = 0; i < 3; i++){
+//          create_pc_packet(i); 
+//        }
+//        if(packet_exists[0] || packet_exists[1] || packet_exists[2]){
+//          Serial.write(pc.packet.arr, 8); 
+//        }
+//        for(int i = 0; i < 3; i++){
+//          if(*pc_fee_counter[i] == 1 && packet_exists[i]){
+//            Serial.write(pc_data[i], 10); 
+//          }
+//        }
+//     
+//        input = SCIENCE_MODE; 
+//        task = DEFAULT0; 
+//     
+//    break; 
+// 
+//  case DEFAULT0:
+//  
+//  
+//     //***********************************************************NOTHING TO READ FROM THE SERIAL PORT******************************************************//
+//      task = 
+//        input == DEFAULT0 ? DEFAULT0 : 
+//        input == SCIENCE_MODE ? SCIENCE_MODE : 
+//        input == CONFIG_MODE ? CONFIG_MODE : 
+//        PC_TRANSMIT
+//    break ;
+//    
+//    default: ;
+//  }
+
+} // END OF LOOP
 
 
 void fee_activate(int index){
