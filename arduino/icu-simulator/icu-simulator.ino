@@ -37,7 +37,6 @@ enum set {
   };
 
 enum set task  = DEFAULT0;
-enum set input = DEFAULT0; 
 
 /*fee packet and pointer to the three fee_packets, the data structure used for fee_packet is a union which is included in the folder fee_packet_structure*/ 
 fee_paket fee_packet[3];
@@ -224,7 +223,7 @@ void loop() {
             byte config_val[3];
             const byte * config_val_ptr;
             config_val_ptr = config_val;  
-            for (int i = 0; i < bytesToRead - 3; i++){
+            for (int i = 0; i < 3; i++){
               config_val[i] =  fee_command[2 + i]; 
           }
           if(read_write == 0){
@@ -249,31 +248,26 @@ void loop() {
            break; 
 
           case 0x04:
-            input = CONFIG_MODE;
+            task = CONFIG_MODE;
             break;
 
           case 0x05:
-            if(input == CONFIG_MODE){
-              while(Serial.available() == 0); 
-                if(Serial.available() > 0){
-                 byte interface = Serial.read(); 
-                  fee_activate(interface);
-                  input = CONFIG_MODE; 
-                }  
+              while(Serial.available() == 0);
+              byte selector = Serial.read();
+              if(task == CONFIG_MODE){  
+                fee_activate(selector);
               }
              break; 
           
           case 0x06: 
-             if(input == CONFIG_MODE){
-             while(Serial.available() == 0); 
-                if(Serial.available() > 0){
-                  uint8_t interface = Serial.read(); 
-                  fee_deactivate(interface);
-                  input = CONFIG_MODE; 
-            }
-         }
+             if(task == CONFIG_MODE){
+              while(Serial.available() == 0); 
+              byte selector = Serial.read(); 
+              if(input == CONFIG_MODE){
+               fee_deactivate(selector); 
+             }
          break; 
-    task = DEFAULT0;
+         default:;
     }
     
     
@@ -282,56 +276,35 @@ void loop() {
  /****************************************************************************************************************************CONFIGURATION MODE***********************************************************************************************************************/
      
      case CONFIG_MODE: 
-      input = CONFIG_MODE; 
-      task = DEFAULT0;            //disable the timer isr in config_mode i.e stop generating any sync pulses
+      task = CONFIG_MODE;            //disable the timer isr in config_mode i.e stop generating any sync pulses
      break; 
 
 /*****************************************************************************************************************************SCIENCE MODE*****************************************************************************************************************************/
     case SCIENCE_MODE:
-      if (sync_counter == old_counter) {
         for (int i = 0; i < 3; i++) {
           if(fee_enabled[i]){
             check_port(port[i], i);
           }
         }
-        input = SCIENCE_MODE;
-      }
-      else if (sync_counter > old_counter) {
-        old_counter = sync_counter;
-        input = PC_TRANSMIT;
-      }
-      task = DEFAULT0; 
+        task = PC_TRANSMIT; 
      break; 
 
 /******************************************************************************************************************************PC_TRANSMIT*********************************************************************************************************************************/
       case PC_TRANSMIT: 
-        for(int i = 0; i < 3; i++){
-          create_pc_packet(i); 
-        }
-        if(packet_exists[0] || packet_exists[1] || packet_exists[2]){
+        int bytes_to_send = update_pc_packet(); 
+        if(bytes_to_send > 0){ 
           Serial.write(pc.packet.arr, 8); 
-        }
-        for(int i = 0; i < 3; i++){
-          if(*pc_fee_counter[i] == 1 && packet_exists[i]){
-            Serial.write(pc_data[i], 10); 
+          for(int i = 0; i < 3; i++){
+            if(*pc_fee_counter[i] == 1 && packet_exists[i]){
+              Serial.write(fee_packet_ptr[i], 10);  
+            }
           }
         }
-     
-        input = SCIENCE_MODE; 
-        task = DEFAULT0; 
-     
+        task = SCIENCE_MODE; 
     break; 
- 
-  case DEFAULT0:
-     //***********************************************************NOTHING TO READ FROM THE SERIAL PORT******************************************************//
-      task = 
-        input == DEFAULT0 ? DEFAULT0 : 
-        input == SCIENCE_MODE ? SCIENCE_MODE : 
-        input == CONFIG_MODE ? CONFIG_MODE : 
-        PC_TRANSMIT
-    break ;
     
-    default: ;
+    default:
+      task = CONFIG_MODE;
   }
 }
 
@@ -381,16 +354,18 @@ void deactivate_pins(char index){
   port[index]->end(); 
 }
 
-void create_pc_packet(int index){
+void update_pc_packet(int index){
   /*if index == 0 then set size_of_data to FIB_SCI_DATA, if index == 1 then set size_of_data to FOB_SCI_DATA_SIZE and if index == 2 then set size_of_data to FSC_SCI_DATA_SIZE */
-  
-    
+int bytesToSend = 0; 
+for(int i = 0; i < 3; i++){    
   if(packet_exists[index]){
      for(int i = 0; i < 10; i++){
              pc_data[index][i] = (fee_packet_ptr[index] -> science_data[i]); 
-     }
-      packet_exists[index] = false; 
+     } 
+     bytesToSend = bytesToSend + 10; 
   }
+}
+return bytesToSend; 
 }
 
 void write_command_packet(const uint8_t fee_interface, const uint8_t* config_val, const uint8_t config_id)
