@@ -61,7 +61,6 @@ unsigned long current_time;
 unsigned long t;
 bool overflow = false;
 unsigned sync_counter                = 0;
-unsigned long old_counter = 0;
 bool change_command_packet          = false;
 bool send_command = false;
 bool serial_port1 = false;
@@ -217,8 +216,7 @@ void loop() {
             for (int i = 0; i < 3; i++){
               config_val_ptr[i] =  fee_command[2 + i]; 
           }
-          cmd_packet[fee_interface][0] =
-              read_write == 0 ? 3 : 5
+          cmd_packet[fee_interface][0] = read_write == 0 ? 3 : 5
            for(int i = 0; i < 5; i++)
            {
               checksum ^= cmd_packet[fee_number][i];  
