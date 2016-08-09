@@ -35,7 +35,6 @@ enum set {
   };
 
 enum set task  = CONFIG_MODE;
-bool trigger = true; 
 /*fee packet and pointer to the three fee_packets, the data structure used for fee_packet is a union which is included in the folder fee_packet_structure*/ 
 int total_count = 0;
 fee_paket fee_packet[3];
@@ -66,7 +65,6 @@ bool change_command_packet          = false;
 bool send_command = false;
 bool serial_port1 = false;
 bool check_cap[3];
-byte selector;
 bool recieved_reply = false;
 
 /*prototype of the functions implemented in the filed /* 
@@ -190,7 +188,7 @@ void print_packet(union fee_paket* test_packet, uint8_t index) {
 */
 
 void loop() {
-  
+
   /****************************************************************************************************************EXTERNAL INPUTS THAT CHANGE THE CURRENT STATE WITHIN THE STATE DIAGRAM************************************************************************************/
     if(Serial.available() > 0){   
          byte cmd_id = Serial.read();
@@ -277,29 +275,52 @@ void loop() {
             check_port(port[i], i);
           }
         }       
-        for(int i = 0; i < 3; i++){
-          if(packet_exists[i] == true){
-            if(trigger){
-              for(int i = 0; i < 8; i++){
-                pc_packet_arr[i] = pc_packet.arr[i]; 
-                trigger = false; 
-              }
+
+            if(packet_exists[0] == true  || packet_exists[1] == true|| packet_exists[2] == true){
+                bool packet[3] = {packet_exists[0], packet_exists[1], packet_exists[2]};  
+                
+                 /****preparing the header, first 8 bytes of pc_packet_arr should be the header that is defined globally****/
+                 for(int i = 0; i < 8; i++){
+                  pc_packet_arr[i] = pc_packet.arr[i]; 
+                }
+
+                /***updating total count to 8 as 8 bytes have been read************************/ 
               total_count =  8;
+              
+              
+              
+              if(pc_packet.n_fib == 1 && (packet[0] == true)){
+                for(int j = 0; j < 10; j++){
+                  pc_packet_arr[j + total_count] = fee_packet_ptr[0]->science_data[j];
+                }
+                packet_exists[0]  = false; 
+                total_count = total_count + 10; 
+              }
+              
+              
+              if(pc_packet.n_fob == 1 && (packet[1] == true)){
+                for(int j= 0; j < 10; j++){
+                  pc_packet_arr[j + total_count] = fee_packet_ptr[1]->science_data[j];
+                }
+                packet_exists[1] = false; 
+                total_count = total_count + 10; 
+              }
+              if(pc_packet.n_fsc == 1 && (packet[2]== true)){
+                for(int j = 0; j < 10; j++){
+                  pc_packet_arr[j + total_count] = fee_packet_ptr[2] -> science_data[j] ;
+              }
+              packet_exists[2] = false; 
+              total_count = total_count + 10; 
+              }
+         
             }
-            for(int j = 0; j < 10; j++){
-              pc_packet_arr[10*i + j + 8] = fee_packet_ptr[i]->science_data[j]; 
-            }
-            packet_exists[i] = false; 
-            total_count = total_count + 10;
-          }  
-        }
-        if(total_count != 0){
+              
+          /**if total_count is 0 you are not going to write any bytes***/ 
           Serial.write(pc_packet_arr, total_count);
-        }
-        trigger = true;
-  
-         total_count = 0; 
-         task = SCIENCE_MODE; 
+          
+          total_count = 0; 
+        
+        task = SCIENCE_MODE; /***could probably get rid of this, but left it here due to improved readibility***/  
      break; 
 
 /******************************************************************************************************************************PC_TRANSMIT*********************************************************************************************************************************/

@@ -14,10 +14,10 @@
   void process_packet(union fee_paket* fee_ptr, uint8_t index){
       //print_packet(fee_ptr, index);                                                       //on every sync signal check to see if there is some processing to do and send the UART packet to the rest of the interfaces respectively. 
       check_checksum(fee_ptr, index); 
-        packet_exists[0] = true;
-              response_packet_counter[index] = 0; 
-        packet_exists[2] = true; 
-        packet_exists[1] = true;
+      if(response_packet_counter[index] > 0){
+      packet_exists[index] = true;
+      }
+      response_packet_counter[index] = 0; 
 
       global_packet_counter[index]++; 
       

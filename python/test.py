@@ -161,14 +161,13 @@ class fee_science_reciever(Thread):
 			self.sync_counter       		= ("{}".format(int.from_bytes(data[1 : 5], byteorder = 'big')));  
 			delta_val 						= float(self.sync_counter) * 1/128 
 			self.time 						= self.current_time + datetime.timedelta(milliseconds = delta_val*1000);						#3000 milliseconds is the time bias
-			self.n_fib 						= int(data[5])
-			self.n_fob 						= int(data[6])
-			self.n_fsc 						= int(data[7])
-			self.total_bytes        		= self.n_fib*10 + self.n_fob*10 + self.n_fsc*10 + 8
+			self.n_fib 						= (data[5])
+			self.n_fob 						= (data[6])
+			self.n_fsc 						= (data[7])
 			self.fib_counter 				= self.fib_counter + self.n_fib 
 			self.fob_counter 				= self.fob_counter + self.n_fob
 			self.fsc_counter 				= self.fsc_counter + self.n_fsc
-			
+	
 
 			
 			#self.fsc_counter = self.fsc_counter + self.n_fsc
@@ -255,7 +254,7 @@ class fee_science_reciever(Thread):
 		#time.sleep(1)
 		while(self.start_science == False): 
 			pass
-		self.port.flushInput() 
+		self.port.flushInput();
 		while self.start_science == True:
 			if self.port.in_waiting > 0:
 				self.update()
@@ -272,11 +271,13 @@ if __name__ == '__main__':
 		s = serial.Serial(args.port, baud_rate, timeout = 0.5)
 		init_debug_logger(); 
 		science_handler = fee_science_reciever(s)
-		science_handler.start()
+		science_handler.start(); 
 		while not science_handler.is_alive(): 
 			pass 
+
 		science_handler.update_current_time(); 
 		time.sleep(2)
+		
 		## needed as arduino needs to come up, do not remove. 
 		cmd_menu = ("1) Set Time Command \n"
 					 "2) Set Config Command \n"
@@ -302,7 +303,7 @@ if __name__ == '__main__':
 				command = ((int(nb, 0).to_bytes(1, byteorder = 'big'))) + build_fee_packet(); 
 			elif(nb == '3'):
 				science_handler.update_files(parser.parse_args().abs_path)
-				print('initiating science mode')
+				science_handler.start_science = True; 
 				command = ((int(nb, 16)).to_bytes(1, byteorder = 'big')) 
 			elif(nb == '5'): 
 				science_handler.start_science = False
