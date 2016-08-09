@@ -56,7 +56,8 @@ bool packet_exists[3]                = {false, false, false};
 bool fee_enabled[3]                  = {false, false, false};
 HardwareSerial* port[3]              = {&Serial1, &Serial2, &Serial3};
 const uint8_t sync_pins[3]           = {11, 13, 12};
-const uint8_t led_pin                = 10;
+const uint8_t led_pin    = 10;
+const uint8_t old_counter = 1; 
 unsigned long current_time;
 unsigned long t;
 bool overflow = false;
@@ -99,9 +100,8 @@ void wait(unsigned long delta_us) {
    the wait function will stall for the amount of time defined by the variable time_us(in microseconds) before we proces the previous packet and send the next packet to the interface
 */
 void timer_isr() {
-    //sync_counter++; 
+    sync_counter++; 
       if(task == SCIENCE_MODE) {
-     sync_counter++;
       t = micros();
       unsigned long time_us = 1000;
       
@@ -270,13 +270,20 @@ void loop() {
 
 /*****************************************************************************************************************************SCIENCE MODE*****************************************************************************************************************************/
     case SCIENCE_MODE:
+    if(sync_counter == old_counter){
         for (int i = 0; i < 3; i++) {
           if(fee_enabled[i]){
             check_port(port[i], i);
           }
-        }       
-
-            if(packet_exists[0] == true  || packet_exists[1] == true|| packet_exists[2] == true){
+        }
+    }
+            /**it would probably make sense to have too variables, sync_counter and old_counter, initially both sync_counter and old_counter are set to zero, but at the end of every timer isr, we would increment sync_counter and therefore sync_counter > old_counter, this acts as an indication that we have hit a new sync pulse and therefore we must transmit the packet to pc  
+             * otherwise if sync_counter == old_counter, means we havent gone into the timer isr again and we need to listen for any incoming data.. 
+             * 
+             */
+            else if(sync_counter > old_counter){
+              old_counter = sync_counter; 
+              if(packet_exists[0] == true  || packet_exists[1] == true|| packet_exists[2] == true){
                 bool packet[3] = {packet_exists[0], packet_exists[1], packet_exists[2]};  
                 
                  /****preparing the header, first 8 bytes of pc_packet_arr should be the header that is defined globally****/
@@ -285,7 +292,7 @@ void loop() {
                 }
 
                 /***updating total count to 8 as 8 bytes have been read************************/ 
-              total_count =  8;
+                total_count =  8;
               
               
               
@@ -317,8 +324,8 @@ void loop() {
               
           /**if total_count is 0 you are not going to write any bytes***/ 
           Serial.write(pc_packet_arr, total_count);
-          
           total_count = 0; 
+         }
         
         task = SCIENCE_MODE; /***could probably get rid of this, but left it here due to improved readibility***/  
      break; 
