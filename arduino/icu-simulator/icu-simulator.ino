@@ -35,18 +35,19 @@ enum set {
   };
 
 enum set task  = CONFIG_MODE;
-
+bool trigger = true; 
 /*fee packet and pointer to the three fee_packets, the data structure used for fee_packet is a union which is included in the folder fee_packet_structure*/ 
+int total_count = 0;
 fee_paket fee_packet[3];
 fee_paket* fee_packet_ptr[3]         = {&fee_packet[0], &fee_packet[1], &fee_packet[2]} ;
-
+byte pc_packet_arr[100] ;
 /*declaration of the pc packet, used to package the recieved bytes from the three interfaces and write it out the serial port, the struct used for pc packet is a union defined in pc_data_dump.h */
 pc_data pc_packet                    = {STATUS, 0, 0, 0, 0};       
 pc_data* pc_packet_ptr               = &pc_packet;
 byte* pc_fee_counter[3]              = {&pc_packet_ptr->n_fib, &pc_packet_ptr-> n_fob, &pc_packet_ptr->n_fsc};
 
 /*a 2-D (3 x 6) array for the command packets that includes the command packet to be sent to each interface */ 
-uint8_t cmd_packet[3][PACKET_SIZE]   = {{1, 0, 0, 0, 0, 1}, {1, 0, 0, 0, 0,  1}, {0, 0, 0, 0, 0, 0}};
+uint8_t cmd_packet[3][PACKET_SIZE]   = {{1, 0, 0, 0, 0, 1}, {1, 0, 0, 0, 0,  1}, {1, 0, 0, 0, 0, 1}};
 
 uint16_t global_packet_counter[3]    = {0, 0, 0};
 byte interface_counter[3]            = {0, 0, 0}; 
@@ -100,40 +101,43 @@ void wait(unsigned long delta_us) {
    the wait function will stall for the amount of time defined by the variable time_us(in microseconds) before we proces the previous packet and send the next packet to the interface
 */
 void timer_isr() {
-    sync_counter++; 
-    t = micros();
-    unsigned long time_us = 1000;
-    
-    for(int i = 0; i < 3; i++){
-      if(fee_enabled[i]){
-        digitalWrite(sync_pins[i], HIGH);         //setting up of the pins 
-      }
-    }
-
-    for(int i = 0; i < 3; i++){
-      if(fee_enabled[i]){
-        process_packet(fee_packet_ptr[i], i); 
-      }
-    }
-
-        wait(time_us); 
- 
-   
-        for(int i = 0; i < 3; i++){
-          if(fee_enabled[i]){
-            send_packet(port[i], i);
-          }
+    //sync_counter++; 
+      if(task == SCIENCE_MODE) {
+     sync_counter++;
+      t = micros();
+      unsigned long time_us = 1000;
+      
+      for(int i = 0; i < 3; i++){
+        if(fee_enabled[i]){
+          digitalWrite(sync_pins[i], HIGH);         //setting up of the pins 
         }
-
-
-   
-    
-    for (int i = 0; i < 3; i++) {
-      if (fee_enabled[i]) {
-        digitalWrite(sync_pins[i], LOW);
       }
-    } 
-     pc_packet.time1 = uint32_t (__builtin_bswap32(sync_counter));
+  
+      for(int i = 0; i < 3; i++){
+        if(fee_enabled[i]){
+          process_packet(fee_packet_ptr[i], i); 
+        }
+      }
+  
+          wait(time_us); 
+   
+     
+          for(int i = 0; i < 3; i++){
+            if(fee_enabled[i]){
+              send_packet(port[i], i);
+            }
+          }
+  
+  
+     
+      
+      for (int i = 0; i < 3; i++) {
+        if (fee_enabled[i]) {
+          digitalWrite(sync_pins[i], LOW);
+        }
+      } 
+       pc_packet.time1 = uint32_t (__builtin_bswap32(sync_counter));
+   }
 }
 
 
@@ -188,8 +192,10 @@ void print_packet(union fee_paket* test_packet, uint8_t index) {
 void loop() {
   
   /****************************************************************************************************************EXTERNAL INPUTS THAT CHANGE THE CURRENT STATE WITHIN THE STATE DIAGRAM************************************************************************************/
-    if(Serial.available() > 0){  
-         byte cmd_id = Serial.read(); 
+    if(Serial.available() > 0){   
+         byte cmd_id = Serial.read();
+         byte deactive_selector; 
+         byte active_selector; 
          switch(cmd_id){
          
          case 0x03:
@@ -210,23 +216,23 @@ void loop() {
             int fee_number = fee_command[0];
             int read_write = fee_command[1]; 
             int config_id =  fee_command[2];
+            byte checksum = 0;
             byte config_val[3];
             byte * config_val_ptr;
             config_val_ptr = config_val;  
             for (int i = 0; i < 3; i++){
               config_val_ptr[i] =  fee_command[2 + i]; 
           }
-          cmd_packet[fee_interface][0] = read_write == 0 ? 3 : 5
+          cmd_packet[fee_number][0] = read_write == 0 ? 3 : 5;
            for(int i = 0; i < 5; i++)
            {
               checksum ^= cmd_packet[fee_number][i];  
            }
             cmd_packet[fee_number][5] = checksum; 
             change_command_packet = true;                 //indicates that the upgrade was complete
-            write_command_packet(fee_number)              //update the config command value in the icu packet
+            write_command_packet(fee_number, config_val_ptr, config_id);              //update the config command value in the icu packet
             cmd_packet[fee_number][5] = checksum; 
             change_command_packet = true; 
-          }
           }
           }
            //the input remains the same, if we are in science mode we stay in science mode and if we are in config mode, then we stay in config mode, hence it is not required to update the input  
@@ -237,23 +243,19 @@ void loop() {
             break;
 
           case 0x05:
-          {
               while(Serial.available() == 0);
               if(task == CONFIG_MODE){  
-                byte active_selector = Serial.read(); 
+                active_selector = Serial.read(); 
                 fee_activate(active_selector);
               }
-          }
              break; 
           
           case 0x06: 
-          {
               while(Serial.available() == 0); 
               if(task == CONFIG_MODE){
-                byte deactive_selector = Serial.read(); 
+               deactive_selector = Serial.read(); 
                fee_deactivate(deactive_selector); 
              }
-          }
          break; 
          
          default:;
@@ -274,18 +276,30 @@ void loop() {
           if(fee_enabled[i]){
             check_port(port[i], i);
           }
-        }
-        if(packet_exists[0] || packet_exists[1] || packet_exists[2]) {
-          pc_packet.time1 = pc_packet.time1 - 1; 
-          Serial.write(pc_packet.arr, 8); 
-        }
+        }       
         for(int i = 0; i < 3; i++){
-          if(packet_exists[i]){
-            Serial.write(fee_packet_ptr[i]->science_data, 10);
+          if(packet_exists[i] == true){
+            if(trigger){
+              for(int i = 0; i < 8; i++){
+                pc_packet_arr[i] = pc_packet.arr[i]; 
+                trigger = false; 
+              }
+              total_count =  8;
+            }
+            for(int j = 0; j < 10; j++){
+              pc_packet_arr[10*i + j + 8] = fee_packet_ptr[i]->science_data[j]; 
+            }
             packet_exists[i] = false; 
-          }
+            total_count = total_count + 10;
+          }  
         }
-        task = SCIENCE_MODE; 
+        if(total_count != 0){
+          Serial.write(pc_packet_arr, total_count);
+        }
+        trigger = true;
+  
+         total_count = 0; 
+         task = SCIENCE_MODE; 
      break; 
 
 /******************************************************************************************************************************PC_TRANSMIT*********************************************************************************************************************************/
@@ -342,7 +356,7 @@ for(int i = 0; i < 3; i++){
 return bytesToSend; 
 }
 
-void write_command_packet(int fee_interface, const uint8_t* config_val, const uint8_t config_id)
+void write_command_packet(int fee_interface, const uint8_t* config_val, int config_id)
 {
   cmd_packet[fee_interface][1] = config_id;
   for(int i = 0; i < 3; i++){
