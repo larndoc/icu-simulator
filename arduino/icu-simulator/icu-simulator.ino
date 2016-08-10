@@ -3,28 +3,30 @@
 /*currently use keypad button 'A' to initiate simulation */
 
 #include <Time.h>
-#include <TimeLib.h>
 #include <DueTimer.h>
 #include <time.h>
 #include <stdlib.h>
 #include "errors.h"
+#include "house-keeping.h" 
 #include "fee_packet_structure.h"
 #include "pc_data_dump.h"
 
 //********************************************************************************CLOCK INFORMATION****************************************************************//
-#define FREQUENCY             128
-#define PERIOD_US             100000/FREQUENCY
-#define BAUD_RATE             115200
+#define FREQUENCY                     128
+#define PULSE_WIDTH_US                1000
+#define PERIOD_US                     100000/FREQUENCY
+#define BAUD_RATE                     115200
 
 //*******************************************************************************ICU COMMAND PACKET INFO**********************************************************//
-#define BYTE_SIZE             8
-#define PACKET_SIZE           6
-#define PACKETS_TO_TRANSFER   3 
+#define BYTE_SIZE                     8
+#define PACKET_SIZE                   6
+#define PACKETS_TO_TRANSFER           3 
 
 //******************************************************************************FEE PACKET INFORMATION************************************************************//
-#define FEE_PACKET_SIZE       100 
-#define PACKETS_RECIEVED      3
-#define STATUS                0
+#define FEE_PACKET_SIZE               100 
+#define PACKETS_RECIEVED              3
+#define SCIENCE_STATUS                0
+#define HOUSE_KEEPING_STATUS          1 
 
 //******************************************************************************GLOBAL VARIABLES***************************************************************//
 
@@ -32,7 +34,9 @@
 enum set {
   SCIENCE_MODE=0,  
   CONFIG_MODE,  
+  HOUSE_KEEPING, 
   };
+
 
 enum set task  = CONFIG_MODE;
 /*fee packet and pointer to the three fee_packets, the data structure used for fee_packet is a union which is included in the folder fee_packet_structure*/ 
@@ -41,10 +45,11 @@ fee_paket fee_packet[3];
 fee_paket* fee_packet_ptr[3]         = {&fee_packet[0], &fee_packet[1], &fee_packet[2]} ;
 byte pc_packet_arr[100] ;
 /*declaration of the pc packet, used to package the recieved bytes from the three interfaces and write it out the serial port, the struct used for pc packet is a union defined in pc_data_dump.h */
-pc_data pc_packet                    = {STATUS, 0, 0, 0, 0};       
+pc_data pc_packet                    = {SCIENCE_STATUS, 0, 0, 0, 0};       
 pc_data* pc_packet_ptr               = &pc_packet;
 byte* pc_fee_counter[3]              = {&pc_packet_ptr->n_fib, &pc_packet_ptr-> n_fob, &pc_packet_ptr->n_fsc};
 
+house_keeping hk_pkt                 = {HOUSE_KEEPING_STATUS, 0, 0, 0, 0, 0}; 
 /*a 2-D (3 x 6) array for the command packets that includes the command packet to be sent to each interface */ 
 uint8_t cmd_packet[3][PACKET_SIZE]   = {{1, 0, 0, 0, 0, 1}, {1, 0, 0, 0, 0,  1}, {1, 0, 0, 0, 0, 1}};
 
@@ -57,7 +62,7 @@ bool fee_enabled[3]                  = {false, false, false};
 HardwareSerial* port[3]              = {&Serial1, &Serial2, &Serial3};
 const uint8_t sync_pins[3]           = {11, 13, 12};
 const uint8_t led_pin    = 10;
-const uint8_t old_counter = 1; 
+uint8_t old_counter = 1; 
 unsigned long current_time;
 unsigned long t;
 bool overflow = false;
@@ -67,6 +72,9 @@ bool send_command = false;
 bool serial_port1 = false;
 bool check_cap[3];
 bool recieved_reply = false;
+bool packet_sent = false; 
+bool packet_processed = false; 
+
 
 /*prototype of the functions implemented in the filed /* 
  * void wait(unsigned long delta_us)  //when the sync pins are set high, this function is used to wait the time given by delta_us in microseconds before setting them to zero again 
@@ -80,7 +88,7 @@ bool recieved_reply = false;
    void wait deals with the waiting for the desired amount of time before we start to process packets and trasmit packets to the rest of the three interfaces
 */
 
-void wait(unsigned long delta_us) {
+void wait_us(unsigned long delta_us) {
   while ( (micros()  - t ) < delta_us ) {
     if (micros() - t < 0) {      //indicates that a overflow has occured
       //the time t is declared as a global variable which means that it is eight bytes.
@@ -101,44 +109,46 @@ void wait(unsigned long delta_us) {
 */
 void timer_isr() {
     sync_counter++; 
-      if(task == SCIENCE_MODE) {
+    if(task == SCIENCE_MODE){
       t = micros();
-      unsigned long time_us = 1000;
+      pc_packet.time1 = uint32_t (__builtin_bswap32(sync_counter)); 
       
       for(int i = 0; i < 3; i++){
         if(fee_enabled[i]){
           digitalWrite(sync_pins[i], HIGH);         //setting up of the pins 
         }
       }
-  
-      for(int i = 0; i < 3; i++){
+    }
+
+    if(packet_sent){
+      packet_sent = false; 
+      for(int i = 0; i < 3 ; i++){
         if(fee_enabled[i]){
           process_packet(fee_packet_ptr[i], i); 
         }
-      }
-  
-          wait(time_us); 
-   
-     
-          for(int i = 0; i < 3; i++){
-            if(fee_enabled[i]){
-              send_packet(port[i], i);
-            }
+    }
+      packet_processed = true; 
+    }
+
+    if(task == SCIENCE_MODE){
+      wait_us(PULSE_WIDTH_US);   
+      for(int i = 0; i < 3; i++){
+         if(fee_enabled[i]){
+           send_packet(port[i], i);
           }
-  
-  
+       }
+
+       packet_sent = true; 
      
       
       for (int i = 0; i < 3; i++) {
         if (fee_enabled[i]) {
           digitalWrite(sync_pins[i], LOW);
         }
-      } 
-       pc_packet.time1 = uint32_t (__builtin_bswap32(sync_counter));
-   }
+      }
+    } 
 }
-
-
+   
 
 /*
    initialize the Serial monitor to print debug information
@@ -176,9 +186,6 @@ void check_checksum(union fee_paket* fee_packet_ptr, int index)
 
 void print_packet(union fee_paket* test_packet, uint8_t index) {
   digitalWrite(10, HIGH);
-  current_time = now();
-  String time_elapsed = "time elapased in s: " + String(current_time) + "\t";
-  String interface = "recieved from interface: " + String(index + 1) + "\t";
   digitalWrite(10, LOW);
 }
 
@@ -284,6 +291,9 @@ void loop() {
             else if(sync_counter > old_counter){
               old_counter = sync_counter; 
               if(packet_exists[0] == true  || packet_exists[1] == true|| packet_exists[2] == true){
+
+
+                /**this doesn't still get rid of the problem, it might be that since we are running the loop over and over again, the timer isr happens when we set packet[0] to packet_exists[0], packet[1] to packet_exists[1] changing the state of pack_exists[2] so that only the last packet is read and we miss out on the first packet going out off sync... a neat way to get around this would be to maintain old and sync counter respectively */ 
                 bool packet[3] = {packet_exists[0], packet_exists[1], packet_exists[2]};  
                 
                  /****preparing the header, first 8 bytes of pc_packet_arr should be the header that is defined globally****/
