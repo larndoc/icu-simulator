@@ -8,7 +8,7 @@ union pc_data
   struct
   {
     byte id; 
-    unsigned long time1; 
+    unsigned long sync_counter; 
     byte n_fib; 
     byte n_fob; 
     byte n_fsc; 

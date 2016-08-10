@@ -8,7 +8,6 @@ import time
 import datetime
 import binascii
 import logging
-import numpy
 import statistics
 from threading import Thread
 import math
@@ -53,8 +52,7 @@ def build_config_command_val():
 	
 	config_val = input('>please enter config val: ')
 	choice = (int(config_val, 16).to_bytes(3, byteorder='big'))
-	
-	print (cmd_val + rm_wr_val + config_id_val + choice )
+
 	return cmd_val + rm_wr_val + config_id_val + choice
 	
 def build_fee_packet(): 						
@@ -232,25 +230,24 @@ class fee_science_reciever(Thread):
 		
 		
 	def update_files(self, absolute_path):
-		t = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+		files = ["fib_sci", "fob_sci", "fsc_sci"]
+		self.current_time = datetime.datetime.now(); 
 		self.start_science = True
 		self.current_time = datetime.datetime.now() 
-		datetime_files = ["fib_sci_" + t, "fob_sci_" + t, "fsc_sci_" + t]
-		self.fib_sci_name = "fib_sci_" + t	
-		self.fsc_sci_name = "fsc_sci" + t; 
-		self.fob_sci_name = "fob_sci" + t; 
-		
-		if absolute_path != None: 
-			self.fsc_sci_name = absolute_path + '/' + self.fsc_sci_name
-			self.fib_sci_name = absolute_path + '/' + self.fib_sci_name
-			self.fob_sci_name = absolute_path + '/' + self.fob_sci_name
+		for i in range(0, 3): 
+			files[i] += self.current_time.strftime("%Y%m%d-%H%M%S")
+			if absolute_path != None: 
+				files[i] += absolute_path + '/'
 					
-		with open(self.fib_sci_name + ".csv", 'a') as fib_handler, open (self.fob_sci_name + ".csv", 'a') as fob_handler,  open (self.fsc_sci_name + ".csv", 'a') as fsc_handler:
+		with open(files[0] + ".csv", 'a') as fib_handler, open (files[1] + ".csv", 'a') as fob_handler,  open (files[2] + ".csv", 'a') as fsc_handler:
 			header = "time"  + ","
 			fib_handler.write(header + "status" + "," + "x" + "," + "y" + "," + "z" + "\n")
 			fob_handler.write(header + "status" + "," + "x" + "," + "y" + "," + "z" + "\n")
 			fsc_handler.write(header + "status" + "," + "sensor temperature controller" + "," + "laser temperature controller" + "," + "laser current controller" + "," + "microwave reference controller" + "," + "zeeman_controller" + "," +  "science_data_id" + "," +  "science_data" + "," + "time_stamp" + "\n" ) 
-	
+		self.fsc_sci_name = files[0]
+		self.fob_sci_name = files[1] 
+		self.fsc_sci_name = files[2]
+		
 	def run(self):
 	# arduino startup time
 	#timestamp for each of the filenames
@@ -314,8 +311,7 @@ if __name__ == '__main__':
 			if(nb != '5' and science_handler.is_alive() == True):
 					science_handler.port.write(bytes(command));
 			print(command)
-			print('A')
-		
+
 		#waaiting for the thread to finish executing
 		#now we know that we terminated the program
 		science_handler.join()

@@ -7,13 +7,11 @@
     }
     cmd_packet[index][0] = 1; 
     cmd_packet[index][5] = 1; 
-    change_command_packet = false; 
  }
 
  
-  void process_packet(union fee_paket* fee_ptr, uint8_t index){
-      //print_packet(fee_ptr, index);                                                       //on every sync signal check to see if there is some processing to do and send the UART packet to the rest of the interfaces respectively. 
-      check_checksum(fee_ptr, index); 
+  void process_packet(uint8_t index){                                                     //on every sync signal check to see if there is some processing to do and send the UART packet to the rest of the interfaces respectively. 
+      check_checksum(index); 
       if(response_packet_counter[index] > 0){
       packet_exists[index] = true;
       }
@@ -42,8 +40,8 @@
   
   void check_port(HardwareSerial* port, int index){
     if(port->available()){
-      fee_packet_ptr[index]->arr[response_packet_counter[index]] = port->read(); 
-      checksum[index] ^= fee_packet_ptr[index]->arr[response_packet_counter[index]]; 
+      fee_packet[index].arr[response_packet_counter[index]] = port->read(); 
+      checksum[index] ^= fee_packet[index].arr[response_packet_counter[index]]; 
       response_packet_counter[index]++;  
       if(response_packet_counter[index] > FEE_PACKET_SIZE){
                                                                //if packet size exceeds the maximum fee_packet_size then set the flag, i.e set pin 10 HIGH and continue mode of operation
