@@ -62,7 +62,7 @@ def build_fee_packet():
 	)
 	print(activate_fee)
 	cmd = input('please choose an input: ')
-	cmd_val = (int(cmd, 0).to_bytes(1, byteorder = 'big'))
+	cmd_val = (int(cmd, 16).to_bytes(1, byteorder = 'big'))
 	print(cmd_val) 
 	if(cmd == '3'): 
 		return cmd_val
@@ -211,7 +211,7 @@ class fee_science_reciever(Thread):
 			self.buffer[1] = self.port.read(size = 10)
 			for i in range(0, 3):
 				self.coordinate[i] = ((int.from_bytes( self.buffer[1][3*i + 2 : 3*i], byteorder = 'big' )))
-				self.coordinate[i] = self.coordinate[i] - (2**number_of_bits_coordinates_fob[i]) * (self.coordinate[i] >= 2**24/2)
+				self.coordinate[i] = self.coordinate[i] - (2**number_of_bits_coordinates_fob[i]) * (self.coordinate[i] >= 2**(number_of_bits_coordinates_fob[i])/2)
 			sensor_range = self.buffer[1][9]
 			with open(self.fob_sci_name + ".csv", 'a') as fob_handler:
 				fob_handler.write(self.time.strftime("%Y%m%d %H:%M:%S.%f") + "," + str(self.id) + ",")
@@ -222,7 +222,7 @@ class fee_science_reciever(Thread):
 			self.buffer[0] = self.port.read(size = 10)
 			for i in range(0, 3): 
 				self.coordinate[i] = ((int.from_bytes(self.buffer[0][3*i : 3*i + 3], byteorder = 'big')))
-				self.coordinate[i] = ((self.coordinate[i]) - (2**number_of_bits_coordinates_fib[i]) * ((self.coordinate[i]) >= 2**24/2))
+				self.coordinate[i] = ((self.coordinate[i]) - (2**number_of_bits_coordinates_fib[i]) * ((self.coordinate[i]) >= 2**(number_of_bits_coordinates_fib[i])/2))
 			with open(self.fib_sci_name + ".csv", 'a') as fib_handler: 
 				fib_handler.write(self.time.strftime("%Y%m%d %H:%M:%S.%f") + "," + str(self.id) + ",")
 				fib_handler.write(str(self.coordinate[0]) + "," + str(self.coordinate[1]) + "," + str(self.coordinate[2]) + "\n")
@@ -298,9 +298,9 @@ if __name__ == '__main__':
 				logging.debug(error_msg)
 				continue 
 			if(nb == '2'): 
-				command = ((int(nb, 0)).to_bytes(1, byteorder = 'big') + build_config_command_val());
+				command = ((int(nb, 16)).to_bytes(1, byteorder = 'big') + build_config_command_val());
 			elif(nb == '4'):
-				command = ((int(nb, 0).to_bytes(1, byteorder = 'big'))) + build_fee_packet(); 
+				command = ((int(nb, 16).to_bytes(1, byteorder = 'big'))) + build_fee_packet(); 
 			elif(nb == '3'):
 				science_handler.update_files(parser.parse_args().abs_path)
 				science_handler.start_science = True; 

@@ -3,30 +3,29 @@
 /*currently use keypad button 'A' to initiate simulation */
 
 #include <Time.h>
+//#include <TimeLib.h>
 #include <DueTimer.h>
 #include <time.h>
 #include <stdlib.h>
 #include "errors.h"
-#include "house-keeping.h" 
 #include "fee_packet_structure.h"
 #include "pc_data_dump.h"
 
 //********************************************************************************CLOCK INFORMATION****************************************************************//
-#define FREQUENCY                     128
-#define PULSE_WIDTH_US                1000
-#define PERIOD_US                     100000/FREQUENCY
-#define BAUD_RATE                     115200
+#define FREQUENCY             128
+#define PULSE_WIDTH_US        1000
+#define PERIOD_US             100000/FREQUENCY
+#define BAUD_RATE             115200
 
 //*******************************************************************************ICU COMMAND PACKET INFO**********************************************************//
-#define BYTE_SIZE                     8
-#define PACKET_SIZE                   6
-#define PACKETS_TO_TRANSFER           3 
+#define BYTE_SIZE             8
+#define PACKET_SIZE           6
+#define PACKETS_TO_TRANSFER   3 
 
 //******************************************************************************FEE PACKET INFORMATION************************************************************//
-#define FEE_PACKET_SIZE               100 
-#define PACKETS_RECIEVED              3
-#define SCIENCE_STATUS                0
-#define HOUSE_KEEPING_STATUS          1 
+#define FEE_PACKET_SIZE       100 
+#define PACKETS_RECIEVED      3
+#define STATUS                0
 
 //******************************************************************************GLOBAL VARIABLES***************************************************************//
 
@@ -34,9 +33,7 @@
 enum set {
   SCIENCE_MODE=0,  
   CONFIG_MODE,  
-  HOUSE_KEEPING, 
   };
-
 
 enum set task  = CONFIG_MODE;
 /*fee packet and pointer to the three fee_packets, the data structure used for fee_packet is a union which is included in the folder fee_packet_structure*/ 
@@ -45,11 +42,10 @@ fee_paket fee_packet[3];
 fee_paket* fee_packet_ptr[3]         = {&fee_packet[0], &fee_packet[1], &fee_packet[2]} ;
 byte pc_packet_arr[100] ;
 /*declaration of the pc packet, used to package the recieved bytes from the three interfaces and write it out the serial port, the struct used for pc packet is a union defined in pc_data_dump.h */
-pc_data pc_packet                    = {SCIENCE_STATUS, 0, 0, 0, 0};       
+pc_data pc_packet                    = {STATUS, 0, 0, 0, 0};       
 pc_data* pc_packet_ptr               = &pc_packet;
 byte* pc_fee_counter[3]              = {&pc_packet_ptr->n_fib, &pc_packet_ptr-> n_fob, &pc_packet_ptr->n_fsc};
 
-house_keeping hk_pkt                 = {HOUSE_KEEPING_STATUS, 0, 0, 0, 0, 0}; 
 /*a 2-D (3 x 6) array for the command packets that includes the command packet to be sent to each interface */ 
 uint8_t cmd_packet[3][PACKET_SIZE]   = {{1, 0, 0, 0, 0, 1}, {1, 0, 0, 0, 0,  1}, {1, 0, 0, 0, 0, 1}};
 
@@ -62,7 +58,7 @@ bool fee_enabled[3]                  = {false, false, false};
 HardwareSerial* port[3]              = {&Serial1, &Serial2, &Serial3};
 const uint8_t sync_pins[3]           = {11, 13, 12};
 const uint8_t led_pin    = 10;
-uint8_t old_counter = 1; 
+const uint8_t old_counter = 1; 
 unsigned long current_time;
 unsigned long t;
 bool overflow = false;
@@ -72,9 +68,8 @@ bool send_command = false;
 bool serial_port1 = false;
 bool check_cap[3];
 bool recieved_reply = false;
-bool packet_sent = false; 
-bool packet_processed = false; 
-
+bool packet_sent = false;
+bool packet_processed = false;
 
 /*prototype of the functions implemented in the filed /* 
  * void wait(unsigned long delta_us)  //when the sync pins are set high, this function is used to wait the time given by delta_us in microseconds before setting them to zero again 
@@ -108,47 +103,47 @@ void wait_us(unsigned long delta_us) {
    the wait function will stall for the amount of time defined by the variable time_us(in microseconds) before we proces the previous packet and send the next packet to the interface
 */
 void timer_isr() {
-    sync_counter++; 
-    if(task == SCIENCE_MODE){
-      t = micros();
-      pc_packet.time1 = uint32_t (__builtin_bswap32(sync_counter)); 
+  sync_counter++; 
+  if(task == SCIENCE_MODE) {
+    t = micros();
+    // take the time (currently only sync counter) when we have sent the sync pulse 
+    pc_packet.time1 = uint32_t (__builtin_bswap32(sync_counter));
       
-      for(int i = 0; i < 3; i++){
-        if(fee_enabled[i]){
-          digitalWrite(sync_pins[i], HIGH);         //setting up of the pins 
-        }
+    for(int i = 0; i < 3; i++){
+      if(fee_enabled[i]){
+        digitalWrite(sync_pins[i], HIGH);         //setting up of the pins 
       }
     }
-
-    if(packet_sent){
-      packet_sent = false; 
-      for(int i = 0; i < 3 ; i++){
-        if(fee_enabled[i]){
-          process_packet(fee_packet_ptr[i], i); 
-        }
+  }
+  if(packet_sent) {
+    // only if a packet has been sent in the previous timer_isr()
+    // we will try and process packets from enabled FEEs    
+    packet_sent = false;
+    for(int i = 0; i < 3; i++){
+      if(fee_enabled[i]){
+        process_packet(fee_packet_ptr[i], i); 
+      }
     }
-      packet_processed = true; 
+    packet_processed = true;
+  }
+  if(task == SCIENCE_MODE) { 
+    wait_us(PULSE_WIDTH_US);   
+    for(int i = 0; i < 3; i++){
+      if(fee_enabled[i]){
+        send_packet(port[i], i);
+      }
     }
-
-    if(task == SCIENCE_MODE){
-      wait_us(PULSE_WIDTH_US);   
-      for(int i = 0; i < 3; i++){
-         if(fee_enabled[i]){
-           send_packet(port[i], i);
-          }
-       }
-
-       packet_sent = true; 
-     
-      
-      for (int i = 0; i < 3; i++) {
-        if (fee_enabled[i]) {
-          digitalWrite(sync_pins[i], LOW);
-        }
+    packet_sent = true;
+    for (int i = 0; i < 3; i++) {
+      if (fee_enabled[i]) {
+        digitalWrite(sync_pins[i], LOW);
       }
     } 
+    
+  }
 }
-   
+
+
 
 /*
    initialize the Serial monitor to print debug information
@@ -165,7 +160,6 @@ void setup() {
       digitalWrite(sync_pins[i], LOW);
       port[i]->begin(BAUD_RATE);
     }
-
   }
   Timer.getAvailable().attachInterrupt(timer_isr).setFrequency(FREQUENCY).start();        /*attach the interrupt to the function timer_isr at 128 Hz (FREQUENCY)*/
 }
@@ -184,10 +178,13 @@ void check_checksum(union fee_paket* fee_packet_ptr, int index)
    void print_packet is used to print debug information
 */
 
-void print_packet(union fee_paket* test_packet, uint8_t index) {
-  digitalWrite(10, HIGH);
-  digitalWrite(10, LOW);
-}
+//void print_packet(union fee_paket* test_packet, uint8_t index) {
+//  digitalWrite(10, HIGH);
+//  current_time = now();
+//  String time_elapsed = "time elapased in s: " + String(current_time) + "\t";
+//  String interface = "recieved from interface: " + String(index + 1) + "\t";
+//  digitalWrite(10, LOW);
+//}
 
 /*
    implementation of a finite state machine
@@ -272,73 +269,44 @@ void loop() {
  /****************************************************************************************************************************CONFIGURATION MODE***********************************************************************************************************************/
      
      case CONFIG_MODE: 
-      task = CONFIG_MODE;            //disable the timer isr in config_mode i.e stop generating any sync pulses
+      task = CONFIG_MODE;       
      break; 
 
 /*****************************************************************************************************************************SCIENCE MODE*****************************************************************************************************************************/
     case SCIENCE_MODE:
-    if(sync_counter == old_counter){
+      if(packet_sent){
         for (int i = 0; i < 3; i++) {
           if(fee_enabled[i]){
             check_port(port[i], i);
           }
         }
-    }
-            /**it would probably make sense to have too variables, sync_counter and old_counter, initially both sync_counter and old_counter are set to zero, but at the end of every timer isr, we would increment sync_counter and therefore sync_counter > old_counter, this acts as an indication that we have hit a new sync pulse and therefore we must transmit the packet to pc  
-             * otherwise if sync_counter == old_counter, means we havent gone into the timer isr again and we need to listen for any incoming data.. 
-             * 
-             */
-            else if(sync_counter > old_counter){
-              old_counter = sync_counter; 
-              if(packet_exists[0] == true  || packet_exists[1] == true|| packet_exists[2] == true){
-
-
-                /**this doesn't still get rid of the problem, it might be that since we are running the loop over and over again, the timer isr happens when we set packet[0] to packet_exists[0], packet[1] to packet_exists[1] changing the state of pack_exists[2] so that only the last packet is read and we miss out on the first packet going out off sync... a neat way to get around this would be to maintain old and sync counter respectively */ 
-                bool packet[3] = {packet_exists[0], packet_exists[1], packet_exists[2]};  
-                
-                 /****preparing the header, first 8 bytes of pc_packet_arr should be the header that is defined globally****/
-                 for(int i = 0; i < 8; i++){
-                  pc_packet_arr[i] = pc_packet.arr[i]; 
-                }
-
-                /***updating total count to 8 as 8 bytes have been read************************/ 
-                total_count =  8;
-              
-              
-              
-              if(pc_packet.n_fib == 1 && (packet[0] == true)){
-                for(int j = 0; j < 10; j++){
-                  pc_packet_arr[j + total_count] = fee_packet_ptr[0]->science_data[j];
-                }
-                packet_exists[0]  = false; 
-                total_count = total_count + 10; 
-              }
-              
-              
-              if(pc_packet.n_fob == 1 && (packet[1] == true)){
-                for(int j= 0; j < 10; j++){
-                  pc_packet_arr[j + total_count] = fee_packet_ptr[1]->science_data[j];
-                }
-                packet_exists[1] = false; 
-                total_count = total_count + 10; 
-              }
-              if(pc_packet.n_fsc == 1 && (packet[2]== true)){
-                for(int j = 0; j < 10; j++){
-                  pc_packet_arr[j + total_count] = fee_packet_ptr[2] -> science_data[j] ;
-              }
-              packet_exists[2] = false; 
-              total_count = total_count + 10; 
-              }
-         
-            }
-              
-          /**if total_count is 0 you are not going to write any bytes***/ 
-          Serial.write(pc_packet_arr, total_count);
-          total_count = 0; 
-         }
+      }
+      if(packet_processed){
+        // we received a packet and it has been processed, so send it to the PC
+        packet_processed = false; 
+        // build header
         
-        task = SCIENCE_MODE; /***could probably get rid of this, but left it here due to improved readibility***/  
-     break; 
+        pc_packet_arr[0] = 0x00; // we build a science packet 
+        pc_packet_arr[1] = pc_packet.arr[1]; // copy the time
+        pc_packet_arr[2] = pc_packet.arr[2]; 
+        pc_packet_arr[3] = pc_packet.arr[3];
+        pc_packet_arr[4] = pc_packet.arr[4];
+        int k=8; // use as pc packet counter
+        for(int i=0; i<3; i++) {
+          // loop through all 3 FEEs to check if a packet exists to send and append to the pc_packet_arr
+          if(packet_exists[i]) {
+            packet_exists[i] = false;
+            pc_packet_arr[5+i] = 1; // set n_FIB, n_FOB or n_FSC
+            for(int l=0; l<10; l++, k++) {
+              pc_packet_arr[k] = fee_packet_ptr[i]->science_data[l];
+            }
+          } else {
+            pc_packet_arr[5+i] = 0; // clear n_FIB, n_FOB or n_FSC
+          }
+        }
+        Serial.write(pc_packet_arr, k);
+       }
+       break; 
 
 /******************************************************************************************************************************PC_TRANSMIT*********************************************************************************************************************************/
     
@@ -401,6 +369,8 @@ void write_command_packet(int fee_interface, const uint8_t* config_val, int conf
     cmd_packet[fee_interface][i+2] = config_val[i];  
   } 
 }
+
+
 
 
 
