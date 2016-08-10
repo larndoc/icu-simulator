@@ -112,29 +112,29 @@ class fee_science_reciever(Thread):
 		self.zeeman_controller = []
 		self.mc_controller	   = []
 		self.current_time = datetime.datetime.now()
-		with open("avg_zeeman.csv", 'w') as self.avg_zeeman_h: 
-			self.avg_zeeman_h.write("population mean" + "," + "population standard deveation" + "\n")
-		with open("avg_mc.csv", 'w')     as self.avg_mc_controller: 
-			self.avg_mc_controller.write("population_mean" + "," + "population standard deveation" + "\n")
+		#with open("avg_zeeman.csv", 'w') as self.avg_zeeman_h: 
+			#self.avg_zeeman_h.write("population mean" + "," + "population standard deveation" + "\n")
+		#with open("avg_mc.csv", 'w')     as self.avg_mc_controller: 
+			#self.avg_mc_controller.write("population_mean" + "," + "population standard deveation" + "\n")
 		
-	def get_bit_rate(self): 
-		logging.debug('current bit rate for fsc per second is ' + str(self.fsc_counter * self.total_bytes/60))
-		logging.debug('current bit rate for fib per second is ' + str(self.fib_counter * self.total_bytes/60)) 
-		logging.debug('current bit rate for fob per second is ' + str(self.fob_counter * self.total_bytes/60)) 
-	def update_average_zeeman(self):
-			if(len(self.zeeman_controller) != 0):
-				with open("avg_zeeman.csv", 'a') as self.avg_zeeman_h: 
-					self.avg_zeeman_h.write(str(statistics.mean(self.zeeman_controller)) + "," + str(statistics.stdev(self.zeeman_controller)) + "\n")
-					self.zeeman_controller = []
-	def update_average_mc_controller(self): 
-			if(len(self.mc_controller) != 0): 
-				with open("avg_mc.csv", 'a') as self.avg_mc_controller: 
-					self.avg_mc_controller.write(str(statistics.mean(self.mc_controller)) + "," + str(statistics.stdev(self.mc_controller)) + "\n")
-					self.mc_controller = []
+	#def get_bit_rate(self): 
+		#logging.debug('current bit rate for fsc per second is ' + str(self.fsc_counter * self.total_bytes/60))
+		#logging.debug('current bit rate for fib per second is ' + str(self.fib_counter * self.total_bytes/60)) 
+		#logging.debug('current bit rate for fob per second is ' + str(self.fob_counter * self.total_bytes/60)) 
+	#def update_average_zeeman(self):
+			#if(len(self.zeeman_controller) != 0):
+				#with open("avg_zeeman.csv", 'a') as self.avg_zeeman_h: 
+					#self.avg_zeeman_h.write(str(statistics.mean(self.zeeman_controller)) + "," + str(statistics.stdev(self.zeeman_controller)) + "\n")
+					#self.zeeman_controller = []
+	#def update_average_mc_controller(self): 
+			#if(len(self.mc_controller) != 0): 
+				#with open("avg_mc.csv", 'a') as self.avg_mc_controller: 
+					#self.avg_mc_controller.write(str(statistics.mean(self.mc_controller)) + "," + str(statistics.stdev(self.mc_controller)) + "\n")
+					#self.mc_controller = []
 
-	def update_fsc(self): 
-		self.update_average_zeeman()
-		self.update_average_mc_controller()
+	#def update_fsc(self): 
+		#self.update_average_zeeman()
+		#self.update_average_mc_controller()
 		
 	def get_nfib(self): 
 		return self.n_fib 
