@@ -80,7 +80,7 @@ def build_fee_packet():
 		
 		#fee_interface = int(nb, base = 16)
 		#command = (cmd.to_bytes(1, byteorder = 'big') + fee_interface.to_bytes(1, byteorder = 'big') )
-		return (int(cmd, 0)).to_bytes(1, byteorder = 'big') + (int(fee_interface, 0)).to_bytes(1, byteorder = 'big')
+		return (int(cmd, 16)).to_bytes(1, byteorder = 'big') + (int(fee_interface, 16)).to_bytes(1, byteorder = 'big')
 	
 
 def debug_information(data): 
@@ -313,7 +313,8 @@ if __name__ == '__main__':
 				switch_off = True
 			if(nb != '5' and science_handler.is_alive() == True):
 					science_handler.port.write(bytes(command));
-			print(command)	
+			print(command)
+			print('A')
 		
 		#waaiting for the thread to finish executing
 		#now we know that we terminated the program
