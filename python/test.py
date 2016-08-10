@@ -249,9 +249,6 @@ class fee_science_reciever(Thread):
 		self.fsc_sci_name = files[2]
 		
 	def run(self):
-	# arduino startup time
-	#timestamp for each of the filenames
-		#time.sleep(1)
 		while(self.start_science == False): 
 			pass
 		self.port.flushInput();
