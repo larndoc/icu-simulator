@@ -219,20 +219,15 @@ void loop() {
             int read_write = fee_command[1]; 
             int config_id =  fee_command[2];
             byte checksum = 0;
-            byte config_val[3];
-            byte * config_val_ptr;
-            config_val_ptr = config_val;  
-            for (int i = 0; i < 3; i++){
-              config_val_ptr[i] =  fee_command[2 + i]; 
-          }
-          cmd_packet[fee_number][0] = read_write == 0 ? 3 : 5;
-           for(int i = 0; i < 5; i++)
-           {
-              checksum ^= cmd_packet[fee_number][i];  
-           }
-            cmd_packet[fee_number][5] = checksum; 
-            change_command_packet = true;                 //indicates that the upgrade was complete
-            write_command_packet(fee_number, config_val_ptr, config_id);              //update the config command value in the icu packet
+            cmd_packet[fee_number][0] = (read_write == 0) ? 3 : 5;
+            cmd_packet[fee_number][1] = config_id;
+            for(int i = 3; i < 6; i++){
+               cmd_packet[fee_number][i - 1] = fee_command[i];  
+            } 
+             for(int i = 0; i < 5; i++)
+            {
+               checksum ^= cmd_packet[fee_number][i];  
+            }
             cmd_packet[fee_number][5] = checksum; 
             change_command_packet = true; 
           }
@@ -360,14 +355,6 @@ for(int i = 0; i < 3; i++){
   }
 }
 return bytesToSend; 
-}
-
-void write_command_packet(int fee_interface, const uint8_t* config_val, int config_id)
-{
-  cmd_packet[fee_interface][1] = config_id;
-  for(int i = 0; i < 3; i++){
-    cmd_packet[fee_interface][i+2] = config_val[i];  
-  } 
 }
 
 

@@ -39,19 +39,22 @@ def build_config_command_val():
 	)
 	print(fee_number)
 	cmd = input('> please choose an input: ')	
-	cmd_val = (int(cmd, 0)).to_bytes(1, byteorder = 'big')
+	cmd_val = (int(cmd, 16)).to_bytes(1, byteorder = 'big')
 	read_write = (
 	"0) read \n" 
 	"1) write \n"
 	)
 	print(read_write)
 	rm_wr = input('> please choose an input: ')
-	rm_wr_val = (int(rm_wr, 0)).to_bytes(1, byteorder = 'big')
+	rm_wr_val = (int(rm_wr, 16)).to_bytes(1, byteorder = 'big')
+	
 	config_id = input('>please enter config id: ')		
-	config_id_val = (int(config_id, 0)).to_bytes(1, byteorder = 'big')
+	config_id_val = (int(config_id, 16)).to_bytes(1, byteorder = 'big')
+	
 	config_val = input('>please enter config val: ')
-	temp = int(config_val, 0)
-	choice = (temp).to_bytes(3, byteorder='big')
+	choice = (int(config_val, 16).to_bytes(3, byteorder='big'))
+	
+	print (cmd_val + rm_wr_val + config_id_val + choice )
 	return cmd_val + rm_wr_val + config_id_val + choice
 	
 def build_fee_packet(): 						
