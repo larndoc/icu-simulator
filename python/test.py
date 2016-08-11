@@ -24,7 +24,7 @@ number_of_bits_coordinates_fob = [24, 24, 24]
 def init_debug_logger(): 
 	logging.basicConfig(filename='debugger.log', format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 	logger = logging.getLogger()
-	logger.setLevel(logging.DEBUG)
+	logger.setLevel(logging.INFO)
 
 	
 start_science = True
@@ -79,21 +79,20 @@ class fee_science_reciever(Thread):
 		self.fib_counter = 0 
 		self.old_minutes = 0
 		self.fob_counter = 0 
-		old_minutes = 0 
-		self.fsc_counter = 0;
+		self.total_bytes = 0
+		self.fsc_counter = 0
 		self.start_science =  False
 		self.zeeman_controller = []
 		self.mc_controller	   = []
-		self.current_time = datetime.datetime.now()
 		with open("avg_zeeman.csv", 'w') as self.avg_zeeman_h: 
 			self.avg_zeeman_h.write("population mean" + "," + "population standard deveation" + "\n")
 		with open("avg_mc.csv", 'w')     as self.avg_mc_controller: 
 			self.avg_mc_controller.write("population_mean" + "," + "population standard deveation" + "\n")
 		
 	def get_bit_rate(self): 
-		logging.debug('current bit rate for fsc per second is ' + str(self.fsc_counter * self.total_bytes/60))
-		logging.debug('current bit rate for fib per second is ' + str(self.fib_counter * self.total_bytes/60)) 
-		logging.debug('current bit rate for fob per second is ' + str(self.fob_counter * self.total_bytes/60)) 
+		logging.info(str(self.fob_counter * self.total_bytes/60))
+		logging.info(str(self.fib_counter * self.total_bytes/60)) 
+		logging.info(str(self.fob_counter * self.total_bytes/60)) 
 	def update_average_zeeman(self):
 			if(len(self.zeeman_controller) != 0):
 				with open("avg_zeeman.csv", 'a') as self.avg_zeeman_h: 
@@ -135,11 +134,16 @@ class fee_science_reciever(Thread):
 			self.id								= str(header_data[0])
 			self.sync_counter       			= ("{}".format(int.from_bytes(header_data[1 : 5], byteorder = 'big')));  
 			delta_val 							= float(self.sync_counter) * 1/clock_frequency
+			old_minutes							= self.time.minute
 			self.time 							= self.current_time + datetime.timedelta(milliseconds = delta_val*1000);						#3000 milliseconds is the time bias
 			self.n_fib, self.n_fob, self.n_fsc 	= header_data[5], header_data[6], header_data[7] 
-			self.fib_counter 					= self.fib_counter + self.n_fib 
-			self.fob_counter 					= self.fob_counter + self.n_fob
-			self.fsc_counter 					= self.fsc_counter + self.n_fsc
+			self.total_bytes 					= 10*int(self.n_fib) + 10*int(self.n_fob) + 10*int(self.n_fsc)
+			if(self.time.minute != old_minutes): 
+				self.get_bit_rate()
+			else: 
+				self.fib_counter 				= self.fib_counter + int(self.n_fib)
+				self.fob_counter 				= self.fob_counter + int(self.n_fob)
+				self.fsc_counter 				= self.fsc_counter + int(self.n_fsc)
 	
 
 			
@@ -154,7 +158,6 @@ class fee_science_reciever(Thread):
 			
 			self.update_fsc_data_limits()
 			self.write_fsc() 
-		
 			self.coordinate 				= ['', '', '']
 	
 	
@@ -180,7 +183,7 @@ class fee_science_reciever(Thread):
 		for i in range(0,self.n_fob) :
 			fob_sci_data = self.port.read(size = 10)
 			for i in range(0, 3):
-				self.coordinate[i] = ((int.from_bytes(fob_sci_data[1][3*i + 2 : 3*i], byteorder = 'big' )))
+				self.coordinate[i] = ((int.from_bytes(fob_sci_data[1][3*i + 2 : 3*i - 1], byteorder = 'big' )))
 				self.coordinate[i] = self.coordinate[i] - (2**number_of_bits_coordinates_fob[i]) * (self.coordinate[i] >= 2**(number_of_bits_coordinates_fob[i])/2)
 			sensor_range = fob_sci_data[9]
 			with open(self.fob_sci_name + ".csv", 'a') as fob_handler:
@@ -200,10 +203,9 @@ class fee_science_reciever(Thread):
 		
 	def update_files(self, absolute_path):
 		files = ["fib_sci", "fob_sci", "fsc_sci"]
-		self.current_time = datetime.datetime.now()
 		self.start_science = True 
 		for i in range(0, 3): 
-			files[i] += self.current_time.strftime("%Y%m%d-%H%M%S")
+			files[i] += self.time.strftime("%Y%m%d-%H%M%S")
 			if absolute_path != None: 
 				files[i] += absolute_path + '/'
 					
@@ -238,6 +240,8 @@ if __name__ == '__main__':
 		init_debug_logger(); 
 		science_handler = fee_science_reciever(s)
 		science_handler.start(); 
+		science_handler.current_time = datetime.datetime.now()
+		science_handler.time = science_handler.current_time
 		while not science_handler.is_alive(): 
 			pass 
 
