@@ -65,6 +65,10 @@ def minute_tick(current_minutes, old_minutes):
 	else: 
 		return False
 		
+		
+		
+
+		
 class fee_science_reciever(Thread): 
 	#initialization of the baud rate 
 	#initialization of the argument parser for the user to enter the desired communication port 
@@ -115,53 +119,75 @@ class fee_science_reciever(Thread):
 	def get_nfsc(self): 
 		return self.n_fsc 
 	
-	def update_fib_data_limits(self): 
-		self.fib_lower_limit = 8 
-		self.fib_upper_limit = self.fib_lower_limit + 10*self.n_fib
-	
-	def update_fob_data_limits(self): 
-		self.fob_lower_limit = self.fib_upper_limit 
-		self.fob_upper_limit = self.fob_lower_limit + 10*self.n_fob
-	
-	def update_fsc_data_limits(self): 
-		self.fsc_lower_limit = self.fob_upper_limit 
-		self.fsc_upper_limit = self.fsc_lower_limit + 10*self.n_fsc
 	
 	def update(self):	
-		header_data = bytearray((self.port).read(size = 8))
+		header_data = bytearray((self.port).read(size = 5))
 		if(header_data != ''): 
 			clock_frequency						= 128
 			self.id								= str(header_data[0])
 			self.sync_counter       			= ("{}".format(int.from_bytes(header_data[1 : 5], byteorder = 'big')));  
 			delta_val 							= float(self.sync_counter) * 1/clock_frequency
 			old_minutes							= self.time.minute
-			self.time 							= self.current_time + datetime.timedelta(milliseconds = delta_val*1000);						#3000 milliseconds is the time bias
-			self.n_fib, self.n_fob, self.n_fsc 	= header_data[5], header_data[6], header_data[7] 
-			self.total_bytes 					= 10*int(self.n_fib) + 10*int(self.n_fob) + 10*int(self.n_fsc)
-			if(self.time.minute != old_minutes): 
-				self.get_bit_rate()
-			else: 
-				self.fib_counter 				= self.fib_counter + int(self.n_fib)
-				self.fob_counter 				= self.fob_counter + int(self.n_fob)
-				self.fsc_counter 				= self.fsc_counter + int(self.n_fsc)
-	
-			debug_information(header_data)
-			
+			self.time 							= self.current_time + datetime.timedelta(milliseconds = delta_val*1000);
+			if(self.id == '1'):
+				fsc_data = bytearray((self.port).read(size = 3))
+				self.n_fib, self.n_fob, self.n_fsc 	= fsc_data[0], fsc_data[1], fsc_data[2] 
+				self.total_bytes 					= 10*int(self.n_fib) + 10*int(self.n_fob) + 10*int(self.n_fsc)
+				if(self.time.minute != old_minutes): 
+					self.get_bit_rate()
+				else: 
+					self.fib_counter 				= self.fib_counter + int(self.n_fib)
+					self.fob_counter 				= self.fob_counter + int(self.n_fob)
+					self.fsc_counter 				= self.fsc_counter + int(self.n_fsc)
+
 			#self.fsc_counter = self.fsc_counter + self.n_fsc
 			#logging.debug('RECIEVED SCIENCE PACKET (FIB:%3d, FOB:%3d, FSC%3d)', self.n_fib, self.n_fob, self.n_fsc)
-			self.update_fib_data_limits()
-			self.write_fib()
+			
+				self.update_fib_data_limits()
+				self.write_fib()
 			
 			
-			self.update_fob_data_limits() 
-			self.write_fob() 
+				self.update_fob_data_limits() 
+				self.write_fob() 
 			
-			self.update_fsc_data_limits()
-			self.write_fsc() 
-			self.coordinate 				= ['', '', '']
+				self.update_fsc_data_limits()
+				self.write_fsc() 
+				self.coordinate 				= ['', '', '']
 	
+			if(self.id == '0'): 
+				pcu_data = ((self.port).read(size = 32))
+				fib_hk_data = ((self.port).read(size = 40))
+				fob_hk_data = ((self.port).read(size = 4))
+				fsc_hk_data = ((self.port).read(size = 51))
+				with open(self.fob_hk_tm + ".csv", 'a') as fob_handler: 
+				fob_handler.write(self.time.strftime("%Y%m%dT%H:%M:%S.%f") + "," + str(self.id) + ",")
+					for i in range (0, 4):
+						fob_handler.write(str(fob_hk_data[i]) + ",")
+					fob_handler.write("\n")
+				
 	
-		
+				
+				with open(self.fsc_hk_tm + ".csv", 'a') as fsc_handler: 
+				fsc_handler.write(self.time.strftime("%Y%m%dT%H:%M:%S.%f") + "," + str(self.id) + ",")
+					for i in range(0, 51): 
+						fsc_handler.write(str(fsc_hk_data[i]) + ",")
+					fsc_handler.write("\n")
+				 
+					
+					with open(self.fib_hk_tm + ".csv", 'a') as fib_handler: 
+					fib_handler.write(self.time.strftime("%Y%m%dT%H:%M:%S.%f") + "," + str(self.id) + ",")
+						for i in range(0, 40): 
+							fib_handler.write(str(fib_hk_data[i]) + ",")
+						fib_handler.write("\n")
+
+				with open(self.pcu_handler_name + ".csv", 'a') as pcu_handler:
+					for i in range(0, 32): 
+						pcu_handler.write("0" + ",")
+					pcu_handler.write("\n")
+				
+				
+				
+				
 	def write_fsc(self):
 		for i in range(0, self.n_fsc):
 			fsc_sci_data  = self.port.read(size = 10);
@@ -200,11 +226,22 @@ class fee_science_reciever(Thread):
 				fib_handler.write(self.time.strftime("%Y%m%dT%H:%M:%S.%f") + "," + str(self.id) + ",")
 				fib_handler.write(str(self.coordinate[0]) + "," + str(self.coordinate[1]) + "," + str(self.coordinate[2]) + "\n")
 		
-		
+	def update_hk_files(self):
+		files = ["PCU_HK_TM_", "FIB_HK_TM_", "FOB_HK_TM_", "FSC_HK_TM_"]
+		for i in range(0, len(files)): 
+			files[i] += self.time.strftime("%Y%m%d_%H%M%S")
+		with open(files[0] + ".csv", 'a') as pcu_handler, open (files[1] + ".csv", 'a') as fib_hk_tm, open (files[2] + ".csv", 'a') as fob_hk_tm, open(files[3] + ".csv", 'a') as fsc_hk_tm: 
+			pcu_handler.write("time" + "," + "id" + "\n")
+			fib_hk_tm.write("time" + "," + "id" + "\n")
+			fob_hk_tm.write("time" + "," + "id" + "\n") 
+			fsc_hk_tm.write("time" + "," + "id" + "\n")
+			
+			self.pcu_handler_name, self.fib_hk_tm, self.fob_hk_tm, self.fsc_hk_tm = files[0], files[1], files[2], files[3]
+			
 	def update_files(self, absolute_path):
 		files = ["FIB_Sci_TM_", "FOB_Sci_TM_", "FSC_Sci_TM_"]
 		self.start_science = True 
-		for i in range(0, 3): 
+		for i in range(0, len(files)): 
 			files[i] += self.time.strftime("%Y%m%d_%H%M%S")
 			if absolute_path != None: 
 				files[i] += absolute_path + '/'
@@ -246,9 +283,12 @@ if __name__ == '__main__':
 		science_handler.time = science_handler.current_time
 		while not science_handler.is_alive(): 
 			pass 
-
+		
+		
+		
 
 		science_handler.update_current_time(); 
+		science_handler.update_hk_files(); 
 		time.sleep(2)
 		
 		## needed as arduino needs to come up, do not remove. 
