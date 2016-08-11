@@ -127,7 +127,7 @@ class fee_science_reciever(Thread):
 		self.fsc_lower_limit = self.fob_upper_limit 
 		self.fsc_upper_limit = self.fsc_lower_limit + 10*self.n_fsc
 	
-	def update(self):	 
+	def update(self):	
 		header_data = bytearray((self.port).read(size = 8))
 		if(header_data != ''): 
 			clock_frequency						= 128
@@ -145,7 +145,7 @@ class fee_science_reciever(Thread):
 				self.fob_counter 				= self.fob_counter + int(self.n_fob)
 				self.fsc_counter 				= self.fsc_counter + int(self.n_fsc)
 	
-
+			debug_information(header_data)
 			
 			#self.fsc_counter = self.fsc_counter + self.n_fsc
 			#logging.debug('RECIEVED SCIENCE PACKET (FIB:%3d, FOB:%3d, FSC%3d)', self.n_fib, self.n_fob, self.n_fsc)
@@ -176,7 +176,7 @@ class fee_science_reciever(Thread):
 			self.zeeman_controller.append(zeeman_controller)
 			self.mc_controller.append(microwave_reference_controller)
 			with open(self.fsc_sci_name + ".csv", 'a') as fsc_handler:
-				fsc_handler.write(self.time.strftime("%Y%m%d %H:%M:%S.%f") + "," + str(self.id) + ",")
+				fsc_handler.write(self.time.strftime("%Y%m%dT%H:%M:%S.%f") + "," + str(self.id) + ",")
 				fsc_handler.write(str(sensor_temp_controller) + "," + str(laser_temp_controller) + "," + str(laser_current_controller) + "," + str(microwave_reference_controller) + "," +  str(zeeman_controller) + "," + str(science_data_id) + "," + str(science_data_val) + "," + str(time_stamp) + "\n")
 			
 	def write_fob(self):
@@ -187,7 +187,7 @@ class fee_science_reciever(Thread):
 				self.coordinate[i] = self.coordinate[i] - (2**number_of_bits_coordinates_fob[i]) * (self.coordinate[i] >= 2**(number_of_bits_coordinates_fob[i])/2)
 			sensor_range = fob_sci_data[9]
 			with open(self.fob_sci_name + ".csv", 'a') as fob_handler:
-				fob_handler.write(self.time.strftime("%Y%m%d %H:%M:%S.%f") + "," + str(self.id) + ",")
+				fob_handler.write(self.time.strftime("%Y%m%dT%H:%M:%S.%f") + "," + str(self.id) + ",")
 				fob_handler.write(str(self.coordinate[0]) + "," + str(self.coordinate[1]) + "," + str(self.coordinate[2]) + "," + str(sensor_range) + "," + "\n")
 	
 	def write_fib(self):
@@ -197,15 +197,15 @@ class fee_science_reciever(Thread):
 				self.coordinate[i] = ((int.from_bytes(fib_sci_data[3*i : 3*i + 3], byteorder = 'big')))
 				self.coordinate[i] = ((self.coordinate[i]) - (2**number_of_bits_coordinates_fib[i]) * ((self.coordinate[i]) >= 2**(number_of_bits_coordinates_fib[i])/2))
 			with open(self.fib_sci_name + ".csv", 'a') as fib_handler: 
-				fib_handler.write(self.time.strftime("%Y%m%d %H:%M:%S.%f") + "," + str(self.id) + ",")
+				fib_handler.write(self.time.strftime("%Y%m%dT%H:%M:%S.%f") + "," + str(self.id) + ",")
 				fib_handler.write(str(self.coordinate[0]) + "," + str(self.coordinate[1]) + "," + str(self.coordinate[2]) + "\n")
 		
 		
 	def update_files(self, absolute_path):
-		files = ["fib_sci", "fob_sci", "fsc_sci"]
+		files = ["FIB_Sci_TM_", "FOB_Sci_TM_", "FSC_Sci_TM_"]
 		self.start_science = True 
 		for i in range(0, 3): 
-			files[i] += self.time.strftime("%Y%m%d-%H%M%S")
+			files[i] += self.time.strftime("%Y%m%d_%H%M%S")
 			if absolute_path != None: 
 				files[i] += absolute_path + '/'
 					
@@ -220,10 +220,12 @@ class fee_science_reciever(Thread):
 	# arduino startup time
 	#timestamp for each of the filenames
 		#time.sleep(1)
+	
 		while(self.start_science == False): 
 			pass
-		self.port.flushInput();
 		while self.start_science == True:
+			#before reading any data flush any input that exists in the buffer
+
 			if self.port.in_waiting > 0:
 				self.update()
 
@@ -239,11 +241,12 @@ if __name__ == '__main__':
 		s = serial.Serial(args.port, baud_rate, timeout = 0.5)
 		init_debug_logger(); 
 		science_handler = fee_science_reciever(s)
-		science_handler.start(); 
+		science_handler.start()
 		science_handler.current_time = datetime.datetime.now()
 		science_handler.time = science_handler.current_time
 		while not science_handler.is_alive(): 
 			pass 
+
 
 		science_handler.update_current_time(); 
 		time.sleep(2)
@@ -277,6 +280,7 @@ if __name__ == '__main__':
 			elif(nb == '4'):
 				command = ((int(nb, 16).to_bytes(1, byteorder = 'big'))); 
 			elif(nb == '3'):
+				science_handler.port.reset_input_buffer()
 				science_handler.update_files(parser.parse_args().abs_path)
 				science_handler.start_science = True; 
 				command = ((int(nb, 16)).to_bytes(1, byteorder = 'big'))

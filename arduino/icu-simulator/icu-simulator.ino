@@ -6,9 +6,12 @@
   #include <DueTimer.h>
   #include <time.h>
   #include <stdlib.h>
+  #include "adc.h"
   #include "errors.h"
   #include "fee_packet_structure.h"
   #include "pc_data_dump.h"
+  #include "house-keeping.h"
+  #include <SPI.h>
   
   //********************************************************************************CLOCK INFORMATION****************************************************************//
   #define FREQUENCY             128
@@ -28,6 +31,13 @@
   
   //******************************************************************************GLOBAL VARIABLES***************************************************************//
   
+  #define FIB_INTERFACE         0
+  #define FOB_INTERFACE         1
+  #define FSC_INTERFACE         2
+  
+  
+  
+  
   /*set of states that the user transverses through based on the input(which can be intrinsic or defined by the user(external)*/ 
   enum set {
     SCIENCE_MODE=0,  
@@ -38,10 +48,14 @@
   /*fee packet and pointer to the three fee_packets, the data structure used for fee_packet is a union which is included in the folder fee_packet_structure*/ 
  
   fee_paket fee_packet[3];
-  byte pc_packet_arr[100] ;
+  byte pc_packet_arr[100];
+ 
   /*declaration of the pc packet, used to package the recieved bytes from the three interfaces and write it out the serial port, the struct used for pc packet is a union defined in pc_data_dump.h */
   pc_data pc_packet                    = {0x00, 0, 0, 0, 0};       
-  byte pc_fee_counter[3]              = {pc_packet.n_fib, pc_packet.n_fob, pc_packet.n_fsc};
+  byte pc_fee_counter[3]              =  {pc_packet.n_fib, pc_packet.n_fob, pc_packet.n_fsc};
+  
+  
+  house_keeping hk_pkt;
   
   /*a 2-D (3 x 6) array for the command packets that includes the command packet to be sent to each interface */ 
   uint8_t cmd_packet[3][PACKET_SIZE]   = {{1, 0, 0, 0, 0, 1}, {1, 0, 0, 0, 0,  1}, {1, 0, 0, 0, 0, 1}};
@@ -54,6 +68,7 @@
   bool fee_enabled[3]                  = {false, false, false};
   HardwareSerial* port[3]              = {&Serial1, &Serial2, &Serial3};
   const uint8_t sync_pins[3]           = {11, 13, 12};
+  bool hk_send = false; 
   const uint8_t led_pin    = 10; 
   unsigned long current_time;
   unsigned long t;
@@ -96,6 +111,9 @@
   */
   void timer_isr() {
     time_counter++; 
+    if(time_counter % 128 == 0){
+      hk_send = true; 
+    }
     if(task == SCIENCE_MODE) {
       t = micros();
       // take the time (currently only sync counter) when we have sent the sync pulse 
@@ -144,8 +162,10 @@
      port[i] represents each set of communication pins respectively.
   */
   void setup() {
+    pinMode(41, OUTPUT);
     pinMode(led_pin, OUTPUT);
     Serial.begin(BAUD_RATE);
+    SPI.begin(); 
     for (int i = 0; i < 3; i++) {
       if (fee_enabled[i]) {
         pinMode(sync_pins[i], OUTPUT);
@@ -263,7 +283,7 @@
           packet_processed = false; 
           // build header
           
-          pc_packet_arr[0] = 0x00; // we build a science packet 
+          pc_packet_arr[0] = 0x01; // we build a science packet 
           pc_packet_arr[1] = pc_packet.arr[1]; // copy the time
           pc_packet_arr[2] = pc_packet.arr[2]; 
           pc_packet_arr[3] = pc_packet.arr[3];
@@ -281,15 +301,57 @@
               pc_packet_arr[5+i] = 0; // clear n_FIB, n_FOB or n_FSC
             }
           }
-          Serial.write(pc_packet_arr, k);
+          //Serial.write(pc_packet_arr, k);
          }
          break; 
   
   /******************************************************************************************************************************PC_TRANSMIT*********************************************************************************************************************************/
-      
+
       default:
         task = CONFIG_MODE;
     }
+
+      if( hk_send == true){
+          hk_send = false; 
+        
+          /*now we must prepare our house keeping packet*/ 
+          
+          hk_pkt.id = 0x00; 
+          hk_pkt.sync_counter = uint32_t (__builtin_bswap32(time_counter));
+        
+          adc_read_all(ADC_VSENSE); 
+          adc_read_all(ADC_ISENSE);
+        
+        for(int i = 0; i < 8; i++){
+          hk_pkt.adc_readings[ADC_VSENSE][i] = adc_readings[ADC_VSENSE][i]; 
+          hk_pkt.adc_readings[ADC_ISENSE][i] = adc_readings[ADC_ISENSE][i];
+        }
+        if(task == CONFIG_MODE){
+          for(int i = 0; i < FIB_HK_SIZE; i++){
+            hk_pkt.fib_hk[i] = 0; 
+          }
+          for(int i = 0; i < FOB_HK_SIZE; i++){
+            hk_pkt.fob_hk[i] = 0; 
+          }
+          for(int i = 0; i < FSC_HK_SIZE; i++){
+            hk_pkt.fsc_hk[i] = 0; 
+          }
+        }
+
+        else{
+          for(int i = 0; i < FIB_HK_SIZE; i++){
+            hk_pkt.fib_hk[i] = fee_packet[FIB_INTERFACE].hk_data[i]; 
+          }
+          for(int i = 0; i < FOB_HK_SIZE; i++){
+            hk_pkt.fob_hk[i] = fee_packet[FOB_INTERFACE].hk_data[i]; 
+          }
+          for(int i = 0; i < FSC_HK_SIZE;i++){
+            hk_pkt.fsc_hk[i] = fee_packet[FSC_INTERFACE].hk_data[i];
+          }
+        }
+        Serial.write(hk_pkt.arr, 77); 
+       }
+   
   }
   
   void fee_activate(int index){
