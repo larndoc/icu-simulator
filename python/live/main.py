@@ -13,7 +13,6 @@ import tailer
 # grab header and pack into pandas dataframe
 
 N = 1000
-new_file = False
 
 # TODO: timestamp on-the-fly
 from datetime import datetime
@@ -34,7 +33,7 @@ csv_select = Select(title="File to view", value=csvs[0], options=csvs)
 controls = [csv_select]
 
 for control in controls:
-    control.on_change('value', lambda attr, old, new: update())
+    control.on_change('value', lambda attr, old, new: update_new_file())
 
 inputs = widgetbox(*controls, width=600)
 
@@ -69,7 +68,11 @@ def get_active_df():
                             active_df['Time'])
     return active_df
 
+lines={}
+
 def graph_from_active_tail():
+    global lines
+    lines = {}
     print "graph_from_active_tail()"
     # create a new figure and populate with
     # current tail of file w/o following it
@@ -80,18 +83,21 @@ def graph_from_active_tail():
         if x == 'Time':
             continue
         print "graphing {}".format(x)
-        p.line(df['Time'], df[x], legend=x, color=colors[i])
+        lines[x] = p.line(df['Time'], df[x], legend=x, color=colors[i])
         i += 1
     return p
 
-def update():
-    #curdoc().add_next_tick_callback(update)
-    print "update()"
+def update_new_file():
     l.children[1].children[1] = graph_from_active_tail()
 
+def update_graph():
+    df = get_active_df()
+    for key in lines:
+        lines[key].data_source.data["y"] = df[key]
+        lines[key].data_source.data["x"] = df['Time']
 
 l = layout([[desc],[inputs, graph_from_active_tail()]])
 
 curdoc().add_root(l)
-curdoc().add_periodic_callback(update, 2000)
+curdoc().add_periodic_callback(update_graph, 300)
 curdoc().title = "Live view"
