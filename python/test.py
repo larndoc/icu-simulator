@@ -8,6 +8,7 @@ import time
 import datetime
 import binascii
 import logging
+import numpy
 import statistics
 from threading import Thread
 import math
@@ -38,20 +39,19 @@ def build_config_command_val():
 	)
 	print(fee_number)
 	cmd = input('> please choose an input: ')	
-	cmd_val = (int(cmd, 16)).to_bytes(1, byteorder = 'big')
+	cmd_val = (int(cmd, 0)).to_bytes(1, byteorder = 'big')
 	read_write = (
 	"0) read \n" 
 	"1) write \n"
 	)
 	print(read_write)
 	rm_wr = input('> please choose an input: ')
-	rm_wr_val = (int(rm_wr, 16)).to_bytes(1, byteorder = 'big')
-	
+	rm_wr_val = (int(rm_wr, 0)).to_bytes(1, byteorder = 'big')
 	config_id = input('>please enter config id: ')		
-	config_id_val = (int(config_id, 16)).to_bytes(1, byteorder = 'big')
-	
+	config_id_val = (int(config_id, 0)).to_bytes(1, byteorder = 'big')
 	config_val = input('>please enter config val: ')
-	choice = (int(config_val, 16).to_bytes(3, byteorder='big'))
+	temp = int(config_val, 0)
+	choice = (temp).to_bytes(3, byteorder='big')
 	return cmd_val + rm_wr_val + config_id_val + choice
 	
 def build_fee_packet(): 						
@@ -77,7 +77,7 @@ def build_fee_packet():
 		
 		#fee_interface = int(nb, base = 16)
 		#command = (cmd.to_bytes(1, byteorder = 'big') + fee_interface.to_bytes(1, byteorder = 'big') )
-		return (int(cmd, 16)).to_bytes(1, byteorder = 'big') + (int(fee_interface, 16)).to_bytes(1, byteorder = 'big')
+		return (int(cmd, 0)).to_bytes(1, byteorder = 'big') + (int(fee_interface, 0)).to_bytes(1, byteorder = 'big')
 	
 
 def debug_information(data): 
@@ -97,7 +97,7 @@ class fee_science_reciever(Thread):
 	#setting up the communication via the usb interface with a timeout of 0.5 seconds 
 	#the print function messes with the data that is being printed on the console 
 	#s = serial.Serial('COM4', 115200, timeout = 1)
-
+	buffer				= ['', '', '']
 	def __init__(self, serial_port): 
 		super(fee_science_reciever, self).__init__()
 		self.port = serial_port
@@ -110,14 +110,13 @@ class fee_science_reciever(Thread):
 		self.start_science =  False
 		self.zeeman_controller = []
 		self.mc_controller	   = []
-<<<<<<< HEAD
+		self.current_time = datetime.datetime.now()
 		with open("avg_zeeman.csv", 'w') as self.avg_zeeman_h: 
 			self.avg_zeeman_h.write("population mean" + "," + "population standard deveation" + "\n")
 		with open("avg_mc.csv", 'w')     as self.avg_mc_controller: 
 			self.avg_mc_controller.write("population_mean" + "," + "population standard deveation" + "\n")
 		
-	def get_bit_rate(self):
-		total_bytes = 10*int(self.n_fib, 10) + 10*int(self.n_fob, 10) + 10*int(self.n_fsc, 10)
+	def get_bit_rate(self): 
 		logging.debug('current bit rate for fsc per second is ' + str(self.fsc_counter * self.total_bytes/60))
 		logging.debug('current bit rate for fib per second is ' + str(self.fib_counter * self.total_bytes/60)) 
 		logging.debug('current bit rate for fob per second is ' + str(self.fob_counter * self.total_bytes/60)) 
@@ -131,32 +130,10 @@ class fee_science_reciever(Thread):
 				with open("avg_mc.csv", 'a') as self.avg_mc_controller: 
 					self.avg_mc_controller.write(str(statistics.mean(self.mc_controller)) + "," + str(statistics.stdev(self.mc_controller)) + "\n")
 					self.mc_controller = []
-=======
-		self.current_time = datetime.datetime.now()
-		#with open("avg_zeeman.csv", 'w') as self.avg_zeeman_h: 
-			#self.avg_zeeman_h.write("population mean" + "," + "population standard deveation" + "\n")
-		#with open("avg_mc.csv", 'w')     as self.avg_mc_controller: 
-			#self.avg_mc_controller.write("population_mean" + "," + "population standard deveation" + "\n")
-		
-	#def get_bit_rate(self): 
-		#logging.debug('current bit rate for fsc per second is ' + str(self.fsc_counter * self.total_bytes/60))
-		#logging.debug('current bit rate for fib per second is ' + str(self.fib_counter * self.total_bytes/60)) 
-		#logging.debug('current bit rate for fob per second is ' + str(self.fob_counter * self.total_bytes/60)) 
-	#def update_average_zeeman(self):
-			#if(len(self.zeeman_controller) != 0):
-				#with open("avg_zeeman.csv", 'a') as self.avg_zeeman_h: 
-					#self.avg_zeeman_h.write(str(statistics.mean(self.zeeman_controller)) + "," + str(statistics.stdev(self.zeeman_controller)) + "\n")
-					#self.zeeman_controller = []
-	#def update_average_mc_controller(self): 
-			#if(len(self.mc_controller) != 0): 
-				#with open("avg_mc.csv", 'a') as self.avg_mc_controller: 
-					#self.avg_mc_controller.write(str(statistics.mean(self.mc_controller)) + "," + str(statistics.stdev(self.mc_controller)) + "\n")
-					#self.mc_controller = []
->>>>>>> 4d1845217e6055c02547add4509019cbe9962787
 
-	#def update_fsc(self): 
-		#self.update_average_zeeman()
-		#self.update_average_mc_controller()
+	def update_fsc(self): 
+		self.update_average_zeeman()
+		self.update_average_mc_controller()
 		
 	def get_nfib(self): 
 		return self.n_fib 
@@ -181,8 +158,8 @@ class fee_science_reciever(Thread):
 		data = bytearray((self.port).read(size = 8))
 		if(data != ''): 
 			self.id	= str(data[0])
-			sync_counter       				= ("{}".format(int.from_bytes(data[1 : 5], byteorder = 'big')));  
-			delta_val 						= float(sync_counter) * 1/128 
+			self.sync_counter       		= ("{}".format(int.from_bytes(data[1 : 5], byteorder = 'big')));  
+			delta_val 						= float(self.sync_counter) * 1/128 
 			self.time 						= self.current_time + datetime.timedelta(milliseconds = delta_val*1000);						#3000 milliseconds is the time bias
 			self.n_fib 						= (data[5])
 			self.n_fob 						= (data[6])
@@ -196,26 +173,33 @@ class fee_science_reciever(Thread):
 			#self.fsc_counter = self.fsc_counter + self.n_fsc
 			#logging.debug('RECIEVED SCIENCE PACKET (FIB:%3d, FOB:%3d, FSC%3d)', self.n_fib, self.n_fob, self.n_fsc)
 			self.update_fib_data_limits()
-			self.write_fib()			
+			self.write_fib()
+			self.buffer[0] = ''
+			
 			
 			self.update_fob_data_limits() 
 			self.write_fob() 
+			self.buffer[1] = ''
 			
 			self.update_fsc_data_limits()
 			self.write_fsc() 
+			self.buffer[2] = ''
+		
+			self.coordinate 				= ['', '', '']
+	
 	
 		
 	def write_fsc(self):
 		for i in range(0, self.n_fsc):
-			fsc_sci_data 				    = self.port.read(size = 10);
-			sensor_temp_controller 			= fsc_sci_data[0] & 0xF0
-			laser_temp_controller  			= fsc_sci_data[0] & 0x0F
-			laser_current_controller 		= fsc_sci_data[1] & 0xF0 
-			microwave_reference_controller 	= fsc_sci_data[1] & 0x0F
-			zeeman_controller 				= fsc_sci_data[2]
-			science_data_id 				= fsc_sci_data[3]
-			science_data_val				= ("{}".format(int.from_bytes(fsc_sci_data[4:8], byteorder = 'big')))				
-			time_stamp						= ("{}".format(int.from_bytes(fsc_sci_data[8:11], byteorder = 'big')))
+			self.buffer[2]  = self.port.read(size = 10);
+			sensor_temp_controller 			= self.buffer[2][0] & 0xF0
+			laser_temp_controller  			= self.buffer[2][0] & 0x0F
+			laser_current_controller 		= self.buffer[2][1] & 0xF0 
+			microwave_reference_controller 	= self.buffer[2][1] & 0x0F
+			zeeman_controller 				= self.buffer[2][2]
+			science_data_id 				= self.buffer[2][3]
+			science_data_val				= ("{}".format(int.from_bytes(self.buffer[2][4:8], byteorder = 'big')))				
+			time_stamp						= ("{}".format(int.from_bytes(self.buffer[2][8:11], byteorder = 'big')))
 			self.zeeman_controller.append(zeeman_controller)
 			self.mc_controller.append(microwave_reference_controller)
 			with open(self.fsc_sci_name + ".csv", 'a') as fsc_handler:
@@ -223,47 +207,51 @@ class fee_science_reciever(Thread):
 				fsc_handler.write(str(sensor_temp_controller) + "," + str(laser_temp_controller) + "," + str(laser_current_controller) + "," + str(microwave_reference_controller) + "," +  str(zeeman_controller) + "," + str(science_data_id) + "," + str(science_data_val) + "," + str(time_stamp) + "\n")
 			
 	def write_fob(self):
-		fob_coordinate = ['', '', '']
 		for i in range(0,self.n_fob) :
-			fob_data = self.port.read(size = 10)
+			self.buffer[1] = self.port.read(size = 10)
 			for i in range(0, 3):
-				fob_coordinate[i] = ((int.from_bytes( fob_data[3*i + 2 : 3*i], byteorder = 'big' )))
-				fob_coordinate[i] = self.coordinate[i] - (2**number_of_bits_coordinates_fob[i]) * (self.coordinate[i] >= 2**(number_of_bits_coordinates_fob[i])/2)
-			sensor_range = fob_data[9]
+				self.coordinate[i] = ((int.from_bytes( self.buffer[1][3*i + 2 : 3*i], byteorder = 'big' )))
+				self.coordinate[i] = self.coordinate[i] - (2**number_of_bits_coordinates_fob[i]) * (self.coordinate[i] >= 2**(number_of_bits_coordinates_fob[i])/2)
+			sensor_range = self.buffer[1][9]
 			with open(self.fob_sci_name + ".csv", 'a') as fob_handler:
 				fob_handler.write(self.time.strftime("%Y%m%d %H:%M:%S.%f") + "," + str(self.id) + ",")
-				fob_handler.write(str(fob.coordinate[0]) + "," + str(fob.coordinate[1]) + "," + str(fob.coordinate[2]) + "," + str(sensor_range) + "," + "\n")
+				fob_handler.write(str(self.coordinate[0]) + "," + str(self.coordinate[1]) + "," + str(self.coordinate[2]) + "," + str(sensor_range) + "," + "\n")
 	
 	def write_fib(self):
-		fib_coordinate = ['', '', '']
 		for i in range(0, self.n_fib): 
-			fib_sci_data = self.port.read(size = 10)
+			self.buffer[0] = self.port.read(size = 10)
 			for i in range(0, 3): 
-				fib_coordinate[i] = ((int.from_bytes(fib_sci_data[3*i : 3*i + 3], byteorder = 'big')))
-				fib_coordinate[i] = ((self.coordinate[i]) - (2**number_of_bits_coordinates_fib[i]) * ((self.coordinate[i]) >= 2**(number_of_bits_coordinates_fib[i])/2))
+				self.coordinate[i] = ((int.from_bytes(self.buffer[0][3*i : 3*i + 3], byteorder = 'big')))
+				self.coordinate[i] = ((self.coordinate[i]) - (2**number_of_bits_coordinates_fib[i]) * ((self.coordinate[i]) >= 2**(number_of_bits_coordinates_fib[i])/2))
 			with open(self.fib_sci_name + ".csv", 'a') as fib_handler: 
 				fib_handler.write(self.time.strftime("%Y%m%d %H:%M:%S.%f") + "," + str(self.id) + ",")
-				fib_handler.write(str(fib.coordinate[0]) + "," + str(fib.coordinate[1]) + "," + str(fib.coordinate[2]) + "\n")
+				fib_handler.write(str(self.coordinate[0]) + "," + str(self.coordinate[1]) + "," + str(self.coordinate[2]) + "\n")
 		
 		
 	def update_files(self, absolute_path):
-		files = ["fib_sci", "fob_sci", "fsc_sci"]
-		self.current_time = datetime.datetime.now()
-		self.start_science = True 
-		for i in range(0, 3): 
-			files[i] += self.current_time.strftime("%Y%m%d-%H%M%S")
-			if absolute_path != None: 
-				files[i] += absolute_path + '/'
-					
-		with open(files[0] + ".csv", 'a') as fib_handler, open (files[1] + ".csv", 'a') as fob_handler,  open (files[2] + ".csv", 'a') as fsc_handler:
-			fib_handler.write("time" + "," + "status" + "," + "x" + "," + "y" + "," + "z" + "\n")
-			fob_handler.write("time" + "," + "status" + "," + "x" + "," + "y" + "," + "z" + "\n")
-			fsc_handler.write("time" + "," + "status" + "," + "sensor temperature controller" + "," + "laser temperature controller" + "," + "laser current controller" + "," + "microwave reference controller" + "," + "zeeman_controller" + "," +  "science_data_id" + "," +  "science_data" + "," + "time_stamp" + "\n" ) 
-		self.fsc_sci_name = files[0]
-		self.fob_sci_name = files[1] 
-		self.fsc_sci_name = files[2]
+		t = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+		self.start_science = True
+		self.current_time = datetime.datetime.now() 
+		datetime_files = ["fib_sci_" + t, "fob_sci_" + t, "fsc_sci_" + t]
+		self.fib_sci_name = "fib_sci_" + t	
+		self.fsc_sci_name = "fsc_sci" + t; 
+		self.fob_sci_name = "fob_sci" + t; 
 		
+		if absolute_path != None: 
+			self.fsc_sci_name = absolute_path + '/' + self.fsc_sci_name
+			self.fib_sci_name = absolute_path + '/' + self.fib_sci_name
+			self.fob_sci_name = absolute_path + '/' + self.fob_sci_name
+					
+		with open(self.fib_sci_name + ".csv", 'a') as fib_handler, open (self.fob_sci_name + ".csv", 'a') as fob_handler,  open (self.fsc_sci_name + ".csv", 'a') as fsc_handler:
+			header = "time"  + ","
+			fib_handler.write(header + "status" + "," + "x" + "," + "y" + "," + "z" + "\n")
+			fob_handler.write(header + "status" + "," + "x" + "," + "y" + "," + "z" + "\n")
+			fsc_handler.write(header + "status" + "," + "sensor temperature controller" + "," + "laser temperature controller" + "," + "laser current controller" + "," + "microwave reference controller" + "," + "zeeman_controller" + "," +  "science_data_id" + "," +  "science_data" + "," + "time_stamp" + "\n" ) 
+	
 	def run(self):
+	# arduino startup time
+	#timestamp for each of the filenames
+		#time.sleep(1)
 		while(self.start_science == False): 
 			pass
 		self.port.flushInput();
@@ -322,8 +310,8 @@ if __name__ == '__main__':
 				switch_off = True
 			if(nb != '5' and science_handler.is_alive() == True):
 					science_handler.port.write(bytes(command));
-			print(command)
-
+			print(command)	
+		
 		#waaiting for the thread to finish executing
 		#now we know that we terminated the program
 		science_handler.join()
