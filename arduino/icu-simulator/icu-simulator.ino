@@ -36,13 +36,12 @@
   
   enum set task  = CONFIG_MODE;
   /*fee packet and pointer to the three fee_packets, the data structure used for fee_packet is a union which is included in the folder fee_packet_structure*/ 
-  int total_count = 0;
+ 
   fee_paket fee_packet[3];
   byte pc_packet_arr[100] ;
   /*declaration of the pc packet, used to package the recieved bytes from the three interfaces and write it out the serial port, the struct used for pc packet is a union defined in pc_data_dump.h */
-  pc_data pc_packet                    = {STATUS, 0, 0, 0, 0};       
-  pc_data* pc_packet_ptr               = &pc_packet;
-  byte* pc_fee_counter[3]              = {&pc_packet_ptr->n_fib, &pc_packet_ptr-> n_fob, &pc_packet_ptr->n_fsc};
+  pc_data pc_packet                    = {0x00, 0, 0, 0, 0};       
+  byte pc_fee_counter[3]              = {pc_packet.n_fib, pc_packet.n_fob, pc_packet.n_fsc};
   
   /*a 2-D (3 x 6) array for the command packets that includes the command packet to be sent to each interface */ 
   uint8_t cmd_packet[3][PACKET_SIZE]   = {{1, 0, 0, 0, 0, 1}, {1, 0, 0, 0, 0,  1}, {1, 0, 0, 0, 0, 1}};
@@ -301,7 +300,7 @@
     else{
         activate_pins(index); 
     fee_enabled[index] = true; 
-    *pc_fee_counter[index] = 1; 
+    pc_fee_counter[index] = 1; 
     }
   }
   
@@ -313,7 +312,7 @@
     else{
       deactivate_pins(index); 
     fee_enabled[index] = false; 
-    *pc_fee_counter[index] = 0; 
+    pc_fee_counter[index] = 0; 
     }
   }
   
@@ -329,17 +328,7 @@
     port[index]->end(); 
   }
   
-  int update_pc_packet(){
-    /*if index == 0 then set size_of_data to FIB_SCI_DATA, if index == 1 then set size_of_data to FOB_SCI_DATA_SIZE and if index == 2 then set size_of_data to FSC_SCI_DATA_SIZE */
-  int bytesToSend = 0; 
-  for(int i = 0; i < 3; i++){    
-    if(packet_exists[i]){
-       bytesToSend = bytesToSend + 10; 
-    }
-  }
-  return bytesToSend; 
-  }
-  
+
   
   
   
