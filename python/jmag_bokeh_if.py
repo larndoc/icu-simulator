@@ -133,11 +133,19 @@ class CSV_Reader:
 # be returned from a method of this class,
 # to be stored in some layout object for display.
 class Grapher:
-    def __init__(self, figure_factory, csv_parser):
+    def __init__(self, figure_factory, csv_parser, key_groups=None):
         """
         Constructor.
             figure_factory  : an object of class Figure_Factory
             csv_reader      : an object of class CSV_Reader
+            key_groups      : a list of lists of strings;
+                              each string should be from the
+                              CSV header / a working dataframe
+                              key. Each list of these keys
+                              will be graphed together;
+                              a list of graphs corresponding
+                              to the list of lists is returned
+                              by method make_new_graphs()
         """
         # !! in earlier TODO, active_lines can remain the same.
         # we can remain agnostic to /which/ plot each line is,
@@ -146,8 +154,13 @@ class Grapher:
         self.active_lines = {}
         self.figure_factory = figure_factory
         self.csv_parser = csv_parser
+        if key_groups is None:
+            # default to a single key group, i.e. only one graph
+            self.key_groups = [csv_parser.get_header().split(',')]
+        else:
+            self.key_groups = key_groups
 
-    def make_new_graph(self):
+    def make_new_graphs(self):
         """
         Creates an entirely new graph.
         !! This function is appropriate for
@@ -160,21 +173,23 @@ class Grapher:
         # the old lines don't matter and get tossed out
         # hope the GC is feeling performant today
         self.active_lines = {}
-        p = self.figure_factory.gen_figure()
+        list_of_figures = []
+        #p = self.figure_factory.gen_figure()
         df = self.csv_parser.get_dataframe()
         i = 0
-        for x in df:
-            # TODO: time data is not the only independent variable!
-            # handle frequency plots as well
-            if x == 'Time':
-                continue
-            # storing the line renderer objects will allow us to update the
-            # lines without triggering a page redraw
-            self.active_lines[x] = p.line(df['Time'], df[x], legend=x,
-                    color=colors[i]
-            )
+        for key_group in self.key_groups:
+            figures = []
+            for x in key_group:
+                # storing the line renderer objects will allow us to update the
+                # lines without triggering a page redraw
+                figures.append(self.figure_factory.gen_figure())
+                self.active_lines[x] = figures[-1].line(df['Time'], df[x], legend=x,
+                                                        color=colors[i]
+                )
+            list_of_figures.append(figures)
+        return list_of_figures
 
-    def update_graph(self):
+    def update_graphs(self):
         """
         Tail the watched file and redraw graphs
         without triggering a page redraw.
