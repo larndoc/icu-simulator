@@ -119,7 +119,12 @@ class CSV_Reader:
                     + self.tail()
                 )
         )
-        df['Time'] = map(lambda s: datetime.strptime(s, "%Y-%m-%dT%H:%M:%S:%f"), df['Time'])
+        try:
+            df['Time'] = map(lambda s: datetime.strptime(s, "%Y-%m-%dT%H:%M:%S:%f"), df['Time'])
+        except KeyError:
+            # probably an FFT or something, we don't have any dates
+            # to fix, so don't worry about it
+            pass
         return df
 
 
