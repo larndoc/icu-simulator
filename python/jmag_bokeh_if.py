@@ -53,14 +53,14 @@ class Figure_Factory:
         kwargs['plot_width']  = kwargs.get('plot_width', 600)
         kwargs['tools']       = kwargs.get('tools', 'xpan,ypan,xwheel_zoom,'
                                            +'xbox_zoom,ybox_zoom,reset')
-        kwargs['x_axis_type'] = kwargs.get('x_axis_type', 'datetiem')
+        kwargs['x_axis_type'] = kwargs.get('x_axis_type', 'datetime')
         self.kwargs = kwargs
 
     def gen_figure(self):
         """
         Get a new figure.
         """
-        p = figure(self.kwargs)
+        p = figure(**self.kwargs)
         return p
 
 
@@ -120,7 +120,7 @@ class CSV_Reader:
                 )
         )
         try:
-            df['Time'] = map(lambda s: datetime.strptime(s, "%Y-%m-%dT%H:%M:%S:%f"), df['Time'])
+            df['Time'] = map(lambda s: datetime.strptime(s, "%Y-%m-%dT%H:%M:%S.%f"), df['Time'])
         except KeyError:
             # probably an FFT or something, we don't have any dates
             # to fix, so don't worry about it
@@ -186,21 +186,19 @@ class Grapher:
         # the old lines don't matter and get tossed out
         # hope the GC is feeling performant today
         self.active_lines = {}
-        list_of_figures = []
+        figures = []
         #p = self.figure_factory.gen_figure()
         df = self.csv_reader.get_dataframe()
         i = 0
         for key_group in self.key_groups:
-            figures = []
+            figures.append(self.figure_factory.gen_figure())
             for x in key_group:
                 # storing the line renderer objects will allow us to update the
                 # lines without triggering a page redraw
-                figures.append(self.figure_factory.gen_figure())
                 self.active_lines[x] = figures[-1].line(df['Time'], df[x], legend=x,
                                                         color=colors[i]
                 )
-            list_of_figures.append(figures)
-        return list_of_figures
+        return figures
 
     def update_graphs(self):
         """
