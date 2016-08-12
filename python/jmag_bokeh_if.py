@@ -138,11 +138,13 @@ class CSV_Reader:
 # be returned from a method of this class,
 # to be stored in some layout object for display.
 class Grapher:
-    def __init__(self, figure_factory, csv_parser, key_groups=None):
+    def __init__(self, csv_reader, figure_factory=None, key_groups=None):
         """
         Constructor.
-            figure_factory  : an object of class Figure_Factory
-            csv_reader      : an object of class CSV_Reader
+            csv_reader      : an object of class CSV_Reader,
+                              or a string giving the path to a CSV
+            figure_factory  : an object of class Figure_Factory;
+                              if this is None, then defaults are assumed
             key_groups      : a list of lists of strings;
                               each string should be from the
                               CSV header / a working dataframe
@@ -157,11 +159,17 @@ class Grapher:
         # as long as we actually update the data source
         # corresponding to the correct line
         self.active_lines = {}
-        self.figure_factory = figure_factory
-        self.csv_parser = csv_parser
+        if figure_factory is None:
+            self.figure_factory = Figure_Factory()
+        else:
+            self.figure_factory = figure_factory
+        if type(csv_reader) is str:
+            self.csv_reader = CSV_Reader(csv_reader)
+        else:
+            self.csv_reader = csv_reader
         if key_groups is None:
             # default to a single key group, i.e. only one graph
-            self.key_groups = [csv_parser.get_header().split(',')]
+            self.key_groups = [csv_reader.get_header().split(',')]
         else:
             self.key_groups = key_groups
 
@@ -180,7 +188,7 @@ class Grapher:
         self.active_lines = {}
         list_of_figures = []
         #p = self.figure_factory.gen_figure()
-        df = self.csv_parser.get_dataframe()
+        df = self.csv_reader.get_dataframe()
         i = 0
         for key_group in self.key_groups:
             figures = []
@@ -199,7 +207,7 @@ class Grapher:
         Tail the watched file and redraw graphs
         without triggering a page redraw.
         """
-        df = self.csv_parser.get_dataframe()
+        df = self.csv_reader.get_dataframe()
         for key in self.active_lines:
             self.active_lines[key].data_source.data['x'] = df['Time']
             self.active_lines[key].data_source.data['y'] = df[key]
