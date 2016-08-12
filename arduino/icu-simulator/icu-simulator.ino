@@ -301,7 +301,7 @@
               pc_packet_arr[5+i] = 0; // clear n_FIB, n_FOB or n_FSC
             }
           }
-          //Serial.write(pc_packet_arr, k);
+          Serial.write(pc_packet_arr, k);
          }
          break; 
   
@@ -349,7 +349,7 @@
             hk_pkt.fsc_hk[i] = fee_packet[FSC_INTERFACE].hk_data[i];
           }
         }
-        Serial.write(hk_pkt.arr, 77); 
+        Serial.write(hk_pkt.arr, 132); 
        }
    
   }
