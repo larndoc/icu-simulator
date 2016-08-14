@@ -128,15 +128,6 @@ class CSV_Reader:
         return df
 
 
-# TODO: this grapher object is convenient,
-# but is incapable of creating many plots
-# from one CSV. This needs to be fixed.
-# Idea is to pass a list of lists of header
-# tags (which are also keys to pandas DataFrame
-# objects); each list of tags will become a
-# separate graph. The list of graphs will
-# be returned from a method of this class,
-# to be stored in some layout object for display.
 class Grapher:
     def __init__(self, csv_reader, figure_factory=None, key_groups=None):
         """
@@ -154,10 +145,6 @@ class Grapher:
                               to the list of lists is returned
                               by method make_new_graphs()
         """
-        # !! in earlier TODO, active_lines can remain the same.
-        # we can remain agnostic to /which/ plot each line is,
-        # as long as we actually update the data source
-        # corresponding to the correct line
         self.active_lines = {}
         if figure_factory is None:
             self.figure_factory = Figure_Factory()
@@ -189,8 +176,8 @@ class Grapher:
         figures = []
         #p = self.figure_factory.gen_figure()
         df = self.csv_reader.get_dataframe()
-        i = 0
         for key_group in self.key_groups:
+            i = 0
             figures.append(self.figure_factory.gen_figure())
             for x in key_group:
                 # storing the line renderer objects will allow us to update the
@@ -198,6 +185,7 @@ class Grapher:
                 self.active_lines[x] = figures[-1].line(df['Time'], df[x], legend=x,
                                                         color=colors[i]
                 )
+                i += 1
         return figures
 
     def update_graphs(self):
@@ -207,5 +195,6 @@ class Grapher:
         """
         df = self.csv_reader.get_dataframe()
         for key in self.active_lines:
+            print "Updating..."
             self.active_lines[key].data_source.data['x'] = df['Time']
             self.active_lines[key].data_source.data['y'] = df[key]
