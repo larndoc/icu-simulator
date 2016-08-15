@@ -134,6 +134,23 @@ class Magnitude_Cooker(Data_Cooker):
         self.df = new_df
         return new_df
 
+class Natural_Unit_Cooker(Data_Cooker):
+    def __init__(self, factors, df=None):
+        self.df = df
+        self.factors = factors
+    def apply(self, df=None):
+        new_df = {}
+        if df is not None:
+            self.df = df
+        for key in self.df:
+            if key not in self.factors:
+                new_df[key] = self.df[key]
+                continue
+            new_df[key] = map(lambda x: x*self.factors[key], self.df[key])
+        new_df = pandas.DataFrame.from_dict(new_df).sort_values('Time')
+        self.df = new_df
+        return new_df
+
 class CSV_Reader:
     def __init__(self, fname, num_dp=1000, data_cooker=None):
         """
@@ -147,6 +164,9 @@ class CSV_Reader:
         self.fname = fname
         self.num_dp = num_dp
         self.data_cooker = data_cooker
+        self.cook_data = False
+        if data_cooker is not None:
+            self.cook_data = True
 
     def set_fname(self, fname):
         """
@@ -199,10 +219,20 @@ class CSV_Reader:
             pass
 
         # optionally cook data
-        if self.data_cooker is not None:
+        if self.data_cooker is not None and self.cook_data:
             df = self.data_cooker.apply(df)
 
         return df
+
+    def on_change(self, attr, old, new):
+        print "{}\n{}\n{}".format(attr, old, new)
+        s = ''
+        if self.cook_data:
+            s = 'off'
+        else:
+            s = 'on'
+        print "Data cooking is now {}".format(s)
+        self.cook_data = not self.cook_data
 
 class Grapher:
     def __init__(self, csv_reader, figure_factory=None, key_groups=None, indep_var='Time', cooker=None):
@@ -241,6 +271,9 @@ class Grapher:
             self.key_groups = key_groups
         self.indep_var = indep_var
         self.cooker = cooker
+
+    def get_csv_reader(self):
+        return self.csv_reader
 
     def make_new_graphs(self):
         """
