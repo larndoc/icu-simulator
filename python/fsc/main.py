@@ -14,10 +14,10 @@ timeseries = ts.make_new_graphs()
 spectra    = sp.make_new_graphs()
 
 l = gridplot(
-       [[timeseries[0], None],
+       [[timeseries[3], spectra[0]]
+        [timeseries[0], None],
         [timeseries[1], None],
-        [timeseries[2], None],
-        [timeseries[3], spectra[0]]]
+        [timeseries[2], None]]
         )
 
 curdoc().add_root(l)
