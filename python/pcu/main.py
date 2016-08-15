@@ -1,6 +1,8 @@
-from .. import jmag_bokeh_if as jbif
 from bokeh.plotting import curdoc
 from bokeh.layouts import row
+import sys
+sys.path.append("..")
+import jmag_bokeh_if as jbif
 
 g = jbif.Grapher(jbif.get_latest_csv("data/PCU_HK*.csv"), indep_var='Time',
             key_groups = [['I_FIB' ,'I_FOB' ,'I_FSC' ,'I_P3V3',
