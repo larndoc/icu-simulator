@@ -114,6 +114,26 @@ class FFT_Cooker(Data_Cooker):
         self.df = new_df
         return new_df
 
+# magnitudes for fib/fob
+# expect 'mag' as dep variable,
+# and 'Time' as indep. Expects keys
+# Bx, By, and Bz to be existent in raw
+# DataFrame.
+class Magnitude_Cooker(Data_Cooker):
+    def apply(self, df=None):
+        if df is not None:
+            self.df = df
+        new_df = {}
+        new_df['Time'] = self.df['Time']
+        new_df['mag'] = []
+        i = 0
+        while i < len(self.df['Bx']):
+            new_df['mag'].append(sqrt(self.df['Bx'][i]**2 + self.df['By'][i]**2 + self.df['Bz'][i]**2))
+            i += 1
+        new_df = pandas.DataFrame.from_dict(new_df).sort_values('Time')
+        self.df = new_df
+        return new_df
+
 class CSV_Reader:
     def __init__(self, fname, num_dp=1000, data_cooker=None):
         """
