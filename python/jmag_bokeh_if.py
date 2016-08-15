@@ -195,6 +195,5 @@ class Grapher:
         """
         df = self.csv_reader.get_dataframe()
         for key in self.active_lines:
-            print "Updating..."
             self.active_lines[key].data_source.data['x'] = df['Time']
             self.active_lines[key].data_source.data['y'] = df[key]
