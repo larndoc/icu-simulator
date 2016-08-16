@@ -12,11 +12,12 @@
 import pandas
 from datetime import datetime
 import tailer
-from StringIO import StringIO
+from io import StringIO
 from bokeh.plotting import figure
 from glob import glob
 from numpy.fft import fft, fftfreq
 from math import sqrt
+from functools import reduce
 #from bokeh.palettes import Spectral9
 
 colors = ["#008080", "#8B0000", "#006400", "#2F4F4F",
@@ -112,7 +113,9 @@ class Magnitude_Cooker(Data_Cooker):
         while i < len(self.df['Bx']):
             new_df['mag'].append(sqrt(self.df['Bx'][i]**2 + self.df['By'][i]**2 + self.df['Bz'][i]**2))
             i += 1
+        print("About to throw error...")
         new_df = pandas.DataFrame.from_dict(new_df).sort_values('Time')
+        print("This should never be seen")
         self.df = new_df
         return new_df
 
@@ -207,13 +210,7 @@ class CSV_Reader:
         return df
 
     def on_change(self, attr, old, new):
-        print "{}\n{}\n{}".format(attr, old, new)
         s = ''
-        if self.cook_data:
-            s = 'off'
-        else:
-            s = 'on'
-        print "Data cooking is now {}".format(s)
         self.cook_data = not self.cook_data
 
 class Grapher:

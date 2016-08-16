@@ -6,13 +6,9 @@ import argparse
 import string
 import time 
 import datetime
-import binascii
 import collections
 import logging
-import numpy
-import statistics
 from threading import Thread
-import math
 import os
 
 def build_config_command_val(fee_number): 
@@ -29,8 +25,7 @@ def build_config_command_val(fee_number):
 	config_id = input('>please enter config id: ')		
 	config_id_val = (int(config_id, 0)).to_bytes(1, byteorder = 'big')
 	config_val = input('>please enter config val: ')
-	temp = int(config_val, 0)
-	choice = (temp).to_bytes(3, byteorder='big')
+	choice = (int(config_val, 0)).to_bytes(3, byteorder='big')
 	return cmd_val + rm_wr_val + config_id_val + choice
 	
 def build_fee_packet(fee_number): 						
@@ -39,8 +34,8 @@ def build_fee_packet(fee_number):
 	return  (int(fee_interface, 0)).to_bytes(1, byteorder = 'big')
 	
 
-def debug_information(data): 
-	print(binascii.hexlify(data))
+#def debug_information(data): 
+#	print(binascii.hexlify(data))
 	
 	
 class hk_data: 	
@@ -94,15 +89,15 @@ class packet_reciever(Thread):
 		return datetime.datetime.now()
 	
 	def update_sci_files(self, t_str): 
-			self.files["fib_sci_tm"] = ('FIB_SCI_TM' + t_str + '.csv')
-			self.files["fob_sci_tm"] = ('FOB_SCI_TM' + t_str + '.csv')
-			self.files["fsc_sci_tm"] = ('FSC_SCI_TM' + t_str + '.csv')
+			self.files["fib_sci_tm"] = ('data\FIB_SCI_TM_' + t_str + '.csv')
+			self.files["fob_sci_tm"] = ('data\FOB_SCI_TM_' + t_str + '.csv')
+			self.files["fsc_sci_tm"] = ('data\FSC_SCI_TM_' + t_str + '.csv')
 			
 	def update_hk_files(self, t_str): 
-			self.files['fib_hk_tm'] = ('FIB_HK_TM' + t_str + '.csv')
-			self.files['fob_hk_tm'] = ('FOB_HK_TM' + t_str + '.csv')
-			self.files['fsc_hk_tm'] = ('FSC_HK_TM' + t_str + '.csv')
-			self.files['pcu_data'] = ('PCU' + t_str + '.csv')
+			self.files['fib_hk_tm'] = ('data\FIB_HK_TM_' + t_str + '.csv')
+			self.files['fob_hk_tm'] = ('data\FOB_HK_TM_' + t_str + '.csv')
+			self.files['fsc_hk_tm'] = ('data\FSC_HK_TM_' + t_str + '.csv')
+			self.files['pcu_data'] = ('data\PCU' + t_str + '.csv')
 			self.labels['fib_hk_tm'] = ['Time','Status_HB','Status_LB','LUP_cnt','P1V5','P3V3','P5V','N5V','P8V','P12V','P1I5','P3I3','P5I','N5I','P8I','P12I','TE','TS1','TS2','Checksum','CMD_exec_cnt','ICU_err_cnt','Last_cmd','Last_err','HK_req_cnt','sync_count']
 			self.labels['fob_hk_tm']= ['Time', 'Delay/Advance Val', 'ICU packet checksum', 'ICU command count', 'sync_pulse_count']
 			self.labels['fsc_hk_tm'] = ['Time', 'Peregrine_Lock','Sensor_Temp_A','Sensor_Temp_B','Sensor_Temp_Duty_Cycle','Laser_Temp_A','Laser_Temp_B','Laser_Temp_Duty_Cycle','Laser_Current','Laser_Current_Zero_Cross','Microwave_Ref','Microwave_Ref_Zero_Cross','Zeeman_Freq_Zero_Cross','PCB_Temp_A','PCB_Temp_B','Laser_Diode_Voltage','Diode_Optical_Power','P2V4','P3V3','P8V','N8V','P12V','PCB_Temp_C','PCB_Temp_D','PCB_Temp_E','ICU_Checksum','ICU_Command_Count','ICU_Sync_Count'] 
