@@ -3,14 +3,15 @@
 
 import serial 
 import argparse
-import string
-import time 
 import datetime
 import collections
 import logging
+import time
 from threading import Thread
-import os
 
+def to_bytes(n, size, byteorder): 
+	if byteorder == 'big': 
+		return 
 def build_config_command_val(fee_number): 
 	print(fee_number)
 	cmd = input('> please choose an input: ')	
@@ -21,17 +22,19 @@ def build_config_command_val(fee_number):
 	)
 	print(read_write)
 	rm_wr = input('> please choose an input: ')
-	rm_wr_val = (int(rm_wr, 0)).to_bytes(1, byteorder = 'big')
+	rm_wr_val = int(rm_wr, 0).to_bytes(1, byteorder = 'big')
 	config_id = input('>please enter config id: ')		
-	config_id_val = (int(config_id, 0)).to_bytes(1, byteorder = 'big')
+	config_id_val = int(config_id, 0).to_bytes(1, byteorder = 'big')
 	config_val = input('>please enter config val: ')
-	choice = (int(config_val, 0)).to_bytes(3, byteorder='big')
+	n = int(config_val, )
+	choice = int(config_val, 0).to_bytes(3, byteorder='big')
 	return cmd_val + rm_wr_val + config_id_val + choice
 	
 def build_fee_packet(fee_number): 						
 	print(fee_number)
 	fee_interface = input('please choose an input: ')
-	return  (int(fee_interface, 0)).to_bytes(1, byteorder = 'big')
+	n = int(fee_interface, 0).to_bytes(1, byteorder = 'big')
+	return  n
 	
 
 #def debug_information(data): 
@@ -89,15 +92,15 @@ class packet_reciever(Thread):
 		return datetime.datetime.now()
 	
 	def update_sci_files(self, t_str): 
-			self.files["fib_sci_tm"] = ('data\FIB_SCI_TM_' + t_str + '.csv')
-			self.files["fob_sci_tm"] = ('data\FOB_SCI_TM_' + t_str + '.csv')
-			self.files["fsc_sci_tm"] = ('data\FSC_SCI_TM_' + t_str + '.csv')
+			self.files["fib_sci_tm"] = 'data\FIB_SCI_TM_' + t_str + '.csv'
+			self.files["fob_sci_tm"] = 'data\FOB_SCI_TM_' + t_str + '.csv'
+			self.files["fsc_sci_tm"] = 'data\FSC_SCI_TM_' + t_str + '.csv'
 			
 	def update_hk_files(self, t_str): 
-			self.files['fib_hk_tm'] = ('data\FIB_HK_TM_' + t_str + '.csv')
-			self.files['fob_hk_tm'] = ('data\FOB_HK_TM_' + t_str + '.csv')
-			self.files['fsc_hk_tm'] = ('data\FSC_HK_TM_' + t_str + '.csv')
-			self.files['pcu_data'] = ('data\PCU' + t_str + '.csv')
+			self.files['fib_hk_tm'] = 'data\FIB_HK_TM_' + t_str + '.csv'
+			self.files['fob_hk_tm'] = 'data\FOB_HK_TM_' + t_str + '.csv'
+			self.files['fsc_hk_tm'] = 'data\FSC_HK_TM_' + t_str + '.csv'
+			self.files['pcu_data'] = 'data\PCU' + t_str + '.csv'
 			self.labels['fib_hk_tm'] = ['Time','Status_HB','Status_LB','LUP_cnt','P1V5','P3V3','P5V','N5V','P8V','P12V','P1I5','P3I3','P5I','N5I','P8I','P12I','TE','TS1','TS2','Checksum','CMD_exec_cnt','ICU_err_cnt','Last_cmd','Last_err','HK_req_cnt','sync_count']
 			self.labels['fob_hk_tm']= ['Time', 'Delay/Advance Val', 'ICU packet checksum', 'ICU command count', 'sync_pulse_count']
 			self.labels['fsc_hk_tm'] = ['Time', 'Peregrine_Lock','Sensor_Temp_A','Sensor_Temp_B','Sensor_Temp_Duty_Cycle','Laser_Temp_A','Laser_Temp_B','Laser_Temp_Duty_Cycle','Laser_Current','Laser_Current_Zero_Cross','Microwave_Ref','Microwave_Ref_Zero_Cross','Zeeman_Freq_Zero_Cross','PCB_Temp_A','PCB_Temp_B','Laser_Diode_Voltage','Diode_Optical_Power','P2V4','P3V3','P8V','N8V','P12V','PCB_Temp_C','PCB_Temp_D','PCB_Temp_E','ICU_Checksum','ICU_Command_Count','ICU_Sync_Count'] 
@@ -118,8 +121,8 @@ class packet_reciever(Thread):
 		
 		while self.start_running:
 			while self.serial.inWaiting():
-				decision_hk_sci = bytes((self.serial).read(size = 1))
-				counter = int.from_bytes((self.serial).read(size = 4), byteorder = 'big')
+				decision_hk_sci = bytes(self.serial.read(size = 1))
+				counter = int.from_bytes(self.serial.read(size = 4), byteorder = 'big')
 				self.time = (self.current_time + datetime.timedelta(seconds = counter/128)).strftime("%Y%m%dT%H%M%S.%f")
 				if(decision_hk_sci == b'\x01'): 
 					for key in self.sci_values: 
@@ -129,11 +132,11 @@ class packet_reciever(Thread):
 					for key in self.sci_values: 
 						with open(self.files['fib_sci_tm'], 'a') as infile, open(self.files['fob_sci_tm'], 'a') as infile2, open(self.files['fsc_sci_tm'], 'a') as infile3: 
 							if key == 'fib_sci_tm': 
-								infile.write("{}\n".format((self.sci_values[key])))
+								infile.write("{}\n".format(self.sci_values[key]))
 							if key == 'fob_sci_tm':  
-								infile2.write("{}\n".format((self.sci_values[key])))
+								infile2.write("{}\n".format(self.sci_values[key]))
 							if key == 'fsc_sci_tm':  
-								infile3.write("{}\n".format((self.sci_values[key])))
+								infile3.write("{}\n".format(self.sci_values[key]))
 
 				elif(decision_hk_sci == b'\x00'):
 					for key in self.hk_values: 
@@ -143,23 +146,23 @@ class packet_reciever(Thread):
 					for key in self.hk_values: 
 						with open (self.files['fib_hk_tm'], 'a') as infile, open(self.files['fob_hk_tm'], 'a') as infile2, open(self.files['fsc_hk_tm'], 'a') as infile3, open(self.files['pcu_data'], 'a') as infile4: 
 							if key == 'fib_hk_tm': 
-								infile.write("{}\n".format((self.hk_values[key])))
+								infile.write("{}\n".format(self.hk_values[key]))
 							if key == 'fob_hk_tm':  
-								infile2.write("{}\n".format((self.hk_values[key])))
+								infile2.write("{}\n".format(self.hk_values[key]))
 							if key == 'fsc_hk_tm':  
-								infile3.write("{}\n".format((self.hk_values[key])))
+								infile3.write("{}\n".format(self.hk_values[key]))
 							if key == 'pcu_data':  
-								infile4.write("{}\n".format((self.hk_values[key])))
+								infile4.write("{}\n".format(self.hk_values[key]))
 							
 class fee_science():
 		def __init__(self, time,  port, values): 
 			header_data = port.read(size = 3)
 			if(header_data[0] > 0): 
-				fb = fib_sci(port.read(size = 10), time + ',' + values)
+				fb = fib_sci(port.read(size = 10),  values)
 			if(header_data[1] > 0): 
-				fo = fob_sci(port.read(size = 10), time + ',' + values)
+				fo = fob_sci(port.read(size = 10),  values)
 			if(header_data[2] > 0): 
-				fs = fsc_sci(port.read(size = 11), time + ',' + values) 
+				fs = fsc_sci(port.read(size = 11),  values) 
 
 class fib_sci(): 
 		def __init__(self, data, values):  
@@ -183,8 +186,8 @@ class fsc_sci():
 		def update(self, data, values):
 			for i in range (0, 4): 
 				values["fsc_sci_tm"]  +=  "{},".format(int(data[i]))
-			values["fsc_sci_tm"]  += ("{},".format(int.from_bytes(data[4:8], byteorder = 'big', signed = False)))
-			values["fsc_sci_tm"]  += ("{},".format(int.from_bytes(data[8:11], byteorder = 'big', signed = False)))
+			values["fsc_sci_tm"]  += "{},".format(int.from_bytes(data[4:8], byteorder = 'big', signed = False))
+			values["fsc_sci_tm"]  += "{},".format(int.from_bytes(data[8:11], byteorder = 'big', signed = False))
 						
 						
 class files(): 
@@ -224,36 +227,36 @@ class fsc_hk_data():
 			values["fsc_hk_tm"] += "{},".format(int(data[0]))
 			for i in range (0, 4): 
 				if(i % 2 == 0): 
-					values["fsc_hk_tm"] += ("{},".format(int.from_bytes(data[(i + 1): (i + 3)], byteorder = 'big', signed = False)))
+					values["fsc_hk_tm"] += "{},".format(int.from_bytes(data[(i + 1): (i + 3)], byteorder = 'big', signed = False))
 			
-			values["fsc_hk_tm"] += ("{},".format(int.from_bytes(data[5 : 7], byteorder = 'big', signed = False)))
+			values["fsc_hk_tm"] += "{},".format(int.from_bytes(data[5 : 7], byteorder = 'big', signed = False))
 			
 			for i in range(0, 4): 
 				if(i % 2  == 0): 
-					values["fsc_hk_tm"] += ("{},".format(int.from_bytes(data[(i + 7): (i + 9)], byteorder = 'big', signed = False)))
+					values["fsc_hk_tm"] += "{},".format(int.from_bytes(data[(i + 7): (i + 9)], byteorder = 'big', signed = False))
 			
-			values["fsc_hk_tm"] += ("{},".format(int.from_bytes(data[11: 13], byteorder = 'big', signed = False)))
+			values["fsc_hk_tm"] += "{},".format(int.from_bytes(data[11: 13], byteorder = 'big', signed = False))
 			
 			for i in range(0, 6): 
 				if(i % 3 == 0): 
-					values["fsc_hk_tm"] += ("{},".format(int.from_bytes(data[(i + 13): (i + 16)], byteorder = 'big', signed = False)))
+					values["fsc_hk_tm"] += "{},".format(int.from_bytes(data[(i + 13): (i + 16)], byteorder = 'big', signed = False))
 			
 			for i in range(0, 4): 
 				if(i % 2 == 0): 
-					values["fsc_hk_tm"] += ("{},".format(int.from_bytes(data[(i + 19):(i + 21)], byteorder = 'big', signed = False)))
+					values["fsc_hk_tm"] += "{},".format(int.from_bytes(data[(i + 19):(i + 21)], byteorder = 'big', signed = False))
 		
-			values["fsc_hk_tm"] += ("{},".format(int.from_bytes(data[23:26], byteorder = 'big', signed = False)))
+			values["fsc_hk_tm"] += "{},".format(int.from_bytes(data[23:26], byteorder = 'big', signed = False))
 			
 			for i in range (0, 4): 
 				if(i % 2 == 0): 
-					values["fsc_hk_tm"] += ("{},".format(int.from_bytes(data[(i + 26) : (i + 28)], byteorder = 'big', signed = False)))
+					values["fsc_hk_tm"] += "{},".format(int.from_bytes(data[(i + 26) : (i + 28)], byteorder = 'big', signed = False))
 				
-			values["fsc_hk_tm"] += ("{},".format(int.from_bytes(data[30 : 32], byteorder = 'big', signed = False)))
-			values["fsc_hk_tm"] += ("{},".format(int.from_bytes(data[32: 34], byteorder = 'big', signed = False)))
+			values["fsc_hk_tm"] += "{},".format(int.from_bytes(data[30 : 32], byteorder = 'big', signed = False))
+			values["fsc_hk_tm"] += "{},".format(int.from_bytes(data[32: 34], byteorder = 'big', signed = False))
 			
 			for i in range(0, 16): 
 				if (i % 2 == 0): 
-					values["fsc_hk_tm"] += ("{},".format(int.from_bytes(data[(i + 34) : (i + 36)], byteorder = 'big', signed = False)))
+					values["fsc_hk_tm"] += "{},".format(int.from_bytes(data[(i + 34) : (i + 36)], byteorder = 'big', signed = False))
 					
 			for i in range(48, 51): 
 				values["fsc_hk_tm"] += "{},".format(int(data[i]))
@@ -298,9 +301,9 @@ if __name__ == '__main__':
 				print('unable to parse choice as an integer %s' % error_msg)
 				logging.debug(error_msg)
 				continue 
-			if(nb == '2'): 
+			if choice == 2: 
 				command = ((int(nb, 16)).to_bytes(1, byteorder = 'big') + build_config_command_val(fee_number));
-			elif(nb == '4'):
+			elif choice == 4:
 				command = ((int(nb, 16).to_bytes(1, byteorder = 'big'))); 
 			elif(nb == '3'):
 				pkt_reciever.begin_receiving = True
