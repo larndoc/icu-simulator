@@ -130,12 +130,13 @@ class packet_reciever(Thread):
 					s = fee_science(self.time, self.serial, self.sci_values)
 					for key in self.sci_values: 
 						with open(self.files['fib_sci_tm'], 'a') as infile, open(self.files['fob_sci_tm'], 'a') as infile2, open(self.files['fsc_sci_tm'], 'a') as infile3: 
-							if key == 'fib_sci_tm': 
-								infile.write("{}\n".format(self.sci_values[key]))
-							if key == 'fob_sci_tm':  
-								infile2.write("{}\n".format(self.sci_values[key]))
-							if key == 'fsc_sci_tm':  
-								infile3.write("{}\n".format(self.sci_values[key]))
+							if self.sci_values[key] != '':
+								if key == 'fib_sci_tm': 
+									infile.write("{}\n".format(self.sci_values[key]))
+								if key == 'fob_sci_tm':  
+									infile2.write("{}\n".format(self.sci_values[key]))
+								if key == 'fsc_sci_tm':  
+									infile3.write("{}\n".format(self.sci_values[key]))
 
 				elif(decision_hk_sci == b'\x00'):
 					for key in self.hk_values: 
@@ -158,10 +159,19 @@ class fee_science():
 			header_data = port.read(size = 3)
 			if(header_data[0] > 0): 
 				fb = fib_sci(port.read(size = 10),  values)
+			else: 
+				for key in values: 
+					values[key] = ''
 			if(header_data[1] > 0): 
 				fo = fob_sci(port.read(size = 10),  values)
+			else: 
+				for key in values: 
+					values[key] = ''
 			if(header_data[2] > 0): 
 				fs = fsc_sci(port.read(size = 11),  values) 
+			else: 
+				for key in values: 
+					values[key] = ''
 
 class fib_sci(): 
 		def __init__(self, data, values):  
