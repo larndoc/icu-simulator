@@ -105,8 +105,8 @@ class packet_reciever(Thread):
 			self.labels['fob_hk_tm']= ['Time', 'Delay/Advance Val', 'ICU packet checksum', 'ICU command count', 'sync_pulse_count']
 			self.labels['fsc_hk_tm'] = ['Time', 'Peregrine_Lock','Sensor_Temp_A','Sensor_Temp_B','Sensor_Temp_Duty_Cycle','Laser_Temp_A','Laser_Temp_B','Laser_Temp_Duty_Cycle','Laser_Current','Laser_Current_Zero_Cross','Microwave_Ref','Microwave_Ref_Zero_Cross','Zeeman_Freq_Zero_Cross','PCB_Temp_A','PCB_Temp_B','Laser_Diode_Voltage','Diode_Optical_Power','P2V4','P3V3','P8V','N8V','P12V','PCB_Temp_C','PCB_Temp_D','PCB_Temp_E','ICU_Checksum','ICU_Command_Count','ICU_Sync_Count'] 
 			self.labels['pcu_data'] = ['Time','I_FIB','I_FOB','I_FSC','I_P3V3','I_FIBH','I_FOBH','I_FSCH','I_P1V8','Temp','V_P2V4','V_P3V3','V_P12V','V_P8V','V_N8V','V_P5V','V_N5V']
-			self.labels['fib_sci_tm'] = ['Time', 'Bx', 'By', 'Bz' 'status']
-			self.labels['fob_sci_tm']  = ['Time', 'Bx', 'By', 'Bz' 'status']
+			self.labels['fib_sci_tm'] = ['Time', 'Bx', 'By', 'Bz' ]
+			self.labels['fob_sci_tm']  = ['Time', 'Bx', 'By', 'Bz' ,'status']
 			self.labels['fsc_sci_tm'] = ['Time',	'Sensor_Laser',	'Laser_Micro',	'Zeeman',	'Sci_Data_ID',	'Sci_Data',	'Timestamp']
 
 	def run(self): 
@@ -138,7 +138,7 @@ class packet_reciever(Thread):
 								if key == 'fsc_sci_tm':  
 									infile3.write("{}\n".format(self.sci_values[key]))
 
-				elif(decision_hk_sci == b'\x00'):
+				if(decision_hk_sci == b'\x00'):
 					for key in self.hk_values: 
 						self.hk_values[key] = ''
 						self.hk_values[key] = self.time + ','
@@ -156,22 +156,19 @@ class packet_reciever(Thread):
 							
 class fee_science():
 		def __init__(self, time,  port, values): 
-			header_data = port.read(size = 3)
-			if(header_data[0] > 0): 
+			header_data = port.read(size = 6)
+			if(header_data[3] > 0): 
 				fb = fib_sci(port.read(size = 10),  values)
-			else: 
-				for key in values: 
-					values[key] = ''
-			if(header_data[1] > 0): 
+			else:  
+				values["fib_hk_tm"] = ''
+			if(header_data[4] > 0):
 				fo = fob_sci(port.read(size = 10),  values)
-			else: 
-				for key in values: 
-					values[key] = ''
-			if(header_data[2] > 0): 
+			else:  
+				values["fob_hk_tm"] = ''
+			if(header_data[5] > 0):
 				fs = fsc_sci(port.read(size = 11),  values) 
-			else: 
-				for key in values: 
-					values[key] = ''
+			else:  
+				values["fsc_hk_tm"] = ''
 
 class fib_sci(): 
 		def __init__(self, data, values):  
