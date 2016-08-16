@@ -311,7 +311,7 @@ if __name__ == '__main__':
 				pkt_reciever.begin_receiving = True
 				pkt_reciever.update_sci_files(pkt_reciever.current_time.strftime("%Y%m%d_%H%M%S"))
 				for key in pkt_reciever.files:
-					with (open pkt_reciever.files[key], 'a') as infile:  
+					with open (pkt_reciever.files[key], 'a') as infile:  
 						infile.write("{}\n".format(','.join(pkt_reciever.labels[key])))
 				command = ((int(nb, 16)).to_bytes(1, byteorder = 'big'))
 			elif(nb == '5' or nb == '6'): 
