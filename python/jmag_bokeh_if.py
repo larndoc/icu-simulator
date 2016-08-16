@@ -210,7 +210,6 @@ class CSV_Reader:
         return df
 
     def on_change(self, attr, old, new):
-        s = ''
         self.cook_data = not self.cook_data
 
 class Grapher:
