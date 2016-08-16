@@ -113,12 +113,11 @@ class packet_reciever(Thread):
 		self.current_time = self.update_global_time()
 		t_str = self.current_time.strftime("%Y%m%d_%H%M%S")
 		self.update_hk_files(t_str)
-		#a flag that has been to ensure that the thread is executing while the user wants it to
+		self.update_sci_files(t_str)
 		for key in self.files:
-			with open(self.files[key], 'a') as infile:  
+			with open (self.files[key], 'a') as infile:  
 				infile.write("{}\n".format(','.join(self.labels[key])))
-				
-		
+		#a flag that has been to ensure that the thread is executing while the user wants it to
 		while self.start_running:
 			while self.serial.inWaiting():
 				decision_hk_sci = bytes(self.serial.read(size = 1))
@@ -307,10 +306,6 @@ if __name__ == '__main__':
 				command = ((int(nb, 16).to_bytes(1, byteorder = 'big'))); 
 			elif(nb == '3'):
 				pkt_reciever.begin_receiving = True
-				pkt_reciever.update_sci_files(pkt_reciever.current_time.strftime("%Y%m%d_%H%M%S"))
-				for key in pkt_reciever.files:
-					with open (pkt_reciever.files[key], 'a') as infile:  
-						infile.write("{}\n".format(','.join(pkt_reciever.labels[key])))
 				command = ((int(nb, 16)).to_bytes(1, byteorder = 'big'))
 			elif(nb == '5' or nb == '6'): 
 				command = ((int(nb, 16)).to_bytes(1, byteorder = 'big')) + build_fee_packet(fee_number) 
