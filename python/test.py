@@ -7,29 +7,13 @@ import string
 import time 
 import datetime
 import binascii
+import collections
 import logging
 import numpy
 import statistics
 from threading import Thread
 import math
 import os
-
-
-#these are the number of bits in the x, y and z coordinates in the fib file.
-number_of_bits_coordinates_fib = [24, 24, 24]
-number_of_bits_coordinates_fob = [24, 24, 24]
-
-
-#wrap this inside a function 
-def init_debug_logger(): 
-	logging.basicConfig(filename='debugger.log', format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
-	logger = logging.getLogger()
-	logger.setLevel(logging.INFO)
-
-	
-start_science = True
-recieve_serial = True
-switch_off = False
 
 def build_config_command_val(fee_number): 
 	print(fee_number)
@@ -58,237 +42,242 @@ def build_fee_packet(fee_number):
 def debug_information(data): 
 	print(binascii.hexlify(data))
 	
-def minute_tick(current_minutes, old_minutes): 
-	if(current_minute != old_minutes): 
-		old_minutes  = current_minute
-		return True 
-	else: 
-		return False
+	
+class hk_data: 	
+		#load the data into appropiate labels and then extract it from packet_reciever where it is written into files
+		def __init__(self, port, values): 
+			self.update(port,  values)
 		
-class fee_packet():
-	def__init__(self, serial_port):
-		self.port         = serial_port 
-		self.status 	  = ''
-		self.files 		  = ['', '', '']
+		def update(self, port, values): 
+			p = pcu_data(port.read(size = 32),  values)
+			fi = fib_hk_data(port.read(size = 40), values)  
+			fo = fob_hk_data(port.read(size = 4),  values) 
+			fs = fsc_hk_data(port.read(size = 51), values)						
+
+	
+class file(): 
+	files_fib_hk = ''
+	def __init__(self, file): 
+		self.file = file
+		 
+class packet_reciever(Thread):
+	#recieves a packet and reads the first byte 
+	hk_values = collections.OrderedDict()
+	sci_values = collections.OrderedDict() 
+	baud_rate = 115200 
+	timeout = 0.5
+	files   = dict()
+	time = ''
+	files_fib_hk = ''
+	sci_labels  = False
+	hk_labels   = False
+	start_running = True
+	labels = dict()
+	def __init__(self, serial_port, logdir): 
+		self.hk_values['pcu_data'] = ''
+		self.hk_values['fib_hk_tm'] = ''
+		self.hk_values['fob_hk_tm'] = '' 
+		self.hk_values['fsc_hk_tm'] = ''
 		
-	def_update_global_time(self): 
-		self.current_time = datetime.datetime.now()
+		self.sci_values['fib_sci_tm'] = ''
+		self.sci_values['fob_sci_tm'] = ''
+		self.sci_values['fsc_sci_tm'] = ''
+		super(packet_reciever, self).__init__()
+		self.port = serial_port 
+		self.logdir = logdir 		
+		self.serial = self.set_up_serial()
+	
+	def set_up_serial(self):
+		return serial.Serial(self.port, self.baud_rate, timeout =  self.timeout)
 		
-	def update_files(self): 
-		for i in range(0, len(files)): 
-			self.files[i] += self.time.strftime("%Y%m%d_%H%M%S")
-			if absolute_path != None: 
-				self.files[i] += absolute_path + '/'
-		
-		
-	def update(self): 
-		if self.in_port_waiting: 
-			header_data 						= bytearray((self.port).read(size = 5))
-			clock_frequency						= 128
-			self.status							= str(header_data[0])
-			self.sync_counter       			= ("{}".format(int.from_bytes(header_data[1 : 5], byteorder = 'big')));  
-			delta_val 							= float(self.sync_counter) * 1/clock_frequency
-			self.old_minutes					= self.time.minute
-			self.time 							= self.current_time + datetime.timedelta(milliseconds = delta_val*1000);
+	def update_global_time(self): 
+		return datetime.datetime.now()
+	
+	def update_sci_files(self, t_str): 
+			self.files["fib_sci_tm"] = ('FIB_SCI_TM' + t_str + '.csv')
+			self.files["fob_sci_tm"] = ('FOB_SCI_TM' + t_str + '.csv')
+			self.files["fsc_sci_tm"] = ('FSC_SCI_TM' + t_str + '.csv')
 			
-class hk_data(Thread, fee_packet): 	
-		def update(self): 
-			if(fee_packet.status == '0'):
-				pcu_data = ((self.port).read(size = 32))
-				fib_hk_data = ((self.port).read(size = 40))
-				fob_hk_data = ((self.port).read(size = 4))
-				fsc_hk_data = ((self.port).read(size = 51))
-				with open(self.fob_hk_tm + ".csv", 'a') as fob_handler: 
-				fob_handler.write(self.time.strftime("%Y%m%dT%H:%M:%S.%f") + "," + str(self.id) + ",")
-					for i in range (0, 4):
-						fob_handler.write(str(fob_hk_data[i]) + ",")
-					fob_handler.write("\n")
-				
-	
-				
-				with open(self.fsc_hk_tm + ".csv", 'a') as fsc_handler: 
-				fsc_handler.write(self.time.strftime("%Y%m%dT%H:%M:%S.%f") + "," + str(self.id) + ",")
-					for i in range(0, 51): 
-						fsc_handler.write(str(fsc_hk_data[i]) + ",")
-					fsc_handler.write("\n")
-				 
-					
-					with open(self.fib_hk_tm + ".csv", 'a') as fib_handler: 
-					fib_handler.write(self.time.strftime("%Y%m%dT%H:%M:%S.%f") + "," + str(self.id) + ",")
-						for i in range(0, 40): 
-							fib_handler.write(str(fib_hk_data[i]) + ",")
-						fib_handler.write("\n")
+	def update_hk_files(self, t_str): 
+			self.files['fib_hk_tm'] = ('FIB_HK_TM' + t_str + '.csv')
+			self.files['fob_hk_tm'] = ('FOB_HK_TM' + t_str + '.csv')
+			self.files['fsc_hk_tm'] = ('FSC_HK_TM' + t_str + '.csv')
+			self.files['pcu_data'] = ('PCU' + t_str + '.csv')
+			self.labels['fib_hk_tm'] = ['Time','Status_HB','Status_LB','LUP_cnt','P1V5','P3V3','P5V','N5V','P8V','P12V','P1I5','P3I3','P5I','N5I','P8I','P12I','TE','TS1','TS2','Checksum','CMD_exec_cnt','ICU_err_cnt','Last_cmd','Last_err','HK_req_cnt','sync_count']
+			self.labels['fob_hk_tm']= ['Time', 'Delay/Advance Val', 'ICU packet checksum', 'ICU command count', 'sync_pulse_count']
+			self.labels['fsc_hk_tm'] = ['Time', 'Peregrine_Lock','Sensor_Temp_A','Sensor_Temp_B','Sensor_Temp_Duty_Cycle','Laser_Temp_A','Laser_Temp_B','Laser_Temp_Duty_Cycle','Laser_Current','Laser_Current_Zero_Cross','Microwave_Ref','Microwave_Ref_Zero_Cross','Zeeman_Freq_Zero_Cross','PCB_Temp_A','PCB_Temp_B','Laser_Diode_Voltage','Diode_Optical_Power','P2V4','P3V3','P8V','N8V','P12V','PCB_Temp_C','PCB_Temp_D','PCB_Temp_E','ICU_Checksum','ICU_Command_Count','ICU_Sync_Count'] 
+			self.labels['pcu_data'] = ['Time','I_FIB','I_FOB','I_FSC','I_P3V3','I_FIBH','I_FOBH','I_FSCH','I_P1V8','Temp','V_P2V4','V_P3V3','V_P12V','V_P8V','V_N8V','V_P5V','V_N5V']
+			self.labels['fib_sci_tm'] = ['Time', 'Bx', 'By', 'Bz' 'status']
+			self.labels['fob_sci_tm']  = ['Time', 'Bx', 'By', 'Bz' 'status']
+			self.labels['fsc_sci_tm'] = ['Time',	'Sensor_Laser',	'Laser_Micro',	'Zeeman',	'Sci_Data_ID',	'Sci_Data',	'Timestamp']
 
-				with open(self.pcu_handler_name + ".csv", 'a') as pcu_handler:
-					for i in range(0, 32): 
-						pcu_handler.write("0" + ",")
-					pcu_handler.write("\n")
-		def update_hk_files(self):
-			files = ["PCU_HK_TM_", "FIB_HK_TM_", "FOB_HK_TM_", "FSC_HK_TM_"]
-			for i in range(0, len(files)): 
-			files[i] += self.time.strftime("%Y%m%d_%H%M%S")
-			with open(files[0] + ".csv", 'a') as pcu_handler, open (files[1] + ".csv", 'a') as fib_hk_tm, open (files[2] + ".csv", 'a') as fob_hk_tm, open(files[3] + ".csv", 'a') as fsc_hk_tm: 
-				pcu_handler.write("time" + "," + "id" + "\n")
-				fib_hk_tm.write("time" + "," + "id" + "\n")
-				fob_hk_tm.write("time" + "," + "id" + "\n") 
-				fsc_hk_tm.write("time" + "," + "id" + "\n")	
-				self.pcu_handler_name, self.fib_hk_tm, self.fob_hk_tm, self.fsc_hk_tm = files[0], files[1], files[2], files[3]	
+	def run(self): 
+		self.current_time = self.update_global_time()
+		t_str = self.current_time.strftime("%Y%m%d_%H%M%S")
+		self.update_hk_files(t_str)
+		#a flag that has been to ensure that the thread is executing while the user wants it to
+		for key in self.files:
+			with open(self.files[key], 'a') as infile:  
+				infile.write("{}\n".format(','.join(self.labels[key])))
 				
-
 		
-class fee_science_reciever(Thread, fee_packet): 
-	#initialization of the baud rate 
-	#initialization of the argument parser for the user to enter the desired communication port 
-	#initialization of the science data and the x, y and z components from all 3 interfaces 
-	#setting up the communication via the usb interface with a timeout of 0.5 seconds 
-	#the print function messes with the data that is being printed on the console 
-	#s = serial.Serial('COM4', 115200, timeout = 1)
-	def __init__(self, serial_port): 
-		super(fee_science_reciever, self).__init__()
-		self.coordinate = ['', '', ''] 
-		self.fib_counter = 0 
-		self.old_minutes = 0
-		self.fob_counter = 0 
-		self.total_bytes = 0
-		self.fsc_counter = 0
-		self.start_science =  False
-		self.zeeman_controller = []
-		self.mc_controller	   = []
-		with open("avg_zeeman.csv", 'w') as self.avg_zeeman_h: 
-			self.avg_zeeman_h.write("population mean" + "," + "population standard deveation" + "\n")
-		with open("avg_mc.csv", 'w')     as self.avg_mc_controller: 
-			self.avg_mc_controller.write("population_mean" + "," + "population standard deveation" + "\n")
-		
-	def get_bit_rate(self): 
-		logging.info(str(self.fob_counter * self.total_bytes/60))
-		logging.info(str(self.fib_counter * self.total_bytes/60)) 
-		logging.info(str(self.fob_counter * self.total_bytes/60)) 
-	def update_average_zeeman(self):
-			if(len(self.zeeman_controller) != 0):
-				with open("avg_zeeman.csv", 'a') as self.avg_zeeman_h: 
-					self.avg_zeeman_h.write(str(statistics.mean(self.zeeman_controller)) + "," + str(statistics.stdev(self.zeeman_controller)) + "\n")
-					self.zeeman_controller = []
-	def update_average_mc_controller(self): 
-			if(len(self.mc_controller) != 0): 
-				with open("avg_mc.csv", 'a') as self.avg_mc_controller: 
-					self.avg_mc_controller.write(str(statistics.mean(self.mc_controller)) + "," + str(statistics.stdev(self.mc_controller)) + "\n")
-					self.mc_controller = []
+		while self.start_running:
+			while self.serial.inWaiting():
+				decision_hk_sci = bytes((self.serial).read(size = 1))
+				counter = int.from_bytes((self.serial).read(size = 4), byteorder = 'big')
+				self.time = (self.current_time + datetime.timedelta(seconds = counter/128)).strftime("%Y%m%dT%H%M%S.%f")
+				if(decision_hk_sci == b'\x01'): 
+					for key in self.sci_values: 
+						self.sci_values[key] = ''
+						self.sci_values[key] = self.time + ','
+					s = fee_science(self.time, self.serial, self.sci_values)
+					for key in self.sci_values: 
+						with open(self.files['fib_sci_tm'], 'a') as infile, open(self.files['fob_sci_tm'], 'a') as infile2, open(self.files['fsc_sci_tm'], 'a') as infile3: 
+							if key == 'fib_sci_tm': 
+								infile.write("{}\n".format((self.sci_values[key])))
+							if key == 'fob_sci_tm':  
+								infile2.write("{}\n".format((self.sci_values[key])))
+							if key == 'fsc_sci_tm':  
+								infile3.write("{}\n".format((self.sci_values[key])))
 
-	def update_fsc(self): 
-		self.update_average_zeeman()
-		self.update_average_mc_controller()
-		
-	def get_nfib(self): 
-		return self.n_fib 
-	def get_nfob(self): 
-		return self.n_fob 
-	def get_nfsc(self): 
-		return self.n_fsc 
-	
-	
-	def update(self):	
-		fee_packet.update()
-		if fee_packet.status == '1': 
-			fee_data = bytearray((self.port).read(size = 3))
-			self.n_fib, self.n_fob, self.n_fsc 	= fee_data[0], fee_data[1], fee_data[2] 
-			self.total_bytes 					= 10*int(self.n_fib) + 10*int(self.n_fob) + 10*int(self.n_fsc)
-			if(fee_packet.time.minute != fee_packet.old_minutes): 
-				self.get_bit_rate()
-			else: 
-				self.fib_counter 				= self.fib_counter + int(self.n_fib)
-				self.fob_counter 				= self.fob_counter + int(self.n_fob)
-				self.fsc_counter 				= self.fsc_counter + int(self.n_fsc)
+				elif(decision_hk_sci == b'\x00'):
+					for key in self.hk_values: 
+						self.hk_values[key] = ''
+						self.hk_values[key] = self.time + ','
+					h = hk_data(self.serial, self.hk_values)
+					for key in self.hk_values: 
+						with open (self.files['fib_hk_tm'], 'a') as infile, open(self.files['fob_hk_tm'], 'a') as infile2, open(self.files['fsc_hk_tm'], 'a') as infile3, open(self.files['pcu_data'], 'a') as infile4: 
+							if key == 'fib_hk_tm': 
+								infile.write("{}\n".format((self.hk_values[key])))
+							if key == 'fob_hk_tm':  
+								infile2.write("{}\n".format((self.hk_values[key])))
+							if key == 'fsc_hk_tm':  
+								infile3.write("{}\n".format((self.hk_values[key])))
+							if key == 'pcu_data':  
+								infile4.write("{}\n".format((self.hk_values[key])))
+							
+class fee_science():
+		def __init__(self, time,  port, values): 
+			header_data = port.read(size = 3)
+			if(header_data[0] > 0): 
+				fb = fib_sci(port.read(size = 10), time + ',' + values)
+			if(header_data[1] > 0): 
+				fo = fob_sci(port.read(size = 10), time + ',' + values)
+			if(header_data[2] > 0): 
+				fs = fsc_sci(port.read(size = 11), time + ',' + values) 
 
-			#self.fsc_counter = self.fsc_counter + self.n_fsc
-			#logging.debug('RECIEVED SCIENCE PACKET (FIB:%3d, FOB:%3d, FSC%3d)', self.n_fib, self.n_fob, self.n_fsc)
-			
-				self.write_fib()
-				self.write_fob() 
-				self.write_fsc() 
-				self.coordinate 				= ['', '', '']
-	
-				
-	def write_fsc(self):
-		for i in range(0, self.n_fsc):
-			fsc_sci_data  = self.port.read(size = 10);
-			sensor_temp_controller 			= fsc_sci_data[0][4:8]
-			laser_temp_controller  			= fsc_sci_data[0][0:4]
-			laser_current_controller 		= fsc_sci_data[1][4:8] 
-			microwave_reference_controller 	= fsc_sci_data[1][0:4]
-			zeeman_controller 				= fsc_sci_data[2]
-			science_data_id 				= fsc_sci_data[3]
-			science_data_val				= ("{}".format(int.from_bytes(fsc_sci_data[4:8], byteorder = 'big')))				
-			time_stamp						= ("{}".format(int.from_bytes(fsc_sci_data[8:11], byteorder = 'big')))
-			self.zeeman_controller.append(zeeman_controller)
-			self.mc_controller.append(microwave_reference_controller)
-			with open(self.fsc_sci_name + ".csv", 'a') as fsc_handler:
-				fsc_handler.write(self.time.strftime("%Y%m%dT%H:%M:%S.%f") + "," + str(self.id) + ",")
-				fsc_handler.write(str(sensor_temp_controller) + "," + str(laser_temp_controller) + "," + str(laser_current_controller) + "," + str(microwave_reference_controller) + "," +  str(zeeman_controller) + "," + str(science_data_id) + "," + str(science_data_val) + "," + str(time_stamp) + "\n")
-			
-	def write_fob(self):
-		for i in range(0,self.n_fob) :
-			fob_sci_data = self.port.read(size = 10)
+class fib_sci(): 
+		def __init__(self, data, values):  
+			self.update(data, values) 
+		def update(self, data, values): 
 			for i in range(0, 3):
-				self.coordinate[i] = ((int.from_bytes(fob_sci_data[1][3*i + 2 : 3*i - 1], byteorder = 'big' )), signed = True)
-			sensor_range = fob_sci_data[9]
-			with open(self.fob_sci_name + ".csv", 'a') as fob_handler:
-				fob_handler.write(self.time.strftime("%Y%m%dT%H:%M:%S.%f") + "," + str(self.id) + ",")
-				fob_handler.write(str(self.coordinate[0]) + "," + str(self.coordinate[1]) + "," + str(self.coordinate[2]) + "," + str(sensor_range) + "," + "\n")
-	
-	def write_fib(self):
-		for i in range(0, self.n_fib): 
-			fib_sci_data = self.port.read(size = 10)
-			for i in range(0, 3): 
-				self.coordinate[i] = ((int.from_bytes(fib_sci_data[3*i : 3*i + 3], byteorder = 'big')), signed = True)
-			with open(self.fib_sci_name + ".csv", 'a') as fib_handler: 
-				fib_handler.write(self.time.strftime("%Y%m%dT%H:%M:%S.%f") + "," + str(self.id) + ",")
-				fib_handler.write(str(self.coordinate[0]) + "," + str(self.coordinate[1]) + "," + str(self.coordinate[2]) + "\n")
+				values["fib_sci_tm"] += "{},".format(int.from_bytes(data[3*i : 3*i + 3], byteorder = 'big', signed = True))
+				
 			
-	def update_files(self, absolute_path):
-		fee_packet.update_files("FIB_SCI_TM_", "FOB_SCI_TM_", "FSC_SCI_TM_")
-		self.start_science = True 			
-		with open(self.fib.sci_name + ".csv", 'a') as fib_handler, open (self.fob_sci_name + ".csv", 'a') as fob_handler,  open (self.fsc_sci_name + ".csv", 'a') as fsc_handler:
-			fib_handler.write("time" + "," + "status" + "," + "x" + "," + "y" + "," + "z" + "\n")
-			fob_handler.write("time" + "," + "status" + "," + "x" + "," + "y" + "," + "z" + "\n")
-			fsc_handler.write("time" + "," + "status" + "," + "sensor temperature controller" + "," + "laser temperature controller" + "," + "laser current controller" + "," + "microwave reference controller" + "," + "zeeman_controller" + "," +  "science_data_id" + "," +  "science_data" + "," + "time_stamp" + "\n" ) 
-
+class fob_sci(): 
+		def __init__(self, data, values): 
+			self.update(data, values)
+		def update(self, data, values): 
+			for i in range(0, 3):
+				values["fob_sci_tm"] += "{},".format(int.from_bytes(data[3*i : 3*i + 3], byteorder = 'little', signed = True))
 	
-	def run(self):
-	# arduino startup time
-	#timestamp for each of the filenames
-		#time.sleep(1)
-	
-		while(self.start_science == False): 
-			pass
-		while self.start_science == True:
-			#before reading any data flush any input that exists in the buffer
 
-			if self.port.in_waiting > 0:
-				self.update()
+class fsc_sci():
+		def __init__(self, data, values): 
+			self.update(data, values)
+		def update(self, data, values):
+			for i in range (0, 4): 
+				values["fsc_sci_tm"]  +=  "{},".format(int(data[i]))
+			values["fsc_sci_tm"]  += ("{},".format(int.from_bytes(data[4:8], byteorder = 'big', signed = False)))
+			values["fsc_sci_tm"]  += ("{},".format(int.from_bytes(data[8:11], byteorder = 'big', signed = False)))
+						
+						
+class files(): 
+		def __init__(name): 
+			return open(name)
+						
 
+class pcu_data(): 
+		def __init__(self, data,  values):
+			self.update(data, values)
+		def update(self, data,  values):
+			for i in range(0, 32): 
+				if (i % 2 == 0): 
+					values["pcu_data"] += "{},".format(int.from_bytes(data[i:i+2], byteorder = 'big', signed = False))
+class fib_hk_data():
+		def __init__(self, data, values): 
+			self.update(data,  values)
+		def update(self, data, values):
+			for i in range(0, 3):
+				values["fib_hk_tm"] += "{},".format(int(data[i]))
+			for i in range(1, 32):
+				if(i % 2 == 0):
+					values["fib_hk_tm"] += ("{},".format(int.from_bytes(data[(i + 2): (i + 4)], byteorder = 'big', signed = False)))
+			for i in range(33, len(data)): 
+				values["fib_hk_tm"] += "{},".format(int(data[i]))
+class fob_hk_data():
+		def __init__(self, data,  values): 
+			self.update(data, values)
+		def update(self, data, values): 
+			for i in range(0, len(data)): 
+				values["fob_hk_tm"] += "{},".format(int(data[i]))
+
+class fsc_hk_data():
+		def __init__(self, data, values): 
+			self.update(data, values)
+		def update(self, data, values): 
+			values["fsc_hk_tm"] += "{},".format(int(data[0]))
+			for i in range (0, 4): 
+				if(i % 2 == 0): 
+					values["fsc_hk_tm"] += ("{},".format(int.from_bytes(data[(i + 1): (i + 3)], byteorder = 'big', signed = False)))
+			
+			values["fsc_hk_tm"] += ("{},".format(int.from_bytes(data[5 : 7], byteorder = 'big', signed = False)))
+			
+			for i in range(0, 4): 
+				if(i % 2  == 0): 
+					values["fsc_hk_tm"] += ("{},".format(int.from_bytes(data[(i + 7): (i + 9)], byteorder = 'big', signed = False)))
+			
+			values["fsc_hk_tm"] += ("{},".format(int.from_bytes(data[11: 13], byteorder = 'big', signed = False)))
+			
+			for i in range(0, 6): 
+				if(i % 3 == 0): 
+					values["fsc_hk_tm"] += ("{},".format(int.from_bytes(data[(i + 13): (i + 16)], byteorder = 'big', signed = False)))
+			
+			for i in range(0, 4): 
+				if(i % 2 == 0): 
+					values["fsc_hk_tm"] += ("{},".format(int.from_bytes(data[(i + 19):(i + 21)], byteorder = 'big', signed = False)))
+		
+			values["fsc_hk_tm"] += ("{},".format(int.from_bytes(data[23:26], byteorder = 'big', signed = False)))
+			
+			for i in range (0, 4): 
+				if(i % 2 == 0): 
+					values["fsc_hk_tm"] += ("{},".format(int.from_bytes(data[(i + 26) : (i + 28)], byteorder = 'big', signed = False)))
+				
+			values["fsc_hk_tm"] += ("{},".format(int.from_bytes(data[30 : 32], byteorder = 'big', signed = False)))
+			values["fsc_hk_tm"] += ("{},".format(int.from_bytes(data[32: 34], byteorder = 'big', signed = False)))
+			
+			for i in range(0, 16): 
+				if (i % 2 == 0): 
+					values["fsc_hk_tm"] += ("{},".format(int.from_bytes(data[(i + 34) : (i + 36)], byteorder = 'big', signed = False)))
+					
+			for i in range(48, 51): 
+				values["fsc_hk_tm"] += "{},".format(int(data[i]))
 		
 if __name__ == '__main__':
-		baud_rate = 115200
 		parser = argparse.ArgumentParser();
 		parser.add_argument(dest = 'port', help = "display the interface port to the computer ", type = str)
 		parser.add_argument('--abs_path', dest = 'abs_path', help = "check for absolute directory", type = str)
-		args = parser.parse_args()
-		s = serial.Serial(args.port, baud_rate, timeout = 0.5)
-		init_debug_logger(); 
-		science_handler = fee_science_reciever(s)
-		science_handler.start()
-		science_handler.current_time = datetime.datetime.now()
-		science_handler.time = science_handler.current_time
-		while not science_handler.is_alive(): 
+		args 	 = parser.parse_args()
+		logging.basicConfig(filename='debugger.log', format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+		logger = logging.getLogger()
+		switch_off = False
+		logger.setLevel(logging.INFO) 
+		
+		pkt_reciever = packet_reciever(parser.parse_args().port, parser.parse_args().abs_path)
+		pkt_reciever.start() 
+		while not pkt_reciever.is_alive(): 
 			pass 
-		
-		
-		
-
-		science_handler.update_current_time(); 
-		science_handler.update_hk_files(); 
 		time.sleep(2)
-		
 		## needed as arduino needs to come up, do not remove. 
 		cmd_menu 	= (	"1) Set Time Command \n"
 						"2) Set Config Command \n"
@@ -297,6 +286,7 @@ if __name__ == '__main__':
 						"5) Power on fee \n"
 						"6) Power off fee \n"
 						"7) End the script \n")
+						
 		fee_number 	= (	"0> FIB \n"
 						"1> FOB \n"
 						"2> FSC \n")
@@ -318,27 +308,21 @@ if __name__ == '__main__':
 			elif(nb == '4'):
 				command = ((int(nb, 16).to_bytes(1, byteorder = 'big'))); 
 			elif(nb == '3'):
-				science_handler.port.reset_input_buffer()
-				science_handler.update_files(parser.parse_args().abs_path)
-				science_handler.start_science = True; 
+				pkt_reciever.begin_receiving = True
+				pkt_reciever.update_sci_files(pkt_reciever.current_time.strftime("%Y%m%d_%H%M%S"))
+				for key in pkt_reciever.files:
+					with (open pkt_reciever.files[key], 'a') as infile:  
+						infile.write("{}\n".format(','.join(pkt_reciever.labels[key])))
 				command = ((int(nb, 16)).to_bytes(1, byteorder = 'big'))
 			elif(nb == '5' or nb == '6'): 
 				command = ((int(nb, 16)).to_bytes(1, byteorder = 'big')) + build_fee_packet(fee_number) 
 			elif(nb == '7'): 
-				science_handler.start_science = False
+				pkt_reciever.start_running = False
 				switch_off = True
-			if(nb != '7' and science_handler.is_alive() == True):
-					science_handler.port.write(bytes(command));
+			if(nb != '7' and pkt_reciever.is_alive() == True):
+					pkt_reciever.serial.write(bytes(command));
 			print(command)	
-		science_handler.join()
+		pkt_reciever.join()
 		print("program end")
-	
 
-#heat map
-#rate of change of x, y and z with respect to time 
-#moving averages 
-#auto correlation 
-#confidence interval 
-#power spectral desnity 
-#frequency spectrum 
 
