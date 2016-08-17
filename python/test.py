@@ -32,12 +32,13 @@ class hk_data:
 		house_keeping_data = []   
 		def __init__(self, port): 
 			self.port = port
+			self.house_keeping_data = [] 
 		def update(self, values): 
+			self.house_keeping_data = []
 			self.house_keeping_data.append(pcu_data(self.port.read(size = 32))) 
 			self.house_keeping_data.append(fib_hk_data(self.port.read(size = 40)))
 			self.house_keeping_data.append(fob_hk_data(self.port.read(size = 4)))
 			self.house_keeping_data.append(fsc_hk_data(self.port.read(size = 51)))
-			#print(self.house_keeping_data[0])
 			for i in range(0, 4):
 				self.house_keeping_data[i].update(values = values)
 		 
@@ -81,7 +82,7 @@ class packet_reciever(Thread):
 		while self.start_running:
 			while self.serial.inWaiting():
 				decision_hk_sci = bytes(self.serial.read(size = 1))
-				if(decision_hk_sci == b'\x01'): 
+				if(decision_hk_sci == b'\x01'):  
 					for key in self.sci_values: 
 						self.sci_values[key] = ''
 					with open(self.files['fib_sci_tm'], 'a') as infile, open(self.files['fob_sci_tm'], 'a') as infile2, open(self.files['fsc_sci_tm'], 'a') as infile3: 
