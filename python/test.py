@@ -87,7 +87,7 @@ class packet_reciever(Thread):
 					with open(self.files['fib_sci_tm'], 'a') as infile, open(self.files['fob_sci_tm'], 'a') as infile2, open(self.files['fsc_sci_tm'], 'a') as infile3: 
 						a = (self.serial.read(size = 4))
 						counter = int.from_bytes(a, byteorder = 'big', signed = True)
-						self.time = (self.current_time + datetime.timedelta(seconds = counter/128)).strftime("%Y-%m-%dT%H%:M%:S.%f")
+						self.time = (self.current_time + datetime.timedelta(seconds = counter/128)).strftime("%Y-%m-%dT%H:%M:%S.%f")
 						s = fee_science(self.serial)
 						s.update(self.sci_values)
 						for key in self.sci_values:  
@@ -103,7 +103,7 @@ class packet_reciever(Thread):
 						self.hk_values[key] = ''
 					with open (self.files['fib_hk_tm'], 'a') as infile, open(self.files['fob_hk_tm'], 'a') as infile2, open(self.files['fsc_hk_tm'], 'a') as infile3, open(self.files['pcu_data'], 'a') as infile4:
 						counter = int.from_bytes(self.serial.read(size = 4), byteorder = 'big')
-						self.time = (self.current_time + datetime.timedelta(seconds = counter/128)).strftime("%Y-%m-%dT%H%:M%:S.%f")
+						self.time = (self.current_time + datetime.timedelta(seconds = counter/128)).strftime("%Y-%m-%dT%H:%M:%S.%f")
 						h = hk_data(self.serial)
 						h.update(self.hk_values)
 						for key in self.hk_values: 
