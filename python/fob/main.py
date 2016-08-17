@@ -14,9 +14,9 @@ mag_dc = jbif.Magnitude_Cooker()
 fft_dc = jbif.FFT_Cooker()
 ff     = jbif.Figure_Factory(x_axis_type='linear')
 
-ts = jbif.Grapher(jbif.get_latest_csv("data/FIB*.csv"), key_groups=[['Bx'], ['By'], ['Bz'], ['Status']])
-sp = jbif.Grapher(jbif.get_latest_csv("data/FIB*.csv"), cooker=fft_dc, indep_var='Freq', key_groups=[['Bx'], ['By'], ['Bz']], figure_factory=ff)
-mg = jbif.Grapher(jbif.get_latest_csv("data/FIB*.csv"), cooker=mag_dc, key_groups=[['mag']])
+ts = jbif.Grapher(jbif.get_latest_csv("../data/FIB*.csv"), key_groups=[['Bx'], ['By'], ['Bz'], ['Status']])
+sp = jbif.Grapher(jbif.get_latest_csv("../data/FIB*.csv"), cooker=fft_dc, indep_var='Freq', key_groups=[['Bx'], ['By'], ['Bz']], figure_factory=ff)
+mg = jbif.Grapher(jbif.get_latest_csv("../data/FIB*.csv"), cooker=mag_dc, key_groups=[['mag']])
 
 timeseries = ts.make_new_graphs()
 spectra    = sp.make_new_graphs()
