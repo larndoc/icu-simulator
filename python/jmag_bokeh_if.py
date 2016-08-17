@@ -146,7 +146,8 @@ class CSV_Reader:
                           which optionally post-processes
                           DataFrames after parsing.
         """
-        self.fname = fname
+        print "New CSV_Reader following {}".format(fname)
+	self.fname = fname
         self.num_dp = num_dp
         self.data_cooker = data_cooker
         self.cook_data = False
@@ -172,7 +173,9 @@ class CSV_Reader:
         a tail of the file, returns '' instead;
         returning another value would cause an error.
         """
-        f = open(self.fname, 'r')
+	print "Getting header of {}".format(self.fname)
+	f = open(self.fname, 'r')
+	print "File opened successfully: {}".format(f)
         lines = f.readlines()
         ret = ''
         if len(lines) > self.num_dp:
@@ -184,9 +187,12 @@ class CSV_Reader:
         """
         Tail the file; takes num_dp lines from the bottom
         """
-        return reduce(lambda x, y: x + '\n' + y,
-                      tailer.tail(open(self.fname), self.num_dp)
-        )
+	print "Tailing {}...".format(self.fname)
+	f = open(self.fname, 'r')
+        ret = reduce(lambda x, y: x + '\n' + y,
+                      tailer.tail(f, self.num_dp))
+	f.close()
+	return ret
 
     def get_dataframe(self):
         """

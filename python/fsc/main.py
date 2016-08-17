@@ -7,8 +7,8 @@ import jmag_bokeh_if as jbif
 fft_dc = jbif.FFT_Cooker()
 ff     = jbif.Figure_Factory(x_axis_type='linear')
 
-ts = jbif.Grapher(jbif.get_latest_csv("data/FSC_Sci_*.csv"), key_groups=[['Sensor_Laser'], ['Laser_Micro'], ['Zeeman'], ['Sci_Data']])
-sp = jbif.Grapher(jbif.get_latest_csv("data/FSC_Sci_*.csv"), cooker=fft_dc, indep_var='Freq', key_groups=[['Sci_Data']], figure_factory=ff)
+ts = jbif.Grapher(jbif.get_latest_csv("../data/FSC_SCI_*.csv"), key_groups=[['Sensor_Laser'], ['Laser_Micro'], ['Zeeman'], ['Sci_Data']])
+sp = jbif.Grapher(jbif.get_latest_csv("../data/FSC_SCI_*.csv"), cooker=fft_dc, indep_var='Freq', key_groups=[['Sci_Data']], figure_factory=ff)
 
 timeseries = ts.make_new_graphs()
 spectra    = sp.make_new_graphs()
