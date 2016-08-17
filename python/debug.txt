@@ -1,3 +1,34 @@
+jmag@ph-jmag-egse ~/icu-simulator/python $ bokeh serve fsc
+2016-08-17 17:03:10,389 Starting Bokeh server version 0.12.0
+2016-08-17 17:03:10,392 Starting Bokeh server on port 5006 with applications at paths ['/fsc']
+2016-08-17 17:03:10,392 Starting Bokeh server with process id: 11650
+New CSV_Reader following ../data/FSC_SCI_TM_20160817_162704.csv
+New CSV_Reader following ../data/FSC_SCI_TM_20160817_162704.csv
+Getting header of ../data/FSC_SCI_TM_20160817_162704.csv
+File opened successfully: <open file '../data/FSC_SCI_TM_20160817_162704.csv', mode 'r' at 0x7fa73b571780>
+Tailing ../data/FSC_SCI_TM_20160817_162704.csv...
+/opt/anaconda2/lib/python2.7/site-packages/bokeh/plotting/helpers.py:322: UserWarning: BoxZoomTool,PanTool are being repeated
+  warnings.warn("%s are being repeated" % ",".join(repeated_tools))
+Getting header of ../data/FSC_SCI_TM_20160817_162704.csv
+File opened successfully: <open file '../data/FSC_SCI_TM_20160817_162704.csv', mode 'r' at 0x7fa73b571780>
+Tailing ../data/FSC_SCI_TM_20160817_162704.csv...
+2016-08-17 17:03:10,768 200 GET /fsc (127.0.0.1) 208.10ms
+2016-08-17 17:03:10,781 304 GET /static/css/bokeh.min.css?v=12cad2d8ad9f63966dc6553746de780f (127.0.0.1) 4.44ms
+2016-08-17 17:03:10,783 304 GET /static/css/bokeh-widgets.min.css?v=522d6173498a389c7f74f0e675195da0 (127.0.0.1) 1.16ms
+2016-08-17 17:03:10,784 304 GET /static/js/bokeh.min.js?v=8654bbf09300c1ff666bcae026fa9500 (127.0.0.1) 0.72ms
+2016-08-17 17:03:10,786 304 GET /static/js/bokeh-widgets.min.js?v=4b0df507cbc8b1cb4f8ec960d6c9718f (127.0.0.1) 0.65ms
+2016-08-17 17:03:10,787 304 GET /static/js/bokeh-compiler.min.js?v=47e1cfffd831e5c4e1e3ea0702edd89c (127.0.0.1) 0.81ms
+2016-08-17 17:03:11,022 WebSocket connection opened
+2016-08-17 17:03:11,022 ServerConnection created
+Getting header of ../data/FSC_SCI_TM_20160817_162704.csv
+Getting header of ../data/FSC_SCI_TM_20160817_162704.csv
+2016-08-17 17:03:20,770 Error thrown from periodic callback: IOError(2, 'No such file or directory')
+Getting header of ../data/FSC_SCI_TM_20160817_162704.csv
+2016-08-17 17:03:25,771 Error thrown from periodic callback: IOError(2, 'No such file or directory')
+^C
+Interrupted, shutting down
+
+
 open("../data/FSC_SCI_TM_20160817_162704.csv", O_RDONLY) = 14
 write(1, "Tailing ../data/FSC_SCI_TM_20160"..., 50) = 50
 open("../data/FSC_SCI_TM_20160817_162704.csv", O_RDONLY) = 14
