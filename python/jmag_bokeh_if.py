@@ -192,12 +192,8 @@ class CSV_Reader:
         """
         Returns the tail of the file as a parsed Pandas dataframe object
         """
-        df = pandas.read_csv(
-                StringIO(
-                    self.get_header()
-                    + self.tail()
-                )
-        )
+        csv = self.get_header() + self.tail()
+        df = pandas.read_csv(StringIO(unicode(csv)))
         try:
             df['Time'] = map(lambda s: datetime.strptime(s, "%Y-%m-%dT%H:%M:%S.%f"), df['Time'])
         except KeyError:
