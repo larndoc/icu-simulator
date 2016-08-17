@@ -1,0 +1,57 @@
+open("../data/FSC_SCI_TM_20160817_162704.csv", O_RDONLY) = 14
+write(1, "Tailing ../data/FSC_SCI_TM_20160"..., 50) = 50
+open("../data/FSC_SCI_TM_20160817_162704.csv", O_RDONLY) = 14
+write(1, "Getting header of ../data/FSC_SC"..., 57) = 57
+open("../data/FSC_SCI_TM_20160817_162704.csv", O_RDONLY) = 14
+write(1, "Tailing ../data/FSC_SCI_TM_20160"..., 50) = 50
+open("../data/FSC_SCI_TM_20160817_162704.csv", O_RDONLY) = 14
+write(1, "Getting header of ../data/FSC_SC"..., 57) = 57
+open("../data/FSC_SCI_TM_20160817_162704.csv", O_RDONLY) = -1 ENOENT (No such file or directory)
+write(1, "Getting header of ../data/FSC_SC"..., 57) = 57
+open("../data/FSC_SCI_TM_20160817_162704.csv", O_RDONLY) = -1 ENOENT (No such file or directory)
+write(1, "Getting header of ../data/FSC_SC"..., 57) = 57
+open("../data/FSC_SCI_TM_20160817_162704.csv", O_RDONLY) = -1 ENOENT (No such file or directory)
+stat("/opt/anaconda2/lib/python2.7/site-packages/tornado/gen.py", {st_mode=S_IFREG|0664, st_size=44093, ...}) = 0
+stat("/opt/anaconda2/lib/python2.7/site-packages/bokeh/server/session.py", {st_mode=S_IFREG|0664, st_size=8544, ...}) = 0
+stat("/opt/anaconda2/lib/python2.7/site-packages/bokeh/server/session.py", {st_mode=S_IFREG|0664, st_size=8544, ...}) = 0
+stat("/opt/anaconda2/lib/python2.7/site-packages/bokeh/document.py", {st_mode=S_IFREG|0664, st_size=38920, ...}) = 0
+stat("/opt/anaconda2/lib/python2.7/site-packages/bokeh/document.py", {st_mode=S_IFREG|0664, st_size=38920, ...}) = 0
+stat("/opt/anaconda2/lib/python2.7/site-packages/bokeh/document.py", {st_mode=S_IFREG|0664, st_size=38920, ...}) = 0
+stat("../jmag_bokeh_if.py", 0x7fff0e129db0) = -1 ENOENT (No such file or directory)
+stat("/opt/anaconda2/bin/../jmag_bokeh_if.py", 0x7fff0e129db0) = -1 ENOENT (No such file or directory)
+stat("/opt/anaconda2/lib/python27.zip/../jmag_bokeh_if.py", 0x7fff0e129db0) = -1 ENOENT (No such file or directory)
+stat("/opt/anaconda2/lib/python2.7/../jmag_bokeh_if.py", 0x7fff0e129db0) = -1 ENOENT (No such file or directory)
+stat("/opt/anaconda2/lib/python2.7/plat-linux2/../jmag_bokeh_if.py", 0x7fff0e129db0) = -1 ENOENT (No such file or directory)
+stat("/opt/anaconda2/lib/python2.7/lib-tk/../jmag_bokeh_if.py", 0x7fff0e129db0) = -1 ENOENT (No such file or directory)
+stat("/opt/anaconda2/lib/python2.7/lib-old/../jmag_bokeh_if.py", 0x7fff0e129db0) = -1 ENOENT (No such file or directory)
+stat("/opt/anaconda2/lib/python2.7/lib-dynload/../jmag_bokeh_if.py", 0x7fff0e129db0) = -1 ENOENT (No such file or directory)
+stat("/opt/anaconda2/lib/python2.7/site-packages/Sphinx-1.4.1-py2.7.egg/../jmag_bokeh_if.py", 0x7fff0e129db0) = -1 ENOENT (No such file or directory)
+stat("/opt/anaconda2/lib/python2.7/site-packages/setuptools-23.0.0-py2.7.egg/../jmag_bokeh_if.py", 0x7fff0e129db0) = -1 ENOTDIR (Not a directory)
+stat("/opt/anaconda2/lib/python2.7/site-packages/../jmag_bokeh_if.py", 0x7fff0e129db0) = -1 ENOENT (No such file or directory)
+stat("../jmag_bokeh_if.py", 0x7fff0e129db0) = -1 ENOENT (No such file or directory)
+stat("/opt/anaconda2/bin/../jmag_bokeh_if.py", 0x7fff0e129db0) = -1 ENOENT (No such file or directory)
+stat("/opt/anaconda2/lib/python27.zip/../jmag_bokeh_if.py", 0x7fff0e129db0) = -1 ENOENT (No such file or directory)
+stat("/opt/anaconda2/lib/python2.7/../jmag_bokeh_if.py", 0x7fff0e129db0) = -1 ENOENT (No such file or directory)
+stat("/opt/anaconda2/lib/python2.7/plat-linux2/../jmag_bokeh_if.py", 0x7fff0e129db0) = -1 ENOENT (No such file or directory)
+stat("/opt/anaconda2/lib/python2.7/lib-tk/../jmag_bokeh_if.py", 0x7fff0e129db0) = -1 ENOENT (No such file or directory)
+stat("/opt/anaconda2/lib/python2.7/lib-old/../jmag_bokeh_if.py", 0x7fff0e129db0) = -1 ENOENT (No such file or directory)
+stat("/opt/anaconda2/lib/python2.7/lib-dynload/../jmag_bokeh_if.py", 0x7fff0e129db0) = -1 ENOENT (No such file or directory)
+stat("/opt/anaconda2/lib/python2.7/site-packages/Sphinx-1.4.1-py2.7.egg/../jmag_bokeh_if.py", 0x7fff0e129db0) = -1 ENOENT (No such file or directory)
+stat("/opt/anaconda2/lib/python2.7/site-packages/setuptools-23.0.0-py2.7.egg/../jmag_bokeh_if.py", 0x7fff0e129db0) = -1 ENOTDIR (Not a directory)
+stat("/opt/anaconda2/lib/python2.7/site-packages/../jmag_bokeh_if.py", 0x7fff0e129db0) = -1 ENOENT (No such file or directory)
+stat("../jmag_bokeh_if.py", 0x7fff0e129db0) = -1 ENOENT (No such file or directory)
+stat("/opt/anaconda2/bin/../jmag_bokeh_if.py", 0x7fff0e129db0) = -1 ENOENT (No such file or directory)
+stat("/opt/anaconda2/lib/python27.zip/../jmag_bokeh_if.py", 0x7fff0e129db0) = -1 ENOENT (No such file or directory)
+stat("/opt/anaconda2/lib/python2.7/../jmag_bokeh_if.py", 0x7fff0e129db0) = -1 ENOENT (No such file or directory)
+stat("/opt/anaconda2/lib/python2.7/plat-linux2/../jmag_bokeh_if.py", 0x7fff0e129db0) = -1 ENOENT (No such file or directory)
+stat("/opt/anaconda2/lib/python2.7/lib-tk/../jmag_bokeh_if.py", 0x7fff0e129db0) = -1 ENOENT (No such file or directory)
+stat("/opt/anaconda2/lib/python2.7/lib-old/../jmag_bokeh_if.py", 0x7fff0e129db0) = -1 ENOENT (No such file or directory)
+stat("/opt/anaconda2/lib/python2.7/lib-dynload/../jmag_bokeh_if.py", 0x7fff0e129db0) = -1 ENOENT (No such file or directory)
+stat("/opt/anaconda2/lib/python2.7/site-packages/Sphinx-1.4.1-py2.7.egg/../jmag_bokeh_if.py", 0x7fff0e129db0) = -1 ENOENT (No such file or directory)
+stat("/opt/anaconda2/lib/python2.7/site-packages/setuptools-23.0.0-py2.7.egg/../jmag_bokeh_if.py", 0x7fff0e129db0) = -1 ENOTDIR (Not a directory)
+stat("/opt/anaconda2/lib/python2.7/site-packages/../jmag_bokeh_if.py", 0x7fff0e129db0) = -1 ENOENT (No such file or directory)
+stat("/etc/localtime", {st_mode=S_IFREG|0644, st_size=3661, ...}) = 0
+write(2, "2016-08-17 16:38:21,768 Error th"..., 1012016-08-17 16:38:21,768 Error thrown from periodic callback: IOError(2, 'No such file or directory')
+) = 101
+epoll_wait(5, Process 11507 detached
+ <detached ...>
