@@ -82,14 +82,14 @@ class packet_reciever(Thread):
 			while self.serial.inWaiting():
 				decision_hk_sci = bytes(self.serial.read(size = 1))
 				if(decision_hk_sci == b'\x01'): 
-					counter = int.from_bytes(self.serial.read(size = 4), byteorder = 'big')
-					self.time = (self.current_time + datetime.timedelta(seconds = counter/128)).strftime("%Y%m%dT%H%M%S.%f")
-					print(self.time)
 					for key in self.sci_values: 
 						self.sci_values[key] = ''
-					s = fee_science(self.serial)
-					s.update(self.sci_values)
 					with open(self.files['fib_sci_tm'], 'a') as infile, open(self.files['fob_sci_tm'], 'a') as infile2, open(self.files['fsc_sci_tm'], 'a') as infile3: 
+						a = (self.serial.read(size = 4))
+						counter = int.from_bytes(a, byteorder = 'big', signed = True)
+						self.time = (self.current_time + datetime.timedelta(seconds = counter/128)).strftime("%Y%m%dT%H%M%S.%f")
+						s = fee_science(self.serial)
+						s.update(self.sci_values)
 						for key in self.sci_values:  
 							if self.sci_values[key] != '':
 								if key == 'fib_sci_tm': 
@@ -99,13 +99,13 @@ class packet_reciever(Thread):
 								elif key == 'fsc_sci_tm':  
 									infile3.write("{}\n".format("{},".format(self.time) + self.sci_values[key][:-1]))
 				if(decision_hk_sci == b'\x00'):
-					counter = int.from_bytes(self.serial.read(size = 4), byteorder = 'big')
-					self.time = (self.current_time + datetime.timedelta(seconds = counter/128)).strftime("%Y%m%dT%H%M%S.%f")
 					for key in self.hk_values: 
 						self.hk_values[key] = ''
-					h = hk_data(self.serial)
-					h.update(self.hk_values)
 					with open (self.files['fib_hk_tm'], 'a') as infile, open(self.files['fob_hk_tm'], 'a') as infile2, open(self.files['fsc_hk_tm'], 'a') as infile3, open(self.files['pcu_data'], 'a') as infile4:
+						counter = int.from_bytes(self.serial.read(size = 4), byteorder = 'big')
+						self.time = (self.current_time + datetime.timedelta(seconds = counter/128)).strftime("%Y%m%dT%H%M%S.%f")
+						h = hk_data(self.serial)
+						h.update(self.hk_values)
 						for key in self.hk_values: 
 							if key == 'fib_hk_tm': 
 								infile.write("{}\n".format("{},".format(self.time) + self.hk_values[key][:-1]))
@@ -121,12 +121,15 @@ class fee_science():
 		def __init__(self, port): 
 			self.port = port
 		def update(self, values):
-			header_data = self.port.read(size = 6)
+			header_data = self.port.read(size = 3)
 			map = dict() 
-			map = {header_data[3]: fib_sci(), header_data[4]: fob_sci, header_data[5]: fsc_sci()}
+			map = {header_data[0]: fib_sci(), header_data[1]: fob_sci(), header_data[2]: fsc_sci()}
 			for key, f in map.items(): 
 				if key > 0: 
-					map[key].update(values,self.port.read(size = 11))
+					if key == header_data[0] or key == header_data[1]: 
+						f.update(values = values,data = self.port.read(size = 10))
+					else: 
+						f.update(values, data = self.port.read(size = 11))
 
 class fib_sci():  
 		def update(self, values, data): 
