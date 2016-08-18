@@ -51,7 +51,7 @@ class packet_reciever(Thread):
 	def __init__(self, serial_port, logdir): 
 		self.hk_values = {'pcu_data' : '', 'fib_hk_tm' : '', 'fob_hk_tm' : '', 'fsc_hk_tm' : '' }
 		self.sci_values = {'fib_sci_tm': '', 'fob_sci_tm' : '' , 'fsc_sci_tm' : ''}
-		self.labels = {'fib_sci_tm' : ['Time', 'Bx', 'By', 'Bz'], 'fob_sci_tm'  : ['Time', 'Bx', 'By', 'Bz' ,'status'], 'fsc_sci_tm' : ['Time',	'Sensor_Laser',	'Laser_Micro', 'Zeeman','Sci_Data_ID','Sci_Data','Timestamp']
+		self.labels = {'fib_sci_tm' : ['Time', 'Bx', 'By', 'Bz', 'status'], 'fob_sci_tm'  : ['Time', 'Bx', 'By', 'Bz'], 'fsc_sci_tm' : ['Time',	'Sensor_Laser',	'Laser_Micro', 'Zeeman','Sci_Data_ID','Sci_Data','Timestamp']
 					   ,'fib_hk_tm' : ['Time','Status_HB','Status_LB','LUP_cnt','P1V5','P3V3','P5V','N5V','P8V','P12V','P1I5','P3I3','P5I','N5I','P8I','P12I','TE','TS1','TS2','Checksum','CMD_exec_cnt','ICU_err_cnt','Last_cmd','Last_err','HK_req_cnt','sync_count']
 					   ,'fob_hk_tm' : ['Time','Delay/Advance Val', 'ICU packet checksum', 'ICU command count', 'sync_pulse_count']
 					   ,'fsc_hk_tm' : ['Time', 'Peregrine_Lock','Sensor_Temp_A','Sensor_Temp_B','Sensor_Temp_Duty_Cycle','Laser_Temp_A','Laser_Temp_B','Laser_Temp_Duty_Cycle','Laser_Current','Laser_Current_Zero_Cross','Microwave_Ref','Microwave_Ref_Zero_Cross','Zeeman_Freq_Zero_Cross','PCB_Temp_A','PCB_Temp_B','Laser_Diode_Voltage','Diode_Optical_Power','P2V4','P3V3','P8V','N8V','P12V','PCB_Temp_C','PCB_Temp_D','PCB_Temp_E','ICU_Checksum','ICU_Command_Count','ICU_Sync_Count']
@@ -69,55 +69,73 @@ class packet_reciever(Thread):
 		return datetime.datetime.now()
 	def update_files(self, t_str): 
 		self.files = {'fib_sci_tm': '/data/FIB_SCI_TM_' + t_str + '.csv', 'fob_sci_tm' : '/data/FOB_SCI_TM_' + t_str + '.csv', 'fsc_sci_tm' : '/data/FSC_SCI_TM_' + t_str + '.csv'
-					,'fib_hk_tm': '/data/FIB_HK_TM_' + t_str + '.csv', 'fob_hk_tm' : '/data/FOB_HK_TM_' + t_str + '.csv', 'fsc_hk_tm' : '/data/FSC_HK_TM_' + t_str + '.csv', 'pcu_data' : '/data/PCU' + t_str + '.csv'}
+					,'fib_hk_tm': '/data/FIB_HK_TM_' + t_str + '.csv', 'fob_hk_tm' : '/data/FOB_HK_TM_' + t_str + '.csv', 'fsc_hk_tm' : '/data/FSC_HK_TM_' + t_str + '.csv', 'pcu_data' : 'data/PCU' + t_str + '.csv'}
 
 	def run(self): 
 		self.current_time = self.update_global_time()
 		self.update_files(self.current_time.strftime("%Y%m%d_%H%M%S"))
-		s = fee_science(self.serial)
-		h = hk_data(self.serial)
 		for key in self.files:
 			with open (self.files[key], 'a') as infile:  
 				infile.write("{}\n".format(','.join(self.labels[key])))
 		while self.start_running:
 			while self.serial.inWaiting():
 				decision_hk_sci = bytes(self.serial.read(size = 1))
-				counter = int.from_bytes(self.serial.read(size = 4), byteorder = 'big')
-				self.time = (self.current_time + datetime.timedelta(seconds = counter/128)).strftime("%Y-%m-%dT%H:%M:%S.%f")
 				if(decision_hk_sci == b'\x01'): 
 					for key in self.sci_values: 
 						self.sci_values[key] = ''
-					s.update(self.sci_values)
-					for key in self.sci_values: 
-						with open(self.files[key], 'a') as infile: 
+					with open(self.files['fib_sci_tm'], 'a') as infile, open(self.files['fob_sci_tm'], 'a') as infile2, open(self.files['fsc_sci_tm'], 'a') as infile3: 
+						a = (self.serial.read(size = 4))
+						counter = int.from_bytes(a, byteorder = 'big', signed = True)
+						self.time = (self.current_time + datetime.timedelta(seconds = counter/128)).strftime("%Y-%m-%dT%H:%M:%S.%f")
+						s = fee_science(self.serial)
+						s.update(self.sci_values)
+						for key in self.sci_values:  
 							if self.sci_values[key] != '':
-								infile.write("{}\n".format("{},".format(self.time)   + self.sci_values[key][:-1]))
+								print ("Have key {}; writing to file...".format(key))
+								if key == 'fib_sci_tm': 
+									infile.write("{}\n".format("{},".format(self.time)   + self.sci_values[key][:-1]))
+								elif key == 'fob_sci_tm':  
+									infile2.write("{}\n".format("{},".format(self.time) + self.sci_values[key][:-1]))
+								elif key == 'fsc_sci_tm':  
+									infile3.write("{}\n".format("{},".format(self.time) + self.sci_values[key][:-1]))
 				if(decision_hk_sci == b'\x00'):
 					for key in self.hk_values: 
 						self.hk_values[key] = ''
-					h.update(self.hk_values)
-					for key in self.hk_values: 
-						with open(self.files[key], 'a') as infile: 
-							infile.write("{}\n".format("{},".format(self.time) + self.hk_values[key][:-1]))
+					with open (self.files['fib_hk_tm'], 'a') as infile, open(self.files['fob_hk_tm'], 'a') as infile2, open(self.files['fsc_hk_tm'], 'a') as infile3, open(self.files['pcu_data'], 'a') as infile4:
+						counter = int.from_bytes(self.serial.read(size = 4), byteorder = 'big')
+						self.time = (self.current_time + datetime.timedelta(seconds = counter/128)).strftime("%Y-%m-%dT%H:%M:%S.%f")
+						h = hk_data(self.serial)
+						h.update(self.hk_values)
+						for key in self.hk_values: 
+							if key == 'fib_hk_tm': 
+								infile.write("{}\n".format("{},".format(self.time) + self.hk_values[key][:-1]))
+							elif key == 'fob_hk_tm':  
+								infile2.write("{}\n".format("{},".format(self.time) + self.hk_values[key][:-1]))
+							elif key == 'fsc_hk_tm':  
+								infile3.write("{}\n".format("{},".format(self.time) + self.hk_values[key][:-1]))
+							elif key == 'pcu_data':  
+								infile4.write("{}\n".format("{},".format(self.time) + self.hk_values[key][:-1]))
 class fee_science():
-		fee_data = []
 		def __init__(self, port): 
 			self.port = port
 		def update(self, values):
 			header_data = self.port.read(size = 3)
 			map = dict() 
-			map = {header_data[0]: fib_sci(), header_data[1]: fob_sci(), header_data[2]: fsc_sci()}
-			for key, f in filter(lambda key: key > 0, map.items()): 
-					if key == header_data[0] or key == header_data[1]: 
-						f.update(values = values,data = self.port.read(size = 10))
-					else: 
-						f.update(values, data = self.port.read(size = 11))
+			fib_data = (header_data[0], fib_sci())
+			fob_data = (header_data[1], fob_sci())
+			fsc_data = (header_data[2], fsc_sci())
+			if fib_data[0] > 0: 
+				fib_data[1].update(values = values, data = self.port.read(size = 10))
+			if fob_data[0] > 0: 
+				fob_data[1].update(values = values, data = self.port.read(size = 10))
+			if fsc_data[0] > 0: 
+				fsc_data[1].update(values = values, data = self.port.read(size = 11))
 
 class fib_sci():  
 		def update(self, values, data): 
 			for i in range(0, 3):
 				values["fib_sci_tm"] += "{},".format(int.from_bytes(data[3*i : 3*i + 3], byteorder = 'big', signed = True))
-				
+			values["fib_sci_tm"] += "{},".format(int(data[9]))	
 			
 class fob_sci(): 
 		def update(self, values, data): 
