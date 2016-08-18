@@ -36,8 +36,7 @@ class hk_data:
 			self.house_keeping_data.append(pcu_data(self.port.read(size = 32))) 
 			self.house_keeping_data.append(fib_hk_data(self.port.read(size = 40)))
 			self.house_keeping_data.append(fob_hk_data(self.port.read(size = 4)))
-			self.house_keeping_data.append(fsc_hk_data(self.port.read(size = 51)))
-			#print(self.house_keeping_data[0])
+			self.house_keeping_data.append(fsc_hk_data(self.port.read(size = 53)))
 			for i in range(0, 4):
 				self.house_keeping_data[i].update(values = values)
 		 
@@ -75,47 +74,31 @@ class packet_reciever(Thread):
 	def run(self): 
 		self.current_time = self.update_global_time()
 		self.update_files(self.current_time.strftime("%Y%m%d_%H%M%S"))
+		s = fee_science(self.serial)
+		h = hk_data(self.serial)
 		for key in self.files:
 			with open (self.files[key], 'a') as infile:  
 				infile.write("{}\n".format(','.join(self.labels[key])))
 		while self.start_running:
 			while self.serial.inWaiting():
 				decision_hk_sci = bytes(self.serial.read(size = 1))
+				counter = int.from_bytes(self.serial.read(size = 4), byteorder = 'big')
+				self.time = (self.current_time + datetime.timedelta(seconds = counter/128)).strftime("%Y-%m-%dT%H:%M:%S.%f")
 				if(decision_hk_sci == b'\x01'): 
 					for key in self.sci_values: 
 						self.sci_values[key] = ''
-					with open(self.files['fib_sci_tm'], 'a') as infile, open(self.files['fob_sci_tm'], 'a') as infile2, open(self.files['fsc_sci_tm'], 'a') as infile3: 
-						a = (self.serial.read(size = 4))
-						counter = int.from_bytes(a, byteorder = 'big', signed = True)
-						self.time = (self.current_time + datetime.timedelta(seconds = counter/128)).strftime("%Y-%m-%dT%H:%M:%S.%f")
-						s = fee_science(self.serial)
-						s.update(self.sci_values)
-						for key in self.sci_values:  
+					s.update(self.hk_values)
+					for key in self.sci_values: 
+						with open(self.files[key], 'a') as infile: 
 							if self.sci_values[key] != '':
-								if key == 'fib_sci_tm': 
-									infile.write("{}\n".format("{},".format(self.time)   + self.sci_values[key][:-1]))
-								elif key == 'fob_sci_tm':  
-									infile2.write("{}\n".format("{},".format(self.time) + self.sci_values[key][:-1]))
-								elif key == 'fsc_sci_tm':  
-									infile3.write("{}\n".format("{},".format(self.time) + self.sci_values[key][:-1]))
+								infile.write("{}\n".format("{},".format(self.time)   + self.sci_values[key][:-1]))
 				if(decision_hk_sci == b'\x00'):
 					for key in self.hk_values: 
 						self.hk_values[key] = ''
-					with open (self.files['fib_hk_tm'], 'a') as infile, open(self.files['fob_hk_tm'], 'a') as infile2, open(self.files['fsc_hk_tm'], 'a') as infile3, open(self.files['pcu_data'], 'a') as infile4:
-						counter = int.from_bytes(self.serial.read(size = 4), byteorder = 'big')
-						self.time = (self.current_time + datetime.timedelta(seconds = counter/128)).strftime("%Y-%m-%dT%H:%M:%S.%f")
-						h = hk_data(self.serial)
-						h.update(self.hk_values)
-						for key in self.hk_values: 
-							if key == 'fib_hk_tm': 
-								infile.write("{}\n".format("{},".format(self.time) + self.hk_values[key][:-1]))
-							elif key == 'fob_hk_tm':  
-								infile2.write("{}\n".format("{},".format(self.time) + self.hk_values[key][:-1]))
-							elif key == 'fsc_hk_tm':  
-								infile3.write("{}\n".format("{},".format(self.time) + self.hk_values[key][:-1]))
-							elif key == 'pcu_data':  
-								infile4.write("{}\n".format("{},".format(self.time) + self.hk_values[key][:-1]))
-							
+					h.update(self.hk_values)
+					for key in self.hk_values: 
+						with open(self.files[key], 'a') as infile: 
+							infile.write("{}\n".format("{},".format(self.time) + self.hk_values[key][:-1]))
 class fee_science():
 		fee_data = []
 		def __init__(self, port): 
@@ -124,8 +107,7 @@ class fee_science():
 			header_data = self.port.read(size = 3)
 			map = dict() 
 			map = {header_data[0]: fib_sci(), header_data[1]: fob_sci(), header_data[2]: fsc_sci()}
-			for key, f in map.items(): 
-				if key > 0: 
+			for key, f in filter(lambda key: key > 0, map.items()): 
 					if key == header_data[0] or key == header_data[1]: 
 						f.update(values = values,data = self.port.read(size = 10))
 					else: 
@@ -154,8 +136,7 @@ class pcu_data():
 		def __init__(self, data): 
 			self.data = data 
 		def update(self,  values):
-			for i in range(0, 32): 
-				if (i % 2 == 0): 
+			for i in filter(lambda w : w % 2 == 0, range(0, 32)): 
 					values["pcu_data"] += "{},".format(int.from_bytes(self.data[i:i+2], byteorder = 'big', signed = False))
 class fib_hk_data():
 		def __init__(self, data): 
@@ -163,8 +144,7 @@ class fib_hk_data():
 		def update(self, values):
 			for i in range(0, 3):
 				values["fib_hk_tm"] += "{},".format(int(self.data[i]))
-			for i in range(1, 32):
-				if(i % 2 == 0):
+			for i in filter(lambda w : w % 2 == 0, range(1, 32))):
 					values["fib_hk_tm"] += ("{},".format(int.from_bytes(self.data[(i + 2): (i + 4)], byteorder = 'big', signed = False)))
 			for i in range(33, len(self.data)): 
 				values["fib_hk_tm"] += "{},".format(int(self.data[i]))
@@ -181,40 +161,34 @@ class fsc_hk_data():
 			self.data = data 
 		def update(self, values): 
 			values["fsc_hk_tm"] += "{},".format(int(self.data[0]))
-			for i in range (0, 4): 
-				if(i % 2 == 0): 
+			for i in filter(lambda w : w % 2 == 0, list(range(0, 4))):
 					values["fsc_hk_tm"] += "{},".format(int.from_bytes(self.data[(i + 1): (i + 3)], byteorder = 'big', signed = False))
 			
 			values["fsc_hk_tm"] += "{},".format(int.from_bytes(self.data[5 : 7], byteorder = 'big', signed = False))
 			
-			for i in range(0, 4): 
-				if(i % 2  == 0): 
+			for i in filter(lambda w : w % 2 == 0, list(range(0, 4))): 
 					values["fsc_hk_tm"] += "{},".format(int.from_bytes(self.data[(i + 7): (i + 9)], byteorder = 'big', signed = False))
 			
 			values["fsc_hk_tm"] += "{},".format(int.from_bytes(self.data[11: 13], byteorder = 'big', signed = False))
 			
-			for i in range(0, 6): 
-				if(i % 3 == 0): 
-					values["fsc_hk_tm"] += "{},".format(int.from_bytes(self.data[(i + 13): (i + 16)], byteorder = 'big', signed = False))
+			for i in filter(lambda w : w % 3 == 0, list(range(0, 6))):
+				values["fsc_hk_tm"] += "{},".format(int.from_bytes(self.data[(i + 13): (i + 16)], byteorder = 'big', signed = False))
 			
-			for i in range(0, 4): 
-				if(i % 2 == 0): 
+			for i in filter(lambda w : w % 2 == 0, list(range(0, 4))):
 					values["fsc_hk_tm"] += "{},".format(int.from_bytes(self.data[(i + 19):(i + 21)], byteorder = 'big', signed = False))
 		
 			values["fsc_hk_tm"] += "{},".format(int.from_bytes(self.data[23:26], byteorder = 'big', signed = False))
 			
-			for i in range (0, 4): 
-				if(i % 2 == 0): 
+			for i in filter(lambda w : w % 2 == 0, list(range(0, 4))):
 					values["fsc_hk_tm"] += "{},".format(int.from_bytes(self.data[(i + 26) : (i + 28)], byteorder = 'big', signed = False))
 				
 			values["fsc_hk_tm"] += "{},".format(int.from_bytes(self.data[30 : 32], byteorder = 'big', signed = False))
 			values["fsc_hk_tm"] += "{},".format(int.from_bytes(self.data[32: 34], byteorder = 'big', signed = False))
 			
-			for i in range(0, 16): 
-				if i % 2 == 0: 
+			for i in filter(lambda w : w % 2 == 0, list(range(0, 16))):
 					values["fsc_hk_tm"] += "{},".format(int.from_bytes(self.data[(i + 34) : (i + 36)], byteorder = 'big', signed = False))
 					
-			for i in range(48, 51): 
+			for i in range(50, 53): 
 				values["fsc_hk_tm"] += "{},".format(int(self.data[i]))
 		
 if __name__ == '__main__':
