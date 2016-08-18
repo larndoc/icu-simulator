@@ -144,7 +144,7 @@ class fib_hk_data():
 		def update(self, values):
 			for i in range(0, 3):
 				values["fib_hk_tm"] += "{},".format(int(self.data[i]))
-			for i in filter(lambda w : w % 2 == 0, range(1, 32))):
+			for i in filter(lambda w : w % 2 == 0, range(1, 32)):
 					values["fib_hk_tm"] += ("{},".format(int.from_bytes(self.data[(i + 2): (i + 4)], byteorder = 'big', signed = False)))
 			for i in range(33, len(self.data)): 
 				values["fib_hk_tm"] += "{},".format(int(self.data[i]))
