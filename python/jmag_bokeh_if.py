@@ -24,6 +24,11 @@ colors = ["#008080", "#8B0000", "#006400", "#2F4F4F",
           "#800000", "#FF00FF", "#4B0082", "#191970",
           "#808000", "#696969", "#0000FF", "#FF4500"]
 
+# for convenience -> specify your data directory here
+# !! this should be an absolute path so we don't get
+# IOErrors in CSV_Reader.get_header()
+data_dir = '/data/'
+
 # On the fence about whether this
 # should be a class or just
 # a single method with sane defaults.
