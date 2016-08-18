@@ -68,8 +68,8 @@ class packet_reciever(Thread):
 	def update_global_time(self): 
 		return datetime.datetime.now()
 	def update_files(self, t_str): 
-		self.files = {'fib_sci_tm': 'data/FIB_SCI_TM_' + t_str + '.csv', 'fob_sci_tm' : 'data/FOB_SCI_TM_' + t_str + '.csv', 'fsc_sci_tm' : 'data/FSC_SCI_TM_' + t_str + '.csv'
-					,'fib_hk_tm': 'data/FIB_HK_TM_' + t_str + '.csv', 'fob_hk_tm' : 'data/FOB_HK_TM_' + t_str + '.csv', 'fsc_hk_tm' : 'data/FSC_HK_TM_' + t_str + '.csv', 'pcu_data' : 'data/PCU' + t_str + '.csv'}
+		self.files = {'fib_sci_tm': '/data/FIB_SCI_TM_' + t_str + '.csv', 'fob_sci_tm' : '/data/FOB_SCI_TM_' + t_str + '.csv', 'fsc_sci_tm' : '/data/FSC_SCI_TM_' + t_str + '.csv'
+					,'fib_hk_tm': '/data/FIB_HK_TM_' + t_str + '.csv', 'fob_hk_tm' : '/data/FOB_HK_TM_' + t_str + '.csv', 'fsc_hk_tm' : '/data/FSC_HK_TM_' + t_str + '.csv', 'pcu_data' : '/data/PCU' + t_str + '.csv'}
 
 	def run(self): 
 		self.current_time = self.update_global_time()
@@ -87,7 +87,7 @@ class packet_reciever(Thread):
 				if(decision_hk_sci == b'\x01'): 
 					for key in self.sci_values: 
 						self.sci_values[key] = ''
-					s.update(self.hk_values)
+					s.update(self.sci_values)
 					for key in self.sci_values: 
 						with open(self.files[key], 'a') as infile: 
 							if self.sci_values[key] != '':
