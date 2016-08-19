@@ -51,8 +51,7 @@ class Figure_Factory:
         """
         Get a new figure.
         """
-        p = figure(**self.kwargs)
-        return p
+        return figure(**self.kwargs)
 
 # Data_Cooker objects can be injected
 # into Grapher or CSV_Reader objects
@@ -65,8 +64,23 @@ class Figure_Factory:
 # is a nop.
 class Data_Cooker:
     def __init__(self, df=None):
+        """
+        Constructor.
+        df is a dataframe object, and can be
+        supplied either at construction time
+        or when method apply() is invoked.
+        """
         self.df = df
     def apply(self, df=None):
+        """
+        apply() cooks the data.
+        In the base class, it's a nop.
+        In derived classes, this performs
+        a mapping from a Pandas DataFrame
+        to a Pandas DataFrame object; the
+        result is used by CSV_Reader if
+        cooking is enabled.
+        """
         if df is not None:
             self.df = df
         return self.df
@@ -80,23 +94,20 @@ class Data_Cooker:
 # into a Grapher object, specifying
 # 'Freq' as the independent variable,
 # to display spectra of incoming data.
-# WE EXPECT TIME TO BE AN INDEPENDENT
-# VARIABLE HERE, though this is trivially
-# generalized (TODO).
 class FFT_Cooker(Data_Cooker):
-    def apply(self, df=None):
+    def apply(self, df=None, indep_var='Time'):
         if df is not None:
             self.df = df
         new_df = {}
-        a, b = self.df['Time'][0], self.df['Time'][len(self.df['Time'])-1]
+        a, b = self.df[indep_var][0], self.df[indep_var][len(self.df[indep_var])-1]
         for key in self.df:
-            if key == 'Time':
+            if key == indep_var:
                 continue
             new_df[key] = fft(self.df[key])
             new_df[key] = map(lambda x: sqrt(x.real**2 + x.imag**2), new_df[key])
         new_df['Freq'] = fftfreq(len(self.df[key]),
                                   (b-a).total_seconds()
-                                  / len(self.df['Time']))
+                                  / len(self.df[indep_var]))
         new_df = pandas.DataFrame.from_dict(new_df).sort_values('Freq')
         new_df = new_df[abs(new_df.Freq) > 1]
         self.df = new_df
@@ -108,27 +119,43 @@ class FFT_Cooker(Data_Cooker):
 # Bx, By, and Bz to be existent in raw
 # DataFrame.
 class Magnitude_Cooker(Data_Cooker):
-    def apply(self, df=None):
+    def apply(self, df=None, indep_var='Time'):
+        """
+        Take the magnitude of the magnetic field
+        vector; (x,y,z)-components given by
+        B(x,y,z) keys into the dataframe.
+        """
         if df is not None:
             self.df = df
         new_df = {}
-        new_df['Time'] = self.df['Time']
+        new_df[indep_var] = self.df[indep_var]
         new_df['mag'] = []
         i = 0
         while i < len(self.df['Bx']):
-            new_df['mag'].append(sqrt(self.df['Bx'][i]**2 + self.df['By'][i]**2 + self.df['Bz'][i]**2))
+            # |v| = sqrt(vx^2 + vy^2 + vz^2)
+            new_df['mag'].append(
+                     sqrt( self.df['Bx'][i]**2
+                         + self.df['By'][i]**2
+                         + self.df['Bz'][i]**2))
             i += 1
-        print("About to throw error...")
-        new_df = pandas.DataFrame.from_dict(new_df).sort_values('Time')
-        print("This should never be seen")
+        new_df = pandas.DataFrame.from_dict(new_df).sort_values(indep_var)
         self.df = new_df
         return new_df
 
 class Natural_Unit_Cooker(Data_Cooker):
     def __init__(self, factors, df=None):
+        """
+        Constructor.
+        factors is a list of conversion factors to multiply
+        the raw data by. This assumes that there is a linear
+        relationship between raw data and data in natural units.
+        """
         self.df = df
         self.factors = factors
-    def apply(self, df=None):
+    def apply(self, df=None, indep_var='Time'):
+        """
+        Multiply through by conversion factors
+        """
         new_df = {}
         if df is not None:
             self.df = df
@@ -137,7 +164,7 @@ class Natural_Unit_Cooker(Data_Cooker):
                 new_df[key] = self.df[key]
                 continue
             new_df[key] = map(lambda x: x*self.factors[key], self.df[key])
-        new_df = pandas.DataFrame.from_dict(new_df).sort_values('Time')
+        new_df = pandas.DataFrame.from_dict(new_df).sort_values(indep_var)
         self.df = new_df
         return new_df
 
@@ -151,7 +178,6 @@ class CSV_Reader:
                           which optionally post-processes
                           DataFrames after parsing.
         """
-        print "New CSV_Reader following {}".format(fname)
 	self.fname = fname
         self.num_dp = num_dp
         self.data_cooker = data_cooker
@@ -178,9 +204,7 @@ class CSV_Reader:
         a tail of the file, returns '' instead;
         returning another value would cause an error.
         """
-	print "Getting header of {}".format(self.fname)
 	f = open(self.fname, 'r')
-	print "File opened successfully: {}".format(f)
         lines = f.readlines()
         ret = ''
         if len(lines) > self.num_dp:
@@ -192,7 +216,6 @@ class CSV_Reader:
         """
         Tail the file; takes num_dp lines from the bottom
         """
-	print "Tailing {}...".format(self.fname)
 	f = open(self.fname, 'r')
         ret = reduce(lambda x, y: x + '\n' + y,
                       tailer.tail(f, self.num_dp))
