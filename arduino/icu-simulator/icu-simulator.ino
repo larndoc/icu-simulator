@@ -13,7 +13,7 @@
   #include "house-keeping.h"
   #include <SPI.h>
   
-  #define BUFFER_SIZE           2
+  #define BUFFER_SIZE           10
   //********************************************************************************CLOCK INFORMATION****************************************************************//
   #define FREQUENCY             128
   #define PULSE_WIDTH_US        1000
@@ -311,14 +311,14 @@
               for(int l = 0; l < 10; l++, k++){
                 pc_packet_arr[k] = fee_packet[1][j].science_data[l];
               }
-              pc_packet_arr[5]++;
+              pc_packet_arr[6]++;
             }
            }
            else{
-            pc_packet_arr[5] = 0;
+            pc_packet_arr[6] = 0;
            }
            
-         if(packet_exists[2]){
+         if(packet_exists[0]){
             pc_packet_arr[7] = 0; 
             packet_exists[2] = false; 
             for(int j = 0; j < BUFFER_SIZE; j++){
