@@ -14,7 +14,7 @@
 #define IF_ARG(x) if (!strcasecmp(argv[ARGV_COUNTER], x))
 #define IF_NOT_ARG(x) if (strcasecmp(argv[ARGV_COUNTER], x))
 #define CHECK_ARGV if (ARGV_COUNTER >= argc) usage(argv[0])
-#define PARSE_WAVE(wf,f) {debug(D_INFO, "Incrementing argument counter...\n"); ARGV_COUNTER++; CHECK_ARGV;    	\
+#define PARSE_WAVE(wf,f) do{debug(D_INFO, "Incrementing argument counter...\n"); ARGV_COUNTER++; CHECK_ARGV;    	\
 			IF_ARG("sine") { debug(D_BUG_RESOLVED, "Got sine\n");  wf = sine;     }		\
 			else IF_ARG("square") { debug(D_BUG_RESOLVED, "Got square\n"); wf = square;	}	\
 			else IF_ARG("sawtooth") { debug(D_BUG_UNRESOLVED, "Got sawtooth\n"); wf = sawtooth;}	\
@@ -23,7 +23,7 @@
 			IF_NOT_ARG("random") {			\
 			ARGV_COUNTER++; CHECK_ARGV;		\
 			f=atof(argv[ARGV_COUNTER]);		\
-			debug(D_INFO, "parsed freq %f\n", f);}}
+			debug(D_INFO, "parsed freq %f\n", f);}} while (0)
 #define ENSURE_WF_EXISTS(id) if (opts.enabled[id] && !opts.wf[id]) opts.wf[id] = _random
 
 #define unpack_time(tv,mod) (fmod((float)tv.tv_sec, mod) +  (float)1e-6*tv.tv_usec)
@@ -51,13 +51,23 @@
 /* pretty-printing debugging stuff */
 void _debug(int, char *, const char *, char *, int, char *, ...);
 #define debug(level, ...) _debug(level, __FILE__, __func__, NULL, __LINE__, __VA_ARGS__);
-const char *log_tags[ ] = { "[+] ",
-			    "[-] ",
-			    "[*] ",
-			    "[!] "};
+const char *log_tags[ ] = {	"[+] ",	"[-] ",  "[*] ",  "[!] "};
+			/*	 INFO	RESOLVED  NOTICE  UNRESOLVED */
+
+/* Use D_INFO to trace program flow,
+ * D_BUG_UNRESOLVED to flag debug
+ * statements relating to unresolved bugs (hurr)
+ * D_BUG_RESOLVED when the bug is resolved
+ * (bugs are fixed with hacky code, which
+ * is often just as breakable - we wanna
+ * debug the fixes), and D_NOTICE to
+ * call attention to wonky behavior
+ * or communicate critical info with the user.
+ * (remember D_INFO is usually turned off)
+ */
 #define D_INFO 0
-#define D_NOTICE 1
-#define D_BUG_RESOLVED 2
+#define D_NOTICE 2
+#define D_BUG_RESOLVED 1
 #define D_BUG_UNRESOLVED 3
 
 /* makes calling localtime() prettier */ 
@@ -127,6 +137,7 @@ int square(struct timeval tv, float f)
 
 int sawtooth(struct timeval tv, float f)
 {
+	// THIS? ALMOST NEVER
 	float T = 1/f;
 	float t = fmodf((float)tv.tv_sec, T);
 	t += 1e-6 * tv.tv_usec;
@@ -250,16 +261,19 @@ int main(int argc, char *argv[])
 			debug(D_INFO, "Got waveform; parsing...\n");
 			ARGV_COUNTER++;
 			CHECK_ARGV;
-			IF_ARG("fib") 	       PARSE_WAVE(opts.wf[FIB_SCI] = opts.wf[FIB_HK], opts.freq[FIB_SCI] = opts.freq[FIB_HK])
-			else IF_ARG("fob")     PARSE_WAVE(opts.wf[FOB_SCI] = opts.wf[FOB_HK], opts.freq[FOB_SCI] = opts.freq[FOB_HK])
-			else IF_ARG("fsc")     PARSE_WAVE(opts.wf[FSC_SCI] = opts.wf[FSC_HK], opts.freq[FSC_SCI] = opts.freq[FSC_HK])
-			else IF_ARG("fib_sci") PARSE_WAVE(opts.wf[FIB_SCI], opts.freq[FIB_SCI])
-			else IF_ARG("fob_sci") PARSE_WAVE(opts.wf[FOB_SCI], opts.freq[FOB_SCI])
-			else IF_ARG("fsc_sci") PARSE_WAVE(opts.wf[FSC_SCI], opts.freq[FSC_SCI])
-			else IF_ARG("fib_hk")  PARSE_WAVE(opts.wf[FIB_HK],  opts.freq[FIB_HK])
-			else IF_ARG("fob_hk")  PARSE_WAVE(opts.wf[FOB_HK],  opts.freq[FOB_HK])
-			else IF_ARG("fsc_hk")  PARSE_WAVE(opts.wf[FSC_HK],  opts.freq[FSC_HK])
-			else IF_ARG("pcu")     PARSE_WAVE(opts.wf[PCU_HK],  opts.freq[PCU_HK])
+			IF_ARG("fib")
+				PARSE_WAVE(opts.wf[FIB_SCI] = opts.wf[FIB_HK], opts.freq[FIB_SCI] = opts.freq[FIB_HK]);
+			else IF_ARG("fob")
+				PARSE_WAVE(opts.wf[FOB_SCI] = opts.wf[FOB_HK], opts.freq[FOB_SCI] = opts.freq[FOB_HK]);
+			else IF_ARG("fsc")
+				PARSE_WAVE(opts.wf[FSC_SCI] = opts.wf[FSC_HK], opts.freq[FSC_SCI] = opts.freq[FSC_HK]);
+			else IF_ARG("fib_sci") PARSE_WAVE(opts.wf[FIB_SCI], opts.freq[FIB_SCI]);
+			else IF_ARG("fob_sci") PARSE_WAVE(opts.wf[FOB_SCI], opts.freq[FOB_SCI]);
+			else IF_ARG("fsc_sci") PARSE_WAVE(opts.wf[FSC_SCI], opts.freq[FSC_SCI]);
+			else IF_ARG("fib_hk")  PARSE_WAVE(opts.wf[FIB_HK],  opts.freq[FIB_HK]);
+			else IF_ARG("fob_hk")  PARSE_WAVE(opts.wf[FOB_HK],  opts.freq[FOB_HK]);
+			else IF_ARG("fsc_hk")  PARSE_WAVE(opts.wf[FSC_HK],  opts.freq[FSC_HK]);
+			else IF_ARG("pcu")     PARSE_WAVE(opts.wf[PCU_HK],  opts.freq[PCU_HK]);
 			else usage(argv[0]);   /* error */
 		}
 
@@ -400,6 +414,8 @@ int main(int argc, char *argv[])
 
 void _debug(int loglevel, char *file, const char *func, char *clock, int line, char *msg, ...)
 {
+	// check if verbose logging is enabled before
+	// dumping everything into stdout
 	if (loglevel == D_INFO && !opts.verbose) return;
 	if (loglevel == D_BUG_RESOLVED && !opts.verbose) return;
 
