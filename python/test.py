@@ -1,9 +1,10 @@
-import serial i
+import serial 
 import argparse
 import datetime
 import collections
 import logging
 import time
+import binascii
 from threading import Thread
 
 def build_config_command_val(fee_number): 
@@ -36,7 +37,7 @@ class hk_data:
 			hk_packets = [pcu_data(self.port.read(size = 32)), fib_hk_data(self.port.read(size = 40)), fob_hk_data(self.port.read(size = 4)), fsc_hk_data(self.port.read(size = 53))]
 			i = 0
 			for key in values: 
-				values[key] = time + hk_packets[i].update() + '\n'
+				values[key] = time + ',' +  hk_packets[i].update() + '\n'
 				i += 1
 				
 		 
@@ -90,8 +91,9 @@ class packet_reciever(Thread):
 				counter = int.from_bytes(self.serial.read(size = 4), byteorder = 'big')
 				if decision_hk_sci[0] == 0: 
 					h.update(self.current_time, counter, values[0])
-				elif decision_hk_sci[0] == 1: 
+				if decision_hk_sci[0] == 1: 
 					s.update(self.current_time, counter, values[1])
+				if(decision_hk_sci[0] == 1 or decision_hk_sci[0] == 0):
 					for key,f in values[decision_hk_sci[0]].items(): 
 						with open(self.files[key], 'a') as infile: 
 							if f != '': 
@@ -107,21 +109,21 @@ class fee_science():
 			values["fob_sci_tm"] = '' 
 			values["fsc_sci_tm"] = ''
 			count_val = counter
-			for i in range(0, int(fee_packet[0])): 
+			for i in range(0, fee_packet[0]): 
 				f = fib_sci(self.port.read(size = 10))
-				time = (current_time + datetime.timedelta(seconds = counter/128)).strftime("%Y-%m-%dT%H:%M:%S.%f")
+				time = (current_time + datetime.timedelta(seconds = count_val/128)).strftime("%Y-%m-%dT%H:%M:%S.%f")
 				values["fib_sci_tm"] += "{},".format(time) + f.update() + '\n'
 				count_val += 1
 			
 			count_val = counter	
-			for i in range(0, int(fee_packet[1])): 
+			for i in range(0, fee_packet[1]): 
 				f = fob_sci(self.port.read(size = 10))
 				time = (current_time + datetime.timedelta(seconds = count_val/128)).strftime("%Y-%m-%dT%H:%M:%S.%f")
 				values["fob_sci_tm"] += "{},".format(time) + f.update() + '\n' 
 				count_val += 1 
 			
 			count_val = counter 
-			for i in range(0, int(fee_packet[2])): 
+			for i in range(0, fee_packet[2]):
 				f = fsc_sci(self.port.read(size = 11))
 				time = (current_time + datetime.timedelta(seconds = count_val/128)).strftime("%Y-%m-%dT%H:%M:%S.%f")
 				values["fsc_sci_tm"] += "{},".format(time) + f.update() + '\n'
@@ -224,38 +226,38 @@ class fsc_hk_data():
 			data_stream += "{},".format(int.from_bytes(self.data[i: (i + 2)], byteorder = 'big'))
 			
 		#extracting bytes 5-7
-			data_stream += "{},".format(int.from_bytes(self.data[5 : 7], byteorder = 'big'))
+		data_stream += "{},".format(int.from_bytes(self.data[5 : 7], byteorder = 'big'))
 			
 			#extracting bytes 7 - 8 and 9 - 10
-			for i in filter(lambda w : w % 2 == 0, range(7, 11)): 
-				data_stream += "{},".format(int.from_bytes(self.data[ i : (i + 2)], byteorder = 'big'))
+		for i in filter(lambda w : w % 2 == 0, range(7, 11)): 
+			data_stream += "{},".format(int.from_bytes(self.data[ i : (i + 2)], byteorder = 'big'))
 			
-			data_stream += "{},".format(int.from_bytes(self.data[11: 13], byteorder = 'big'))
+		data_stream += "{},".format(int.from_bytes(self.data[11: 13], byteorder = 'big'))
 			
 			#extract bytes 13 - 15 and 16 - 18
-			for i in filter(lambda w : w % 3 == 1, range(13, 19)):
-				data_stream += "{},".format(int.from_bytes(self.data[i: (i + 3)], byteorder = 'big'))
+		for i in filter(lambda w : w % 3 == 1, range(13, 19)):
+			data_stream += "{},".format(int.from_bytes(self.data[i: (i + 3)], byteorder = 'big'))
 			
-			for i in filter(lambda w : w % 2 == 0, range(19, 23)):
-				data_stream += "{},".format(int.from_bytes(self.data[i:(i + 2)], byteorder = 'big'))
+		for i in filter(lambda w : w % 2 == 0, range(19, 23)):
+			data_stream += "{},".format(int.from_bytes(self.data[i:(i + 2)], byteorder = 'big'))
 		
-			data_stream += "{},".format(int.from_bytes(self.data[23:26], byteorder = 'big'))
+		data_stream += "{},".format(int.from_bytes(self.data[23:26], byteorder = 'big'))
 			
-			for i in filter(lambda w : w % 2 == 0, range(26, 30)):
-				data_stream += "{},".format(int.from_bytes(self.data[i : (i + 2)], byteorder = 'big'))
+		for i in filter(lambda w : w % 2 == 0, range(26, 30)):
+			data_stream += "{},".format(int.from_bytes(self.data[i : (i + 2)], byteorder = 'big'))
 				
-			data_stream += "{},".format(int.from_bytes(self.data[30 : 32], byteorder = 'big'))
-			data_stream  += "{},".format(int.from_bytes(self.data[32: 34], byteorder = 'big'))
+		data_stream += "{},".format(int.from_bytes(self.data[30 : 32], byteorder = 'big'))
+		data_stream  += "{},".format(int.from_bytes(self.data[32: 34], byteorder = 'big'))
 			
-			for i in filter(lambda w : w % 2 == 0, range(34, 50)):
-				data_stream += "{},".format(int.from_bytes(self.data[i : (i + 2)], byteorder = 'big'))
+		for i in filter(lambda w : w % 2 == 0, range(34, 50)):
+			data_stream += "{},".format(int.from_bytes(self.data[i : (i + 2)], byteorder = 'big'))
 					
-			for i in range(50, 53): 
-				data_stream  += 'a'
-			return data_stream
+		for i in range(50, 53): 
+			data_stream  += 'a'
+		return data_stream
 		
 if __name__ == '__main__':
-			logging.basicConfig(filename='debugger.log', format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+		logging.basicConfig(filename='debugger.log', format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 		logger = logging.getLogger()
 		switch_off = False
 		logger.setLevel(logging.INFO) 
