@@ -13,6 +13,7 @@
   #include "house-keeping.h"
   #include <SPI.h>
   
+  #define BUFFER_SIZE           2
   //********************************************************************************CLOCK INFORMATION****************************************************************//
   #define FREQUENCY             128
   #define PULSE_WIDTH_US        1000
@@ -25,35 +26,23 @@
   #define PACKETS_TO_TRANSFER   3 
   
   //******************************************************************************FEE PACKET INFORMATION************************************************************//
-  #define FEE_PACKET_SIZE       100 
   #define PACKETS_RECIEVED      3
   #define STATUS                0
   
   //******************************************************************************GLOBAL VARIABLES***************************************************************//
-  
-  #define FIB_INTERFACE         0
-  #define FOB_INTERFACE         1
-  #define FSC_INTERFACE         2
-  
-  
-  
-  
+
   /*set of states that the user transverses through based on the input(which can be intrinsic or defined by the user(external)*/ 
   enum set {
     SCIENCE_MODE=0,  
     CONFIG_MODE,  
     };
-  
   enum set task  = CONFIG_MODE;
   /*fee packet and pointer to the three fee_packets, the data structure used for fee_packet is a union which is included in the folder fee_packet_structure*/ 
- 
-  fee_paket fee_packet[3];
-  byte pc_packet_arr[100];
- 
+  int buffer_index = 1; 
+  fee_paket fee_packet[3][BUFFER_SIZE];
   /*declaration of the pc packet, used to package the recieved bytes from the three interfaces and write it out the serial port, the struct used for pc packet is a union defined in pc_data_dump.h */
-  pc_data pc_packet                    = {0x00, 0, 0, 0, 0};       
-  byte pc_fee_counter[3]              =  {pc_packet.n_fib, pc_packet.n_fob, pc_packet.n_fsc};
-  
+  pc_data pc_packet  =  {{0x01, 0, 0, 0, 0}};       
+  byte pc_packet_arr[200];
   
   house_keeping hk_pkt;
   
@@ -73,11 +62,11 @@
   unsigned long current_time;
   unsigned long t;
   bool overflow = false;
-  unsigned time_counter               = 0;
+  signed long time_counter            = 0;
   bool change_command_packet          = false;
   bool packet_sent = false;
   bool packet_processed = false;
-  
+  bool write_command = false;
   /*prototype of the functions implemented in the filed /* 
    * void wait(unsigned long delta_us)  //when the sync pins are set high, this function is used to wait the time given by delta_us in microseconds before setting them to zero again 
    * void timer_isr()                   //called at 7.8125 ms 
@@ -92,11 +81,12 @@
   
   void wait_us(unsigned long delta_us) {
     while ( (micros()  - t ) < delta_us ) {
-      if (micros() - t < 0) {      //indicates that a overflow has occured
-        //the time t is declared as a global variable which means that it is eight bytes.
-        //if micros() < t, then we can deduce that 0xFFFFFFFF - t time has already elapsed since overflow, so now we need to wait for the amount of time given by delta_us - (0xFFFFFFFF - t);
+      /*indicates whether a overflow has occured 
+       * the time t is declared as a global variable which is of eight bytes 
+       * if micros() < t we can deduce that a overflow has occured, so we need to wait for the amount of time given by delta_us(total waiting time) - (0xFFFFFFFF - t) 
+       */
+      if (micros() - t < 0) {      
         delta_us = delta_us - (0xFFFFFFFF - t);
-  
       }
     }
   }
@@ -115,27 +105,31 @@
       hk_send = true; 
     }
     if(task == SCIENCE_MODE) {
+      buffer_index++; 
+      pc_packet.sync_counter = int32_t(__builtin_bswap32(time_counter));
       t = micros();
       // take the time (currently only sync counter) when we have sent the sync pulse 
-      pc_packet.sync_counter = uint32_t (__builtin_bswap32(time_counter));
-        
+    
       for(int i = 0; i < 3; i++){
         if(fee_enabled[i]){
           digitalWrite(sync_pins[i], HIGH);         //setting up of the pins 
         }
       }
     }
-    if(packet_sent) {
-      // only if a packet has been sent in the previous timer_isr()
-      // we will try and process packets from enabled FEEs    
-      packet_sent = false;
-      for(int i = 0; i < 3; i++){
-        if(fee_enabled[i]){
-          process_packet(i); 
+        if(packet_sent) {
+        // only if a packet has been sent in the previous timer_isr()
+        // we will try and process packets from enabled FEEs    
+        packet_sent = false;
+        for(int i = 0; i < 3; i++){
+          if(fee_enabled[i]){
+            process_packet(i); 
+          }
         }
-      }
-      packet_processed = true;
+          
+        packet_processed = true; 
     }
+ 
+  
     if(task == SCIENCE_MODE) { 
       wait_us(PULSE_WIDTH_US);   
       for(int i = 0; i < 3; i++){
@@ -178,9 +172,9 @@
   
   void check_checksum(int index)
   {
-    if (fee_packet[index].arr[FEE_PACKET_SIZE - 1] != checksum[index])
+    if (fee_packet[index][buffer_index].arr[FEE_PACKET_SIZE - 1] != checksum[index])
     {
-      fee_packet[index].arr[0] = INVALID_ICU_PACKET_CHECKSUM;
+      fee_packet[index][buffer_index].arr[0] = INVALID_ICU_PACKET_CHECKSUM;
     }
   
   }
@@ -195,7 +189,7 @@
   void loop() {
   
     /****************************************************************************************************************EXTERNAL INPUTS THAT CHANGE THE CURRENT STATE WITHIN THE STATE DIAGRAM************************************************************************************/
-      if(Serial.available() > 0){   
+      if(Serial.available() > 0){    
            byte cmd_id = Serial.read();
            byte deactive_selector; 
            byte active_selector; 
@@ -270,46 +264,89 @@
        break; 
   
   /*****************************************************************************************************************************SCIENCE MODE*****************************************************************************************************************************/
+     /*
+      * in science mode, we check to see if the packet has been sent and processed, if the packet has been sent, we listen for any incoming data on the three FEEs
+      * processing of the packet allows us to determine whether the data in the packet is good/bad, if the data is good, we package it for sending to the pc. We check to see if a packet exists, and if it does not exist we set the n_fib/n_fob/n_fsc back to zero.
+      * the science data for FIB and FOB is 10, whereas the size of the science data for FSC is set to 11 
+      */
+      
+      
       case SCIENCE_MODE:
+      { 
         if(packet_sent){
           for (int i = 0; i < 3; i++) {
             if(fee_enabled[i]){
+              if(buffer_index == BUFFER_SIZE){
+                buffer_index = 0; 
+              }
               check_port(port[i], i);
             }
           }
         }
-        if(packet_processed){
-          // we received a packet and it has been processed, so send it to the PC
+        if(packet_processed){ 
           packet_processed = false; 
-          // build header
-          
-          pc_packet_arr[0] = 0x01; // we build a science packet 
-          pc_packet_arr[1] = pc_packet.arr[1]; // copy the time
-          pc_packet_arr[2] = pc_packet.arr[2]; 
-          pc_packet_arr[3] = pc_packet.arr[3];
-          pc_packet_arr[4] = pc_packet.arr[4];
-          int k=8; // use as pc packet counter
-          for(int i=0; i<3; i++) {
-            // loop through all 3 FEEs to check if a packet exists to send and append to the pc_packet_arr
-            if(packet_exists[i]) {
-              packet_exists[i] = false;
-              pc_packet_arr[5+i] = 1; // set n_FIB, n_FOB or n_FSC
-              for(int l=0; l<10; l++, k++) {
-                pc_packet_arr[k] = fee_packet[i].science_data[l];
-              }
-            } else {
-              pc_packet_arr[5+i] = 0; // clear n_FIB, n_FOB or n_FSC
-            }
+          pc_packet_arr[0] = 0x01; 
+          for (int i = 1; i < 5; i++){
+            pc_packet_arr[i] = pc_packet.arr[i];
           }
-          Serial.write(pc_packet_arr, k);
+          int k=8; // use as pc packet counter
+           if(packet_exists[0]){
+            pc_packet_arr[5] = 0; 
+            packet_exists[0] = false; 
+            for(int j = 0; j < BUFFER_SIZE; j++){
+              for(int l = 0; l < 10; l++, k++){
+                pc_packet_arr[k] = fee_packet[0][j].science_data[l];
+              }
+              pc_packet_arr[5]++;
+            }
+           }
+           else{
+            pc_packet_arr[5] = 0;
+           }
+
+       if(packet_exists[1]){
+            pc_packet_arr[6] = 0; 
+            packet_exists[1] = false; 
+            for(int j = 0; j < BUFFER_SIZE; j++){
+              for(int l = 0; l < 10; l++, k++){
+                pc_packet_arr[k] = fee_packet[1][j].science_data[l];
+              }
+              pc_packet_arr[5]++;
+            }
+           }
+           else{
+            pc_packet_arr[5] = 0;
+           }
+           
+         if(packet_exists[0]){
+            pc_packet_arr[7] = 0; 
+            packet_exists[2] = false; 
+            for(int j = 0; j < BUFFER_SIZE; j++){
+              for(int l = 0; l < 10; l++, k++){
+                pc_packet_arr[k] = fee_packet[2][j].science_data[l];
+              }
+              pc_packet_arr[7]++;
+            }
+           }
+           else{
+            pc_packet_arr[7] = 0;
+           }
+          if(write_command){
+            write_command = false;
+            Serial.write(pc_packet_arr, k);
+          }  
          }
          break; 
-  
+      }
   /******************************************************************************************************************************PC_TRANSMIT*********************************************************************************************************************************/
 
       default:
         task = CONFIG_MODE;
     }
+
+    /*
+     * the flag is only set every 128th tick of the clock, we prepare our house keeping packet and transmit it
+     */
 
       if( hk_send == true){
           hk_send = false; 
@@ -326,6 +363,7 @@
           hk_pkt.adc_readings[ADC_VSENSE][i] = adc_readings[ADC_VSENSE][i]; 
           hk_pkt.adc_readings[ADC_ISENSE][i] = adc_readings[ADC_ISENSE][i];
         }
+        
         if(task == CONFIG_MODE){
           for(int i = 0; i < FIB_HK_SIZE; i++){
             hk_pkt.fib_hk[i] = 0; 
@@ -338,31 +376,38 @@
           }
         }
 
-        else{
-          for(int i = 0; i < FIB_HK_SIZE; i++){
-            hk_pkt.fib_hk[i] = fee_packet[FIB_INTERFACE].hk_data[i]; 
-          }
-          for(int i = 0; i < FOB_HK_SIZE; i++){
-            hk_pkt.fob_hk[i] = fee_packet[FOB_INTERFACE].hk_data[i]; 
-          }
-          for(int i = 0; i < FSC_HK_SIZE;i++){
-            hk_pkt.fsc_hk[i] = fee_packet[FSC_INTERFACE].hk_data[i];
+        else if(task == SCIENCE_MODE){
+          /* 
+           *  the zeroeth byte of the fib and fob house keeping should be the last byte of the science data, because the length of science_data has been set to 11
+           */
+          hk_pkt.fib_hk[0] = fee_packet[0][buffer_index].science_data[10];
+            for(int i = 0; i < FIB_HK_SIZE; i++){
+              hk_pkt.fib_hk[i] =  fee_packet[0][buffer_index].hk_data[i];
+            }
+          
+
+          hk_pkt.fob_hk[0] = fee_packet[0][buffer_index].science_data[10];
+            for(int i = 0; i < FOB_HK_SIZE; i++){
+              hk_pkt.fob_hk[i] =  fee_packet[1][buffer_index].hk_data[i];
+            }
+            
+          for(int i = 1; i < FSC_HK_SIZE;i++){
+            hk_pkt.fsc_hk[i] = fee_packet[2][buffer_index].hk_data[i];
           }
         }
-        Serial.write(hk_pkt.arr, 132); 
+           Serial.write(hk_pkt.arr, TOTAL_HK_SIZE); 
        }
    
   }
   
   void fee_activate(int index){
     
-    if ( (index) > 2 || (index) < 0){
-      return;  
+    if ( index > 2 || index < 0){
+        return;  
     }
     else{
         activate_pins(index); 
-    fee_enabled[index] = true; 
-    pc_fee_counter[index] = 1; 
+        fee_enabled[index] = true; 
     }
   }
   
@@ -374,7 +419,7 @@
     else{
       deactivate_pins(index); 
     fee_enabled[index] = false; 
-    pc_fee_counter[index] = 0; 
+     //pc[index] = 0; 
     }
   }
   
@@ -389,10 +434,4 @@
     digitalWrite(sync_pins[index], LOW); 
     port[index]->end(); 
   }
-  
-
-  
-  
-  
-  
 
