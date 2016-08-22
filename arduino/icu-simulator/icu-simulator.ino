@@ -318,7 +318,7 @@
             pc_packet_arr[5] = 0;
            }
            
-         if(packet_exists[0]){
+         if(packet_exists[2]){
             pc_packet_arr[7] = 0; 
             packet_exists[2] = false; 
             for(int j = 0; j < BUFFER_SIZE; j++){
