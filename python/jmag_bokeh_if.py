@@ -169,7 +169,7 @@ class Natural_Unit_Cooker(Data_Cooker):
         return new_df
 
 class CSV_Reader:
-    def __init__(self, fname, num_dp=1000, data_cooker=None):
+    def __init__(self, fname, num_dp=1000, data_cooker=None, indep_var='Time'):
         """
         Constructor method.
             fname       : file name to read
@@ -184,6 +184,7 @@ class CSV_Reader:
         self.cook_data = False
         if data_cooker is not None:
             self.cook_data = True
+        self.indep_var = indep_var
 
     def set_fname(self, fname):
         """
@@ -237,7 +238,7 @@ class CSV_Reader:
         if self.data_cooker is not None and self.cook_data:
             df = self.data_cooker.apply(df)
 
-        return df
+        return df.sort_values(self.indep_var)
 
     def on_change(self, attr, old, new):
         self.cook_data = not self.cook_data
@@ -269,7 +270,7 @@ class Grapher:
         else:
             self.figure_factory = figure_factory
         if type(csv_reader) is str:
-            self.csv_reader = CSV_Reader(csv_reader, data_cooker=cooker)
+            self.csv_reader = CSV_Reader(csv_reader, data_cooker=cooker, indep_var=indep_var)
         else:
             self.csv_reader = csv_reader
         if key_groups is None:
