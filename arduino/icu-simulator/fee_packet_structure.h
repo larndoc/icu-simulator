@@ -1,15 +1,12 @@
 #ifndef FEE_PACKET_STRUCTURE_H
 #define FEE_PACKET_STRUCTURE_H
-
-#define FEE_PACKET_HEADER_OFFSET 	0 
-#define FEE_PACKET_SIZE 			    100 
-#define FEE_PACKET_HEADER_SIZE 		1 
-#define SCIENCE_DATA_LENGTH		    10 
-#define HOUSE_KEEPING_DATA		    5
+#define FEE_PACKET_SIZE 			    1 + 10 + 53 + 1 + 1 + 1 
+#define FEE_PACKET_HEADER_SIZE 		1
+#define SCIENCE_DATA_LENGTH		    11
+#define HOUSE_KEEPING_DATA		    53
 #define	CONFIG_PARAM_ID 			    1
-#define	CONFIG_PARAM_VAL			    1
-#define CHECKSUM_SIZE				      100
-#define CHECKSUM_VAL				      1	
+#define	CONFIG_PARAM_VAL			    1 
+#define CHECKSUM_VAL				      1 	
 #pragma pack(1)       /*eliminates byte padding */
 union fee_paket
 {

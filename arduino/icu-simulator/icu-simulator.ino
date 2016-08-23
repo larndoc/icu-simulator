@@ -13,17 +13,12 @@
   #include "house-keeping.h"
   #include <SPI.h>
   
-  #define BUFFER_SIZE           10
+  #define BUFFER_SIZE           2
   //********************************************************************************CLOCK INFORMATION****************************************************************//
   #define FREQUENCY             128
   #define PULSE_WIDTH_US        1000
   #define PERIOD_US             100000/FREQUENCY
   #define BAUD_RATE             115200
-  
-  //*******************************************************************************ICU COMMAND PACKET INFO**********************************************************//
-  #define BYTE_SIZE             8
-  #define PACKET_SIZE           6
-  #define PACKETS_TO_TRANSFER   3 
   
   //******************************************************************************FEE PACKET INFORMATION************************************************************//
   #define PACKETS_RECIEVED      3
@@ -38,7 +33,7 @@
     };
   enum set task  = CONFIG_MODE;
   /*fee packet and pointer to the three fee_packets, the data structure used for fee_packet is a union which is included in the folder fee_packet_structure*/ 
-  int buffer_index = 1; 
+  int buffer_index = -1; 
   fee_paket fee_packet[3][BUFFER_SIZE];
   /*declaration of the pc packet, used to package the recieved bytes from the three interfaces and write it out the serial port, the struct used for pc packet is a union defined in pc_data_dump.h */
   pc_data pc_packet  =  {{0x01, 0, 0, 0, 0}};       
@@ -47,7 +42,7 @@
   house_keeping hk_pkt;
   
   /*a 2-D (3 x 6) array for the command packets that includes the command packet to be sent to each interface */ 
-  uint8_t cmd_packet[3][PACKET_SIZE]   = {{1, 0, 0, 0, 0, 1}, {1, 0, 0, 0, 0,  1}, {1, 0, 0, 0, 0, 1}};
+
   
   uint16_t global_packet_counter[3]    = {0, 0, 0};
   byte interface_counter[3]            = {0, 0, 0}; 
@@ -210,22 +205,7 @@
               // we were not able to read 6 bytes into the buffer, catching appropiate error
             }
             else{
-              int fee_number = fee_command[0];
-              int read_write = fee_command[1]; 
-              int config_id =  fee_command[2];
-              int j = 2; 
-              byte checksum = 0;
-              cmd_packet[fee_number][0] = (read_write == 0) ? 3 : 5;
-              cmd_packet[fee_number][1] = config_id;
-              for(int i = 3 ; i < 6; i++, j++){
-                 cmd_packet[fee_number][j] = fee_command[i];  
-              } 
-               for(int i = 0; i < 5; i++)
-              {
-                 checksum ^= cmd_packet[fee_number][i];  
-              }
-              cmd_packet[fee_number][5] = checksum; 
-              change_command_packet = true; 
+              create_cmd_packet(fee_command); 
             }
             }
              //the input remains the same, if we are in science mode we stay in science mode and if we are in config mode, then we stay in config mode, hence it is not required to update the input  
@@ -277,7 +257,7 @@
           for (int i = 0; i < 3; i++) {
             if(fee_enabled[i]){
               if(buffer_index == BUFFER_SIZE){
-                buffer_index = 0; 
+                buffer_index = 0;
               }
               check_port(port[i], i);
             }
@@ -318,11 +298,11 @@
             pc_packet_arr[6] = 0;
            }
            
-         if(packet_exists[0]){
+         if(packet_exists[2]){
             pc_packet_arr[7] = 0; 
             packet_exists[2] = false; 
             for(int j = 0; j < BUFFER_SIZE; j++){
-              for(int l = 0; l < 10; l++, k++){
+              for(int l = 0; l < 11; l++, k++){
                 pc_packet_arr[k] = fee_packet[2][j].science_data[l];
               }
               pc_packet_arr[7]++;
@@ -395,7 +375,7 @@
             hk_pkt.fsc_hk[i] = fee_packet[2][buffer_index].hk_data[i];
           }
         }
-           Serial.write(hk_pkt.arr, TOTAL_HK_SIZE); 
+          Serial.write(hk_pkt.arr, TOTAL_HK_SIZE); 
        }
    
   }
@@ -434,4 +414,7 @@
     digitalWrite(sync_pins[index], LOW); 
     port[index]->end(); 
   }
+
+
+
 
