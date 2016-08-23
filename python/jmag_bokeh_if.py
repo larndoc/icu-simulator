@@ -11,13 +11,24 @@
 # a GUI and figuring out what to plot.
 import pandas
 from datetime import datetime
-import tailer
 from io import StringIO
 from bokeh.plotting import figure
 from glob import glob
-from numpy.fft import fft, fftfreq
+from numpy.fft import fft, fftfreq, fftshift
 from math import sqrt
 from functools import reduce
+from collections import deque
+import multiprocessing as mp
+
+def dt_parse(s):
+    return datetime.strptime(s, "%Y-%m-%dT%H:%M:%S.%f")
+def mp_concat(x, y):
+    return '\n'.join([x, y])
+def mp_magn(x):
+    return sqrt(x.real**2 + x.imag**2)
+
+p = mp.Pool(processes=8)
+
 #from bokeh.palettes import Spectral9
 
 colors = ["#008080", "#8B0000", "#006400", "#2F4F4F",
@@ -42,9 +53,9 @@ class Figure_Factory:
         # default values are overridden if specified at instantiation.
         kwargs['plot_height'] = kwargs.get('plot_height', 600)
         kwargs['plot_width']  = kwargs.get('plot_width', 600)
-        kwargs['tools']       = kwargs.get('tools', 'xpan,ypan,xwheel_zoom,'
-                                           +'xbox_zoom,ybox_zoom,reset')
+        kwargs['tools']       = kwargs.get('tools', 'pan,wheel_zoom,box_zoom,reset')
         kwargs['x_axis_type'] = kwargs.get('x_axis_type', 'datetime')
+        kwargs['webgl'] = kwargs.get('webgl', False)
         self.kwargs = kwargs
 
     def gen_figure(self):
@@ -104,12 +115,21 @@ class FFT_Cooker(Data_Cooker):
             if key == indep_var:
                 continue
             new_df[key] = fft(self.df[key])
-            new_df[key] = map(lambda x: sqrt(x.real**2 + x.imag**2), new_df[key])
-        new_df['Freq'] = fftfreq(len(self.df[key]),
-                                  (b-a).total_seconds()
-                                  / len(self.df[indep_var]))
+            new_df[key] = p.map(mp_magn, new_df[key])
+
+        # avg time between samples
+        # assumes uniform sampling
+        dt = (b-a).total_seconds()
+        dt /= len(self.df[indep_var])
+
+        # get list of frequencies from the fft
+        # new_df['Freq'] = fftfreq(len(self.df[key]), dt)
+        new_df['Freq'] = fftshift(fftfreq(len(self.df[key]), dt))
+
+        #
         new_df = pandas.DataFrame.from_dict(new_df).sort_values('Freq')
-        new_df = new_df[abs(new_df.Freq) > 1]
+        #new_df = new_df[abs(new_df.Freq) > 0.4]
+
         self.df = new_df
         return new_df
 
@@ -186,11 +206,17 @@ class CSV_Reader:
             self.cook_data = True
         self.indep_var = indep_var
 
+        self.header = None
+        self.dp_count = 0
+
     def set_fname(self, fname):
         """
         Setter method for fnam
         """
         self.fname = fname
+        # purge stale cached info
+        self.header = None
+        self.dp_count = 0
 
     def set_num_dp(self, num_dp):
         """
@@ -198,30 +224,69 @@ class CSV_Reader:
         """
         self.num_dp = num_dp
 
+    def blocks(self, f, sz=16384):
+        while True:
+            b = f.read(sz)
+            if not b:
+                break
+            yield b
+
+    def count_lines_blockwise(self, f):
+        return sum(bl.count('\n') for bl in self.blocks(f))
+
     def get_header(self):
         """
         Get the active header from the CSV.
         If the header would be included in
         a tail of the file, returns '' instead;
         returning another value would cause an error.
+        This is the newer, faster version.
+                    n   tottime percall cumtime percall
+        BLOCKWISE:  210 0.000   0.000   0.001   0.000
+            NAIVE:  144 0.000   0.000   0.003   0.000
+        Note the 3x speedup after moving to a blockwise
+        read cumtime, despite blockwise having n=210.
+        Estimated 4.4x speedup of this function.
         """
-	f = open(self.fname, 'r')
-        lines = f.readlines()
-        ret = ''
-        if len(lines) > self.num_dp:
-            ret = lines[0]
-        f.close()
-        return ret
+        if self.header is not None and self.dp_count > self.num_dp:
+            return self.header
+
+        # either no header or insufficient data points to return one;
+        # this triggers recalculation of dp_count, and gets the header
+        # if we don't have it cached already.
+        with open(self.fname, 'r') as f:
+            if self.header is None:
+                self.header = f.readline()
+                f.seek(0)
+            self.dp_count = self.count_lines_blockwise(f)
+
+        if self.dp_count > self.num_dp:
+            return self.header
+        return ''
 
     def tail(self):
         """
-        Tail the file; takes num_dp lines from the bottom
+        Tail the file; takes num_dp lines from the bottom.
+        Parsing with deque over tailer gives a significant
+        speedup; serving stale FIB data, I got the following:
+                       n      tottime  percall  cumtime  percall
+        TAILER TAILER: 206    0.007    0.000    2.456    0.012
+        DEQUE TAILER:  755    0.183    0.000    1.114    0.001
+        tottime measures total time in the function /not including/
+        subcalls; cumtime gives the actuall call-to-return latency.
+        Disregard the tottime increase; of *course* we get a higher
+        number, because we do less in our subcalls with deque tail().
+        Please note that these are cumulative over all calls, where
+        n=206 for libtailer tail(), and n=755 for deque tail().
+        Notice the order-of-magnitude improvement in cumtime percall,
+        which gives the best measure of actual performance. Even
+        with 3.7x as many calls, deque tail() runs 2.2x as fast.
+        I estimate an 8.1x speedup of this function with this change.
         """
-	f = open(self.fname, 'r')
-        ret = reduce(lambda x, y: x + '\n' + y,
-                      tailer.tail(f, self.num_dp))
-	f.close()
-	return ret
+        with open(self.fname, 'r') as f:
+            q = deque(f, self.num_dp)
+        # this is not worth parallelizing
+        return reduce(mp_concat, q)
 
     def get_dataframe(self):
         """
@@ -230,7 +295,7 @@ class CSV_Reader:
         csv = self.get_header() + self.tail()
         df = pandas.read_csv(StringIO(unicode(csv)))
         try:
-            df['Time'] = map(lambda s: datetime.strptime(s, "%Y-%m-%dT%H:%M:%S.%f"), df['Time'])
+            df['Time'] = p.map(dt_parse, df['Time'])
         except KeyError:
             pass
 
@@ -244,11 +309,15 @@ class CSV_Reader:
         self.cook_data = not self.cook_data
 
 class Grapher:
-    def __init__(self, csv_reader, figure_factory=None, key_groups=None, indep_var='Time', cooker=None):
+    def __init__(self, csv_reader=None, pattern=None, figure_factory=None, key_groups=None, indep_var='Time', cooker=None):
         """
         Constructor.
             csv_reader      : an object of class CSV_Reader,
                               or a string giving the path to a CSV
+            pattern         : Grapher can check for a new file according
+                              to a glob pattern specified here every
+                              time update_graphs() is called. This specifies
+                              that glob pattern.
             figure_factory  : an object of class Figure_Factory;
                               if this is None, then defaults are assumed
             key_groups      : a list of lists of strings;
@@ -271,8 +340,15 @@ class Grapher:
             self.figure_factory = figure_factory
         if type(csv_reader) is str:
             self.csv_reader = CSV_Reader(csv_reader, data_cooker=cooker, indep_var=indep_var)
-        else:
+            self.pattern = None
+        elif csv_reader is not None: # just assume it's a valid CSV object
             self.csv_reader = csv_reader
+            self.pattern = None
+        elif pattern is not None:
+            self.pattern = pattern
+            self.csv_reader = CSV_Reader(get_latest_file(pattern), data_cooker=cooker, indep_var=indep_var)
+        else:
+            raise ValueError("Need a CSV_Reader object, a path to a CSV, or *at least* a glob pattern to search for")
         if key_groups is None:
             # default to a single key group, i.e. only one graph
             self.key_groups = [csv_reader.get_header().split(',')]
@@ -319,6 +395,9 @@ class Grapher:
         Tail the watched file and redraw graphs
         without triggering a page redraw.
         """
+        if self.pattern is not None:
+            self.csv_reader.set_fname(get_latest_file(self.pattern))
+
         df = self.csv_reader.get_dataframe()
         for key in self.active_lines:
             if key == self.indep_var:
@@ -330,3 +409,6 @@ class Grapher:
 # CSV in the directory
 def get_latest_csv(pattern):
    return max(glob(pattern))
+
+def get_latest_file(pattern):
+    return max(glob(data_dir + pattern))

@@ -1,5 +1,5 @@
 all: fake-icu.c
-	gcc -Wall fake-icu.c -o fake-icu -lm
+	gcc -Wall fake-icu.c -o fake-icu -std=gnu11 -lm
 
 .SILENT: clean
 clean:
