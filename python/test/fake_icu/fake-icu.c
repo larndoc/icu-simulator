@@ -88,7 +88,9 @@ const char *log_tags[ ] = {	"[+] ",	"[-] ",  "[*] ",  "[!] "};
 #define _unused
 #endif
 
-#define clk() (100.0*((double)clock())/CLOCKS_PER_SEC)
+struct timeval _tv, _tv_orig;
+#define init_clk() (gettimeofday(&_tv_orig, NULL))
+#define clk() (gettimeofday(&_tv, NULL), (double)(_tv.tv_sec - _tv_orig.tv_sec) + 1e-6*(_tv.tv_usec - _tv_orig.tv_usec))
 
 /* filename format strings by device*/
 const char names[N_DEV][64] = {"FIB_Sci_TM_%04d%02d%02d_%02d%02d%02d.csv",
@@ -142,7 +144,6 @@ struct {
 
 int sine(int A, double f)
 {
-	// TESTED
 	double t = clk();
 	debug(D_BUG_UNRESOLVED, "clk(): t=%lf\n", t);
 	int ret = A * sin(2*M_PI*f*t);
@@ -235,12 +236,15 @@ void usage(char *name)
 
 int main(int argc, char *argv[])
 {
-	debug(D_INFO, "This is\ntesting the\nlogging facility.");
 	char s[2];
 	FILE *out[N_DEV];
 	char fnames[N_DEV][64];
 
 	srandom(time(NULL));
+	
+	init_clk();
+	
+	debug(D_INFO, "This is\ntesting the\nlogging facility.");
 	
 	debug(D_INFO, "Setting default opts...\n");
 	opts.time_between_samples = 0.1f;
