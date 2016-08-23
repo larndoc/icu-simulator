@@ -1,2 +1,0 @@
-Time,Peregrine_Lock,Sensor_Temp_A,Sensor_Temp_B,Sensor_Temp_Duty_Cycle,Laser_Temp_A,Laser_Temp_B,Laser_Temp_Duty_Cycle,Laser_Current,Laser_Current_Zero_Cross,Microwave_Ref,Microwave_Ref_Zero_Cross,Zeeman_Freq_Zero_Cross,PCB_Temp_A,PCB_Temp_B,Laser_Diode_Voltage,Diode_Optical_Power,P2V4,P3V3,P8V,N8V,P12V,PCB_Temp_C,PCB_Temp_D,PCB_Temp_E,ICU_Checksum,ICU_Command_Count,ICU_Sync_Count
-20160816T171114.565239,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,65295,65295,65295,65295,65295,255,15,255,
