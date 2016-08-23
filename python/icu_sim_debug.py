@@ -31,17 +31,6 @@ def build_fee_packet(fee_number):
 class hk_data: 	
 		def __init__(self, port): 
 			self.port = port
-<<<<<<< HEAD
-			self.house_keeping_data = [] 
-		def update(self, values): 
-			self.house_keeping_data = []
-			self.house_keeping_data.append(pcu_data(self.port.read(size = 32))) 
-			self.house_keeping_data.append(fib_hk_data(self.port.read(size = 40)))
-			self.house_keeping_data.append(fob_hk_data(self.port.read(size = 4)))
-			self.house_keeping_data.append(fsc_hk_data(self.port.read(size = 51)))
-			for i in range(0, 4):
-				self.house_keeping_data[i].update(values = values)
-=======
 		def update(self, values):
 			#values['house_keeping'] = '' 
 			hk_packets = [self.port.read(size = 32), self.port.read(size = 40), self.port.read(size = 4), self.port.read(size = 53)]
@@ -49,7 +38,6 @@ class hk_data:
 			for i in range(0, 4): 
 				values['house_keeping'] += hk_packets[i]
 				i += 1
->>>>>>> ce4117f5f9f40d2f24f7e065ccd023bde817e13e
 		 
 class packet_reciever(Thread):
 	#recieves a packet and reads the first byte 
@@ -82,43 +70,6 @@ class packet_reciever(Thread):
 		while self.start_running:
 			while self.serial.inWaiting(): 
 				decision_hk_sci = bytes(self.serial.read(size = 1))
-<<<<<<< HEAD
-				if(decision_hk_sci == b'\x01'):  
-					for key in self.sci_values: 
-						self.sci_values[key] = ''
-					with open(self.files['fib_sci_tm'], 'a') as infile, open(self.files['fob_sci_tm'], 'a') as infile2, open(self.files['fsc_sci_tm'], 'a') as infile3: 
-						a = (self.serial.read(size = 4))
-						counter = int.from_bytes(a, byteorder = 'big', signed = True)
-						self.time = (self.current_time + datetime.timedelta(seconds = counter/128)).strftime("%Y-%m-%dT%H:%M:%S.%f")
-						s = fee_science(self.serial)
-						s.update(self.sci_values)
-						for key in self.sci_values:  
-							if self.sci_values[key] != '':
-								if key == 'fib_sci_tm': 
-									infile.write("{}\n".format("{},".format(self.time)   + self.sci_values[key][:-1]))
-								elif key == 'fob_sci_tm':  
-									infile2.write("{}\n".format("{},".format(self.time) + self.sci_values[key][:-1]))
-								elif key == 'fsc_sci_tm':  
-									infile3.write("{}\n".format("{},".format(self.time) + self.sci_values[key][:-1]))
-				if(decision_hk_sci == b'\x00'):
-					for key in self.hk_values: 
-						self.hk_values[key] = ''
-					with open (self.files['fib_hk_tm'], 'a') as infile, open(self.files['fob_hk_tm'], 'a') as infile2, open(self.files['fsc_hk_tm'], 'a') as infile3, open(self.files['pcu_data'], 'a') as infile4:
-						counter = int.from_bytes(self.serial.read(size = 4), byteorder = 'big')
-						self.time = (self.current_time + datetime.timedelta(seconds = counter/128)).strftime("%Y-%m-%dT%H:%M:%S.%f")
-						h = hk_data(self.serial)
-						h.update(self.hk_values)
-						for key in self.hk_values: 
-							if key == 'fib_hk_tm': 
-								infile.write("{}\n".format("{},".format(self.time) + self.hk_values[key][:-1]))
-							elif key == 'fob_hk_tm':  
-								infile2.write("{}\n".format("{},".format(self.time) + self.hk_values[key][:-1]))
-							elif key == 'fsc_hk_tm':  
-								infile3.write("{}\n".format("{},".format(self.time) + self.hk_values[key][:-1]))
-							elif key == 'pcu_data':  
-								infile4.write("{}\n".format("{},".format(self.time) + self.hk_values[key][:-1]))
-							
-=======
 				counter = bytes(self.serial.read(size = 4))
 				if decision_hk_sci[0] == 0: 
 					values[0]['house_keeping'] = decision_hk_sci 
