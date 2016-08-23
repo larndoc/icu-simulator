@@ -82,8 +82,6 @@ class packet_reciever(Thread):
 							if f != '': 
 								infile.write("{}\n".format(binascii.hexlify(counter +  f[:-1])))
 
-
->>>>>>> ce4117f5f9f40d2f24f7e065ccd023bde817e13e
 class fee_science():
 		def __init__(self, port): 
 			self.port = port
