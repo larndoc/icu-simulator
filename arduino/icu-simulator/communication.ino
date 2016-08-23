@@ -51,10 +51,12 @@
       if(buffer_index == BUFFER_SIZE - 1){
                 write_command = true; 
               }
-      fee_packet[index][buffer_index].arr[response_packet_counter[index]] = port->read(); 
-      checksum[index] ^= fee_packet[index][buffer_index].arr[response_packet_counter[index]]; 
+      if(pc_packet.n_fsc > 0){
+      fsc_pack[buffer_index].arr[response_packet_counter[index]] = port->read();
+      checksum[index] ^= fsc_pack[buffer_index].arr[response_packet_counter[index]]; 
       response_packet_counter[index]++;  
-      if(response_packet_counter[index] > FEE_PACKET_SIZE){
+      }
+      if(response_packet_counter[index] > FSC_TOTAL_LENGTH){
                                                                //if packet size exceeds the maximum fee_packet_size then set the flag, i.e set pin 10 HIGH and continue mode of operation
       }
     }

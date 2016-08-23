@@ -34,7 +34,10 @@
   enum set task  = CONFIG_MODE;
   /*fee packet and pointer to the three fee_packets, the data structure used for fee_packet is a union which is included in the folder fee_packet_structure*/ 
   int buffer_index = -1; 
-  fee_paket fee_packet[3][BUFFER_SIZE];
+  fib_paket fib_pack[BUFFER_SIZE]; 
+  fob_packet fob_pack[BUFFER_SIZE]; 
+  fsc_packet fsc_pack[BUFFER_SIZE];
+
   /*declaration of the pc packet, used to package the recieved bytes from the three interfaces and write it out the serial port, the struct used for pc packet is a union defined in pc_data_dump.h */
   pc_data pc_packet  =  {{0x01, 0, 0, 0, 0}};       
   byte pc_packet_arr[200];
@@ -167,10 +170,12 @@
   
   void check_checksum(int index)
   {
-    if (fee_packet[index][buffer_index].arr[FEE_PACKET_SIZE - 1] != checksum[index])
+    /*
+    if (fib_pack[buffer_index].arr[FEE_PACKET_SIZE - 1] != checksum[index])
     {
       fee_packet[index][buffer_index].arr[0] = INVALID_ICU_PACKET_CHECKSUM;
     }
+    */
   
   }
   
@@ -275,7 +280,7 @@
             packet_exists[0] = false; 
             for(int j = 0; j < BUFFER_SIZE; j++){
               for(int l = 0; l < 10; l++, k++){
-                pc_packet_arr[k] = fee_packet[0][j].science_data[l];
+                pc_packet_arr[k] = fib_pack[j].science_data[l];
               }
               pc_packet_arr[5]++;
             }
@@ -289,7 +294,7 @@
             packet_exists[1] = false; 
             for(int j = 0; j < BUFFER_SIZE; j++){
               for(int l = 0; l < 10; l++, k++){
-                pc_packet_arr[k] = fee_packet[1][j].science_data[l];
+                pc_packet_arr[k] = fob_pack[j].science_data[l];
               }
               pc_packet_arr[6]++;
             }
@@ -303,7 +308,7 @@
             packet_exists[2] = false; 
             for(int j = 0; j < BUFFER_SIZE; j++){
               for(int l = 0; l < 11; l++, k++){
-                pc_packet_arr[k] = fee_packet[2][j].science_data[l];
+                pc_packet_arr[k] = fsc_pack[j].science_data[l];
               }
               pc_packet_arr[7]++;
             }
@@ -360,22 +365,19 @@
           /* 
            *  the zeroeth byte of the fib and fob house keeping should be the last byte of the science data, because the length of science_data has been set to 11
            */
-          hk_pkt.fib_hk[0] = fee_packet[0][buffer_index].science_data[10];
             for(int i = 0; i < FIB_HK_SIZE; i++){
-              hk_pkt.fib_hk[i] =  fee_packet[0][buffer_index].hk_data[i];
+              hk_pkt.fib_hk[i] =  fib_pack[buffer_index].hk_data[i];
             }
           
-
-          hk_pkt.fob_hk[0] = fee_packet[0][buffer_index].science_data[10];
             for(int i = 0; i < FOB_HK_SIZE; i++){
-              hk_pkt.fob_hk[i] =  fee_packet[1][buffer_index].hk_data[i];
+              hk_pkt.fob_hk[i] =  fob_pack[buffer_index].hk_data[i];
             }
             
           for(int i = 1; i < FSC_HK_SIZE;i++){
-            hk_pkt.fsc_hk[i] = fee_packet[2][buffer_index].hk_data[i];
+            hk_pkt.fsc_hk[i] = fsc_pack[buffer_index].hk_data[i];
           }
         }
-          Serial.write(hk_pkt.arr, TOTAL_HK_SIZE); 
+          //Serial.write(hk_pkt.arr, TOTAL_HK_SIZE); 
        }
    
   }
@@ -388,6 +390,7 @@
     else{
         activate_pins(index); 
         fee_enabled[index] = true; 
+        pc_packet.arr[5 + index] += 1; 
     }
   }
   
@@ -399,7 +402,7 @@
     else{
       deactivate_pins(index); 
     fee_enabled[index] = false; 
-     //pc[index] = 0; 
+     pc_packet.arr[5 + index] = 0; 
     }
   }
   
