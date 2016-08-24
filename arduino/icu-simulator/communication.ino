@@ -1,4 +1,4 @@
- #include "pc_data_dump.h"
+  #include "pc_data_dump.h"
   #define CMD_PACKET_SIZE 6 
    uint8_t default_fee_cmd[CMD_PACKET_SIZE] = {0x01, 0x00, 0x00, 0x00, 0x00, 0x01}; 
    uint8_t fee_cmd[3][CMD_PACKET_SIZE]; 
@@ -29,7 +29,7 @@
  
   bool process_hk_packet(){
           hk_pkt.id = 0x00; 
-          hk_pkt.sync_counter = uint32_t (__builtin_bswap32(time_counter));
+          hk_pkt.sync_counter = pc_packet_time.sync_counter;
         
           adc_read_all(ADC_VSENSE); 
           adc_read_all(ADC_ISENSE);
@@ -77,6 +77,7 @@
 
   void create_cmd_packet(uint8_t * command){
     uint8_t index = command[0]; 
+    int j = 2; 
     cmd_packet[index] = fee_cmd[index]; 
     fee_cmd[index][0] = 0x00; 
     if(command[1] == 0){
@@ -85,10 +86,10 @@
     else if(command[1] == 1){
       fee_cmd[index][0] |= 0x05;
     }
-    fee_cmd[index][1] = command[2];
-    fee_cmd[index][2] = command[3];
-    fee_cmd[index][3] = command[4]; 
-    fee_cmd[index][4] = command[5];
+    int j = 2; 
+    for(int i = 1; i < 5; i++, j++){
+     fee_cmd[index][i] = command[j];
+    }
     fee_cmd[index][5] = 0; /*here we will build our checksum */
     for(int i = 0; i < 5; i++){
       fee_cmd[index][5] ^= fee_cmd[index][i];
