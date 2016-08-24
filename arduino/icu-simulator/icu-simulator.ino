@@ -50,13 +50,13 @@
     }
   }
   
-
   void timer_isr() {
-     time_counter++;
+    uint32_t t;
+    time_counter++;
     if(time_counter % FREQUENCY == 0){hk_send =  process_hk_packet() ;}
     if(mode == SCIENCE_MODE) {
       pc_packet_time.sync_counter = uint32_t(__builtin_bswap32(time_counter));
-      uint32_t t = micros();
+      t = micros();
       for(int i = 0; i < 3; i++){
         if(fee_enabled[i]){
           digitalWrite(sync_pins[i], HIGH);         //setting up of the pins 
@@ -68,8 +68,7 @@
         packet_sent = false;   
         packet_processed = process_sci_packet();    
     }
- 
-  
+
     if(mode == SCIENCE_MODE) { 
       wait_us(PULSE_WIDTH_US, t);   
       for(int i = 0; i < 3; i++){
