@@ -19,12 +19,12 @@ union fib_paket
 {
 	struct
 	{
-		byte header; 
-		byte science_data[FIB_SCI_DATA_LENGTH];
-                byte hk_data[FIB_HOUSE_KEEPING_DATA_LENGTH];
-		byte config_param_id[CONFIG_PARAM_ID]; 
-		byte config_param_val[CONFIG_PARAM_VAL];
-		byte checksum[CHECKSUM_VAL];
+	byte header; 
+	byte science_data[FIB_SCI_DATA_LENGTH];
+        byte hk_data[FIB_HOUSE_KEEPING_DATA_LENGTH];
+ 	byte config_param_id[CONFIG_PARAM_ID]; 
+	byte config_param_val[CONFIG_PARAM_VAL];
+	byte checksum[CHECKSUM_VAL];
 	};
 	byte arr[FIB_SCI_DATA_LENGTH];
 };
