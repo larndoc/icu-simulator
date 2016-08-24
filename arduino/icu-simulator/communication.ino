@@ -15,21 +15,18 @@ uint8_t * cmd_packet[3] = {
 void create_pc_packet(int index)
 {
   if (index == 0) {
-    pc_packet_arr[5] = BUFFER_SIZE;
     for (int l = 0; l < 10; l++, size_of_pc_packet++) {
       pc_packet_arr[size_of_pc_packet] = fib_pack.science_data[l];
     }
   }
 
   if (index == 1) {
-    pc_packet_arr[6] = BUFFER_SIZE;
     for (int l = 0; l < 10; l++, size_of_pc_packet++) {
       pc_packet_arr[size_of_pc_packet] = fob_pack.science_data[l];
     }
   }
 
   if (index == 2) {
-    pc_packet_arr[7] = BUFFER_SIZE;
     for (int l = 0; l < 11; l++, size_of_pc_packet++) {
       pc_packet_arr[size_of_pc_packet] = fsc_pack.science_data[l];
     }
@@ -72,6 +69,7 @@ bool process_sci_packet()
   // in the function create_pc_packet we build our science_data
   for (int i = 0; i < 3; i++) {
     if (response_packet_counter[i] > 0) {
+      pc_packet_arr[5 + i] = BUFFER_SIZE;
       create_pc_packet(i);
       response_packet_counter[i] = 0;
     }
@@ -134,4 +132,3 @@ void check_port(HardwareSerial * port, int index)
     }
   }
 }
-
