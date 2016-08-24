@@ -43,7 +43,7 @@
   HardwareSerial* port[3]              = {&Serial1, &Serial2, &Serial3};
   const uint8_t sync_pins[3]           = {11, 13, 12};
   bool hk_send = false; 
-  const uint8_t led_pin    = 10; 
+  const uint8_t debug_pin    = 10; 
   uint32_t current_time;
   uint32_t t;
   bool overflow = false;
@@ -157,7 +157,7 @@
   */
   void setup() {
     pinMode(41, OUTPUT);
-    pinMode(led_pin, OUTPUT);
+    pinMode(debug_pin, OUTPUT);
     Serial.begin(BAUD_RATE);
     SPI.begin(); 
     for (int i = 0; i < 3; i++) {
