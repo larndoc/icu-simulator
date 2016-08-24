@@ -8,7 +8,7 @@
   #include "house-keeping.h"
   #include <SPI.h>
   
-  #define SCIENCE_BUFFER_SIZE           3
+  #define SCIENCE_BUFFER_SIZE   3
   #define SPI_PIN               41 
   #define DEBUG_PIN             10
   //********************************************************************************CLOCK INFORMATION****************************************************************//
@@ -31,21 +31,18 @@
   byte pc_packet_arr[SCIENCE_BUFFER_SIZE * 64];
   
   house_keeping hk_pkt;
-  
-  /*a 2-D (3 x 6) array for the command packets that includes the command packet to be sent to each interface */ 
   uint8_t response_packet_counter[3]   = {0, 0, 0};
   bool checksum[3]                     = {false, false, false};
   bool fee_enabled[3]                  = {false, false, false};
   HardwareSerial* port[3]              = {&Serial1, &Serial2, &Serial3};
   const uint8_t sync_pins[3]           = {11, 13, 12};
-  uint32_t t;
-  uint32_t time_counter            = 0;
+  uint32_t time_counter                = 0;
   bool packet_sent = false;
   bool packet_processed = false;
   int size_of_pc_packet = 8; 
   bool hk_send = false;
   
-  void wait_us(unsigned long delta_us) {
+  void wait_us(unsigned long delta_us, uint32_t t) {
     while ( (micros()  - t ) < delta_us ) {
       if (micros() - t < 0) {      
         delta_us = delta_us - (0xFFFFFFFF - t);
@@ -59,7 +56,7 @@
     if(time_counter % FREQUENCY == 0){hk_send =  process_hk_packet() ;}
     if(mode == SCIENCE_MODE) {
       pc_packet_time.sync_counter = uint32_t(__builtin_bswap32(time_counter));
-      t = micros();
+      uint32_t t = micros();
       for(int i = 0; i < 3; i++){
         if(fee_enabled[i]){
           digitalWrite(sync_pins[i], HIGH);         //setting up of the pins 
@@ -74,7 +71,7 @@
  
   
     if(mode == SCIENCE_MODE) { 
-      wait_us(PULSE_WIDTH_US);   
+      wait_us(PULSE_WIDTH_US, t);   
       for(int i = 0; i < 3; i++){
         if(fee_enabled[i]){
           send_packet(port[i], i);
