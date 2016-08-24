@@ -15,14 +15,14 @@
      else if(index == 1){
      pc_packet_arr[6] = BUFFER_SIZE; 
       for(int l = 0; l < 10; l++, size_of_pc_packet++){
-        pc_packet_arr[size_of_pc_packet] = fib_pack[buffer_index].science_data[l];
+        pc_packet_arr[size_of_pc_packet] = fob_pack[buffer_index].science_data[l];
       }
      }
 
      else if(index == 2){
      pc_packet_arr[7] = BUFFER_SIZE; 
       for(int l = 0; l < 10; l++, size_of_pc_packet++){
-        pc_packet_arr[size_of_pc_packet] = fib_pack[buffer_index].science_data[l];
+        pc_packet_arr[size_of_pc_packet] = fsc_pack[buffer_index].science_data[l];
       }
   }
   
@@ -47,10 +47,9 @@
     else if(command[1] == 1){
       fee_cmd[index][0] |= 0x05;
     }
-    fee_cmd[index][1] = command[2];
-    fee_cmd[index][2] = command[3];
-    fee_cmd[index][3] = command[4]; 
-    fee_cmd[index][4] = command[5];
+    for(int i = 0; i < 5; i++){
+     fee_cmd[index][i] = command[i + 1];
+    }
     fee_cmd[index][5] = 0; /*here we will build our checksum */
     for(int i = 0; i < 5; i++){
       fee_cmd[index][5] ^= fee_cmd[index][i];
