@@ -49,46 +49,23 @@
   bool packet_processed = false;
   int size_of_pc_packet = 8; 
   bool hk_send = false;
-  /*prototype of the functions implemented in the filed /* 
-   * void wait(unsigned long delta_us)  //when the sync pins are set high, this function is used to wait the time given by delta_us in microseconds before setting them to zero again 
-   * void timer_isr()                   //called at 7.8125 ms 
-   * void setup()                       //used to initialize the pins and setup the communication 
-   * void print_packet()                //used to print debug information 
-   * void loop()                        //used to implement the state machine 
-   */
-  
-  /*
-     void wait deals with the waiting for the desired amount of time before we start to process packets and trasmit packets to the rest of the three interfaces
-  */
+
   
   void wait_us(unsigned long delta_us) {
     while ( (micros()  - t ) < delta_us ) {
-      /*indicates whether a overflow has occured 
-       * the time t is declared as a global variable which is of eight bytes 
-       * if micros() < t we can deduce that a overflow has occured, so we need to wait for the amount of time given by delta_us(total waiting time) - (0xFFFFFFFF - t) 
-       */
       if (micros() - t < 0) {      
         delta_us = delta_us - (0xFFFFFFFF - t);
       }
     }
   }
   
-  
-  
-  /*
-     Timer interrupt service routine that occurs after every 1/128s
-     for each of the communication pins we check to see if the flag has been set
-     if the flag has been set, we will write HIGH at the paticular synchronisation pin
-     the wait function will stall for the amount of time defined by the variable time_us(in microseconds) before we proces the previous packet and send the next packet to the interface
-  */
+
   void timer_isr() {
     time_counter++;
-    if(time_counter % 128 == 0){hk_send =  process_hk_packet() ;}
+    if(time_counter % FREQUENCY == 0){hk_send =  process_hk_packet() ;}
     if(mode == SCIENCE_MODE) {
       pc_packet_time.sync_counter = uint32_t(__builtin_bswap32(time_counter));
       t = micros();
-      // take the time (currently only sync counter) when we have sent the sync pulse 
-    
       for(int i = 0; i < 3; i++){
         if(fee_enabled[i]){
           digitalWrite(sync_pins[i], HIGH);         //setting up of the pins 
