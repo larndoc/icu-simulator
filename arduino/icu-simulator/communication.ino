@@ -116,19 +116,17 @@ void check_port(HardwareSerial * port, int index)
     if (index == 2) {
       fsc_pack.arr[response_packet_counter[2]] = port -> read();
       checksum[index] ^= fsc_pack.arr[response_packet_counter[2]];
-      response_packet_counter[2]++;
     }
 
     if (index == 1) {
       fob_pack.arr[response_packet_counter[1]] = port -> read();
       checksum[1] ^= fob_pack.arr[response_packet_counter[1]];
-      response_packet_counter[1]++;
     }
 
     if (index == 0) {
       fib_pack.arr[response_packet_counter[0]] = port -> read();
       checksum[0] ^= fib_pack.arr[response_packet_counter[0]];
-      response_packet_counter[0]++;
     }
+    response_packet_counter[index]++;
   }
 }
