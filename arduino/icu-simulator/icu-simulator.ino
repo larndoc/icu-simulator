@@ -265,6 +265,3 @@
     digitalWrite(sync_pins[index], LOW); 
     port[index]->end(); 
   }
-
-
-
