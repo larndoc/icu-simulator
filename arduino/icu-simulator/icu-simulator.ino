@@ -31,13 +31,10 @@
   fib_paket fib_pack; 
   fob_packet fob_pack; 
   fsc_packet fsc_pack; 
-  /*declaration of the pc packet, used to package the recieved bytes from the three interfaces and write it out the serial port, the struct used for pc packet is a union defined in pc_data_dump.h */
   pc_packet_meta_data pc_packet_time =  {0};       
   byte pc_packet_arr[BUFFER_SIZE * 64];
   
   house_keeping hk_pkt;
-  
-  /*a 2-D (3 x 6) array for the command packets that includes the command packet to be sent to each interface */ 
   uint8_t response_packet_counter[3]   = {0, 0, 0};
   bool checksum[3]                     = {false, false, false};
   bool fee_enabled[3]                  = {false, false, false};
@@ -209,6 +206,7 @@
           packet_processed = false; 
           pc_packet_arr[0] = 0x01; 
           int j = 0; 
+          /*only required to write the first five bytes when we collected all the data that we need*/
           for(int i = 1; i < 5; i++, j++){
             pc_packet_arr[i] = pc_packet_time.arr[j];
           }
@@ -231,7 +229,6 @@
   }
   
   void fee_activate(int index){
-    
     if ( index > 2 || index < 0){
         return;  
     }
