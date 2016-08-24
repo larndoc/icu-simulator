@@ -88,7 +88,7 @@
     if(time_counter % 128 == 0){
       hk_send = true; 
     }
-    if(task == SCIENCE_MODE) {
+    if(mode == SCIENCE_MODE) {
       pc_packet.sync_counter = int32_t(__builtin_bswap32(time_counter));
       t = micros();
       // take the time (currently only sync counter) when we have sent the sync pulse 
@@ -130,7 +130,7 @@
     }
  
   
-    if(task == SCIENCE_MODE) { 
+    if(mode == SCIENCE_MODE) { 
       wait_us(PULSE_WIDTH_US);   
       for(int i = 0; i < 3; i++){
         if(fee_enabled[i]){
@@ -185,7 +185,7 @@
            switch(cmd_id){
            
            case 0x03:
-            task = SCIENCE_MODE; 
+            mode = SCIENCE_MODE; 
             break; 
   
             case 0x02:
@@ -206,12 +206,12 @@
              break; 
   
             case 0x04:
-              task = CONFIG_MODE;
+              mode = CONFIG_MODE;
               break;
   
             case 0x05:
                 while(Serial.available() == 0);
-                if(task == CONFIG_MODE){  
+                if(mode == CONFIG_MODE){  
                   active_selector = Serial.read(); 
                   fee_activate(active_selector);
                 }
@@ -219,7 +219,7 @@
             
             case 0x06: 
                 while(Serial.available() == 0); 
-                if(task == CONFIG_MODE){
+                if(mode == CONFIG_MODE){
                  deactive_selector = Serial.read(); 
                  fee_deactivate(deactive_selector); 
                }
@@ -263,7 +263,7 @@
   /******************************************************************************************************************************PC_TRANSMIT*********************************************************************************************************************************/
 
       default:
-        task = CONFIG_MODE;
+        mode = CONFIG_MODE;
     }
 
     /*
