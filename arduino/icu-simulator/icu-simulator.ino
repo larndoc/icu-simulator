@@ -20,10 +20,6 @@
   #define PERIOD_US             100000/FREQUENCY
   #define BAUD_RATE             115200
   
-  //******************************************************************************FEE PACKET INFORMATION************************************************************//
-  #define PACKETS_RECIEVED      3
-  #define STATUS                0
-  
   //******************************************************************************GLOBAL VARIABLES***************************************************************//
 
   /*set of states that the user transverses through based on the input(which can be intrinsic or defined by the user(external)*/ 
@@ -33,25 +29,19 @@
     };
   enum set task  = CONFIG_MODE;
   /*fee packet and pointer to the three fee_packets, the data structure used for fee_packet is a union which is included in the folder fee_packet_structure*/ 
-  int buffer_index = -1; 
+  int buffer_index = 0; 
   fib_paket fib_pack[BUFFER_SIZE]; 
   fob_packet fob_pack[BUFFER_SIZE]; 
-  fsc_packet fsc_pack[BUFFER_SIZE];
-
+  fsc_packet fsc_pack[BUFFER_SIZE]; 
   /*declaration of the pc packet, used to package the recieved bytes from the three interfaces and write it out the serial port, the struct used for pc packet is a union defined in pc_data_dump.h */
   pc_data pc_packet  =  {{0x01, 0, 0, 0, 0}};       
-  byte pc_packet_arr[200];
+  byte pc_packet_arr[BUFFER_SIZE * 64];
   
   house_keeping hk_pkt;
   
   /*a 2-D (3 x 6) array for the command packets that includes the command packet to be sent to each interface */ 
-
-  
-  uint16_t global_packet_counter[3]    = {0, 0, 0};
-  byte interface_counter[3]            = {0, 0, 0}; 
   uint8_t response_packet_counter[3]   = {0, 0, 0};
   bool checksum[3]                     = {false, false, false};
-  bool packet_exists[3]                = {false, false, false};
   bool fee_enabled[3]                  = {false, false, false};
   HardwareSerial* port[3]              = {&Serial1, &Serial2, &Serial3};
   const uint8_t sync_pins[3]           = {11, 13, 12};
@@ -61,10 +51,9 @@
   unsigned long t;
   bool overflow = false;
   signed long time_counter            = 0;
-  bool change_command_packet          = false;
   bool packet_sent = false;
   bool packet_processed = false;
-  bool write_command = false;
+  int size_of_pc_packet = 0; 
   /*prototype of the functions implemented in the filed /* 
    * void wait(unsigned long delta_us)  //when the sync pins are set high, this function is used to wait the time given by delta_us in microseconds before setting them to zero again 
    * void timer_isr()                   //called at 7.8125 ms 
@@ -103,7 +92,6 @@
       hk_send = true; 
     }
     if(task == SCIENCE_MODE) {
-      buffer_index++; 
       pc_packet.sync_counter = int32_t(__builtin_bswap32(time_counter));
       t = micros();
       // take the time (currently only sync counter) when we have sent the sync pulse 
@@ -118,13 +106,28 @@
         // only if a packet has been sent in the previous timer_isr()
         // we will try and process packets from enabled FEEs    
         packet_sent = false;
+        
+        if((fee_enabled[0] || fee_enabled[1] || fee_enabled[2]) && (buffer_index == 0)){
+          size_of_pc_packet = 8; 
+          /*status byte*/
+          pc_packet_arr[0] = 0x01; 
+          pc_packet_arr[1] = pc_packet.arr[1]; 
+          pc_packet_arr[2] = pc_packet.arr[2]; 
+          pc_packet_arr[3] = pc_packet.arr[3]; 
+          pc_packet_arr[4] = pc_packet.arr[4];
+        }
         for(int i = 0; i < 3; i++){
           if(fee_enabled[i]){
             process_packet(i); 
           }
         }
-          
-        packet_processed = true; 
+        if(fee_enabled[0] || fee_enabled[1] || fee_enabled[2]){
+          buffer_index++;   
+        }
+        if(buffer_index == BUFFER_SIZE){
+            packet_processed = true; 
+            buffer_index = 0; 
+        }
     }
  
   
@@ -261,65 +264,14 @@
         if(packet_sent){
           for (int i = 0; i < 3; i++) {
             if(fee_enabled[i]){
-              if(buffer_index == BUFFER_SIZE){
-                buffer_index = 0;
-              }
               check_port(port[i], i);
             }
           }
         }
         if(packet_processed){ 
           packet_processed = false; 
-          pc_packet_arr[0] = 0x01; 
-          for (int i = 1; i < 5; i++){
-            pc_packet_arr[i] = pc_packet.arr[i];
-          }
-          int k=8; // use as pc packet counter
-           if(packet_exists[0]){
-            pc_packet_arr[5] = 0; 
-            packet_exists[0] = false; 
-            for(int j = 0; j < BUFFER_SIZE; j++){
-              for(int l = 0; l < 10; l++, k++){
-                pc_packet_arr[k] = fib_pack[j].science_data[l];
-              }
-              pc_packet_arr[5]++;
-            }
-           }
-           else{
-            pc_packet_arr[5] = 0;
-           }
-
-       if(packet_exists[1]){
-            pc_packet_arr[6] = 0; 
-            packet_exists[1] = false; 
-            for(int j = 0; j < BUFFER_SIZE; j++){
-              for(int l = 0; l < 10; l++, k++){
-                pc_packet_arr[k] = fob_pack[j].science_data[l];
-              }
-              pc_packet_arr[6]++;
-            }
-           }
-           else{
-            pc_packet_arr[6] = 0;
-           }
-           
-         if(packet_exists[2]){
-            pc_packet_arr[7] = 0; 
-            packet_exists[2] = false; 
-            for(int j = 0; j < BUFFER_SIZE; j++){
-              for(int l = 0; l < 11; l++, k++){
-                pc_packet_arr[k] = fsc_pack[j].science_data[l];
-              }
-              pc_packet_arr[7]++;
-            }
-           }
-           else{
-            pc_packet_arr[7] = 0;
-           }
-          if(write_command){
-            write_command = false;
-            Serial.write(pc_packet_arr, k);
-          }  
+          Serial.write(pc_packet_arr, size_of_pc_packet);  
+          size_of_pc_packet = 0; 
          }
          break; 
       }
@@ -417,7 +369,3 @@
     digitalWrite(sync_pins[index], LOW); 
     port[index]->end(); 
   }
-
-
-
-
