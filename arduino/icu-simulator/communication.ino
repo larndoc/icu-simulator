@@ -1,5 +1,3 @@
-#include "pc_data_dump.h"
-
 #define CMD_PACKET_SIZE 6
 #define FSC_SCI_DATA_LENGTH               11
 #define FIB_SCI_DATA_LENGTH               10 
@@ -20,8 +18,11 @@ uint8_t * cmd_packet[3] = {
 
 bool process_hk_packet()
 {
-  hk_pkt.id = 0x00;
-  hk_pkt.sync_counter = uint32_t(__builtin_bswap32(time_counter));
+  hk_pkt.arr[0] = 0x00;
+  hk_pkt.arr[4] = time_counter; 
+  hk_pkt.arr[3] = time_counter >> 8;
+  hk_pkt.arr[2] = time_counter >> 16; 
+  hk_pkt.arr[1] = time_counter >> 24 ;
   adc_read_all(ADC_VSENSE);
   adc_read_all(ADC_ISENSE);
   for (int i = 0; i < 8; i++) {
@@ -103,7 +104,6 @@ void configure_port(HardwareSerial * port, int index)
         hk_pkt.fsc_hk[fee_pointer] = port->read();
       }
     }
-    /*if the values of config_param_id, config_param_val and checksum need to be saved, these can be done by adding appropiate fields in house-keeping.h*/
     config_param_id = port->read(); 
     config_param_val = port->read(); 
     checksum = port->read();
