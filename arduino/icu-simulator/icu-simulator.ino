@@ -13,7 +13,7 @@
   #include "house-keeping.h"
   #include <SPI.h>
   
-  #define BUFFER_SIZE           2
+  #define BUFFER_SIZE           3
   //********************************************************************************CLOCK INFORMATION****************************************************************//
   #define FREQUENCY             128
   #define PULSE_WIDTH_US        1000
@@ -34,7 +34,7 @@
   fob_packet fob_pack[BUFFER_SIZE]; 
   fsc_packet fsc_pack[BUFFER_SIZE]; 
   /*declaration of the pc packet, used to package the recieved bytes from the three interfaces and write it out the serial port, the struct used for pc packet is a union defined in pc_data_dump.h */
-  pc_data pc_packet  =  {{0x01, 0, 0, 0, 0}};       
+  pc_data pc_packet  =  {0x01, 1};       
   byte pc_packet_arr[BUFFER_SIZE * 64];
   
   house_keeping hk_pkt;
@@ -47,10 +47,10 @@
   const uint8_t sync_pins[3]           = {11, 13, 12};
   bool hk_send = false; 
   const uint8_t led_pin    = 10; 
-  unsigned long current_time;
-  unsigned long t;
+  uint32_t current_time;
+  uint32_t t;
   bool overflow = false;
-  signed long time_counter            = 0;
+  uint32_t time_counter            = 0;
   bool packet_sent = false;
   bool packet_processed = false;
   int size_of_pc_packet = 0; 
@@ -87,7 +87,7 @@
      the wait function will stall for the amount of time defined by the variable time_us(in microseconds) before we proces the previous packet and send the next packet to the interface
   */
   void timer_isr() {
-    time_counter++; 
+    time_counter++;
     if(time_counter % 128 == 0){
       hk_send = true; 
     }
@@ -102,11 +102,6 @@
         }
       }
     }
-        if(packet_sent) {
-        // only if a packet has been sent in the previous timer_isr()
-        // we will try and process packets from enabled FEEs    
-        packet_sent = false;
-        
         if((fee_enabled[0] || fee_enabled[1] || fee_enabled[2]) && (buffer_index == 0)){
           size_of_pc_packet = 8; 
           /*status byte*/
@@ -116,6 +111,13 @@
           pc_packet_arr[3] = pc_packet.arr[3]; 
           pc_packet_arr[4] = pc_packet.arr[4];
         }
+        
+        if(packet_sent) {
+        // only if a packet has been sent in the previous timer_isr()
+        // we will try and process packets from enabled FEEs    
+        packet_sent = false;
+        
+        
         for(int i = 0; i < 3; i++){
           if(fee_enabled[i]){
             process_packet(i); 
@@ -270,8 +272,7 @@
         }
         if(packet_processed){ 
           packet_processed = false; 
-          Serial.write(pc_packet_arr, size_of_pc_packet);  
-          size_of_pc_packet = 0; 
+          Serial.write(pc_packet.arr, 5);  
          }
          break; 
       }
@@ -287,9 +288,7 @@
 
       if( hk_send == true){
           hk_send = false; 
-        
-          /*now we must prepare our house keeping packet*/ 
-          
+          /*now we must prepare our house keeping packet*/
           hk_pkt.id = 0x00; 
           hk_pkt.sync_counter = uint32_t (__builtin_bswap32(time_counter));
         
@@ -302,6 +301,8 @@
         }
         
         if(task == CONFIG_MODE){
+          
+          
           for(int i = 0; i < FIB_HK_SIZE; i++){
             hk_pkt.fib_hk[i] = 0; 
           }
@@ -329,7 +330,7 @@
             hk_pkt.fsc_hk[i] = fsc_pack[buffer_index].hk_data[i];
           }
         }
-          //Serial.write(hk_pkt.arr, TOTAL_HK_SIZE); 
+         // Serial.write(hk_pkt.arr, TOTAL_HK_SIZE); 
        }
    
   }
@@ -342,7 +343,7 @@
     else{
         activate_pins(index); 
         fee_enabled[index] = true; 
-        pc_packet.arr[5 + index] += 1; 
+        pc_packet_arr[5 + index] += 1;
     }
   }
   
@@ -354,7 +355,6 @@
     else{
       deactivate_pins(index); 
     fee_enabled[index] = false; 
-     pc_packet.arr[5 + index] = 0; 
     }
   }
   
@@ -369,3 +369,4 @@
     digitalWrite(sync_pins[index], LOW); 
     port[index]->end(); 
   }
+
