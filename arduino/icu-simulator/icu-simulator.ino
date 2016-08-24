@@ -4,13 +4,11 @@
   #include <time.h>
   #include <stdlib.h>
   #include "adc.h"
-  #include "errors.h"
-  #include "fee_packet_structure.h"
   #include "pc_data_dump.h"
   #include "house-keeping.h"
   #include <SPI.h>
   
-  #define BUFFER_SIZE           3
+  #define SCIENCE_BUFFER_SIZE           3
   #define SPI_PIN               41 
   #define DEBUG_PIN             10
   //********************************************************************************CLOCK INFORMATION****************************************************************//
@@ -28,13 +26,13 @@
   enum set mode  = CONFIG_MODE;
   /*fee packet and pointer to the three fee_packets, the data structure used for fee_packet is a union which is included in the folder fee_packet_structure*/ 
   int buffer_index = 0; 
-  fib_paket fib_pack; 
-  fob_packet fob_pack; 
-  fsc_packet fsc_pack; 
+  /*declaration of the pc packet, used to package the recieved bytes from the three interfaces and write it out the serial port, the struct used for pc packet is a union defined in pc_data_dump.h */
   pc_packet_meta_data pc_packet_time =  {0};       
-  byte pc_packet_arr[BUFFER_SIZE * 64];
+  byte pc_packet_arr[SCIENCE_BUFFER_SIZE * 64];
   
   house_keeping hk_pkt;
+  
+  /*a 2-D (3 x 6) array for the command packets that includes the command packet to be sent to each interface */ 
   uint8_t response_packet_counter[3]   = {0, 0, 0};
   bool checksum[3]                     = {false, false, false};
   bool fee_enabled[3]                  = {false, false, false};
@@ -46,7 +44,6 @@
   bool packet_processed = false;
   int size_of_pc_packet = 8; 
   bool hk_send = false;
-
   
   void wait_us(unsigned long delta_us) {
     while ( (micros()  - t ) < delta_us ) {
@@ -58,7 +55,7 @@
   
 
   void timer_isr() {
-    time_counter++;
+     time_counter++;
     if(time_counter % FREQUENCY == 0){hk_send =  process_hk_packet() ;}
     if(mode == SCIENCE_MODE) {
       pc_packet_time.sync_counter = uint32_t(__builtin_bswap32(time_counter));
@@ -114,16 +111,11 @@
     }
     Timer.getAvailable().attachInterrupt(timer_isr).setFrequency(FREQUENCY).start();        /*attach the interrupt to the function timer_isr at 128 Hz (FREQUENCY)*/
   }
-  
-  /*
-     implementation of a finite state machine
-     state is represented by the variable task and we have a input variable that determines which state to go to from the default state 
-  */
-  
+
   void loop() {
   
     /****************************************************************************************************************EXTERNAL INPUTS THAT CHANGE THE CURRENT STATE WITHIN THE STATE DIAGRAM************************************************************************************/
-      if(Serial.available() > 0){    
+      if(Serial.available()){    
            byte cmd_id = Serial.read();
            byte deactive_selector; 
            byte active_selector; 
@@ -155,12 +147,12 @@
               break;
   
             case 0x05:
-                while(Serial.available() == 0);
+                while(!Serial.available());
                   if(mode == CONFIG_MODE){fee_activate(Serial.read());}
                break; 
             
             case 0x06: 
-                while(Serial.available() == 0); 
+                while(!Serial.available()); 
                 if(mode == CONFIG_MODE){fee_deactivate(Serial.read());} 
            break; 
            
@@ -184,13 +176,14 @@
           }
               
        break; 
+
       
       case SCIENCE_MODE:
       { 
         if(packet_sent){
           for (int i = 0; i < 3; i++) {
             if(fee_enabled[i]){
-              check_port(port[i], i);
+              configure_port(port[i], i);
             }
           }
         }
@@ -198,7 +191,6 @@
           packet_processed = false; 
           pc_packet_arr[0] = 0x01; 
           int j = 0; 
-          /*only required to write the first five bytes when we collected all the data that we need*/
           for(int i = 1; i < 5; i++, j++){
             pc_packet_arr[i] = pc_packet_time.arr[j];
           }
@@ -217,11 +209,12 @@
   }
   
   void fee_activate(int index){
+    
     if ( index > 2 || index < 0){
         return;  
     }
     else{
-        pc_packet_arr[5 + index] = BUFFER_SIZE;
+        pc_packet_arr[5 + index] = SCIENCE_BUFFER_SIZE;
         activate_pins(index); 
         fee_enabled[index] = true; 
     }
@@ -229,7 +222,7 @@
   
   
   void fee_deactivate(char index){
-    if (index > 2 || index < 0){
+    if ((index) > 2 || (index) < 0){
       return; 
     }
     else{
