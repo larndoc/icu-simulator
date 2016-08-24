@@ -24,7 +24,7 @@
     SCIENCE_MODE=0,  
     CONFIG_MODE,  
     };
-  enum set task  = CONFIG_MODE;
+  enum set mode  = CONFIG_MODE;
   /*fee packet and pointer to the three fee_packets, the data structure used for fee_packet is a union which is included in the folder fee_packet_structure*/ 
   int buffer_index = 0; 
   fib_paket fib_pack[BUFFER_SIZE]; 
@@ -170,19 +170,6 @@
     Timer.getAvailable().attachInterrupt(timer_isr).setFrequency(FREQUENCY).start();        /*attach the interrupt to the function timer_isr at 128 Hz (FREQUENCY)*/
   }
   
-  void check_checksum(int index)
-  {
-    /*
-    if (fib_pack[buffer_index].arr[FEE_PACKET_SIZE - 1] != checksum[index])
-    {
-      fee_packet[index][buffer_index].arr[0] = INVALID_ICU_PACKET_CHECKSUM;
-    }
-    */
-  
-  }
-  
-  
-  
   /*
      implementation of a finite state machine
      state is represented by the variable task and we have a input variable that determines which state to go to from the default state 
@@ -242,12 +229,12 @@
       }
       }
       
-    switch (task) {   
+    switch (mode) {   
       
    /****************************************************************************************************************************CONFIGURATION MODE***********************************************************************************************************************/
        
        case CONFIG_MODE: 
-        task = CONFIG_MODE;       
+        mode = CONFIG_MODE;       
        break; 
   
   /*****************************************************************************************************************************SCIENCE MODE*****************************************************************************************************************************/
@@ -269,7 +256,7 @@
         }
         if(packet_processed){ 
           packet_processed = false; 
-          Serial.write(pc_packet.arr, 5);  
+          Serial.write(pc_packet_arr, pc_packet_size);  
          }
          break; 
       }
@@ -297,9 +284,7 @@
           hk_pkt.adc_readings[ADC_ISENSE][i] = adc_readings[ADC_ISENSE][i];
         }
         
-        if(task == CONFIG_MODE){
-          
-          
+        if(mode == CONFIG_MODE){
           for(int i = 0; i < FIB_HK_SIZE; i++){
             hk_pkt.fib_hk[i] = 0; 
           }
@@ -311,7 +296,7 @@
           }
         }
 
-        else if(task == SCIENCE_MODE){
+        else if(mode == SCIENCE_MODE){
           /* 
            *  the zeroeth byte of the fib and fob house keeping should be the last byte of the science data, because the length of science_data has been set to 11
            */
