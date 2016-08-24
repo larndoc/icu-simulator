@@ -189,7 +189,7 @@ class Natural_Unit_Cooker(Data_Cooker):
         return new_df
 
 class CSV_Reader:
-    def __init__(self, fname, num_dp=1000, data_cooker=None, indep_var='Time'):
+    def __init__(self, fname, num_dp=500, data_cooker=None, indep_var='Time'):
         """
         Constructor method.
             fname       : file name to read
@@ -198,7 +198,7 @@ class CSV_Reader:
                           which optionally post-processes
                           DataFrames after parsing.
         """
-	self.fname = fname
+        self.fname = fname
         self.num_dp = num_dp
         self.data_cooker = data_cooker
         self.cook_data = False
@@ -293,7 +293,7 @@ class CSV_Reader:
         Returns the tail of the file as a parsed Pandas dataframe object
         """
         csv = self.get_header() + self.tail()
-        df = pandas.read_csv(StringIO(unicode(csv)))
+        df = pandas.read_csv(StringIO(str(csv)))
         try:
             df['Time'] = p.map(dt_parse, df['Time'])
         except KeyError:
