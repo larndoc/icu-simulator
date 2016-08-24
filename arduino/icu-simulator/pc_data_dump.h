@@ -8,12 +8,9 @@ union pc_data
   struct
   {
     byte id; 
-    signed long sync_counter; 
-    byte n_fib; 
-    byte n_fob; 
-    byte n_fsc; 
+    uint32_t sync_counter; 
   };
-  byte arr[8]; 
+  byte arr[5]; 
 };
 
 #endif
