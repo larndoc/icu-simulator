@@ -46,7 +46,6 @@
   const uint8_t debug_pin    = 10; 
   uint32_t current_time;
   uint32_t t;
-  bool overflow = false;
   uint32_t time_counter            = 0;
   bool packet_sent = false;
   bool packet_processed = false;
