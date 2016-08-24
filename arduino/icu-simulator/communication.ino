@@ -1,9 +1,15 @@
 #include "pc_data_dump.h"
 
 #define CMD_PACKET_SIZE 6
-
+#define FSC_SCI_DATA_LENGTH               11
+#define FIB_SCI_DATA_LENGTH               10 
+#define FOB_SCI_DATA_LENGTH               10 
+#define FIB_HOUSE_KEEPING_DATA_LENGTH     40 
+#define FOB_HOUSE_KEEPING_DATA_LENGTH     4
+#define FSC_HOUSE_KEEPING_DATA_LENGTH     53
 uint8_t default_fee_cmd[CMD_PACKET_SIZE] = {0x01,0x00,0x00,0x00,0x00,0x01};
-
+uint8_t fee_sizes[3] = {FIB_SCI_DATA_LENGTH, FOB_SCI_DATA_LENGTH, FSC_SCI_DATA_LENGTH};
+uint8_t fee_hk_sizes[3] = {FIB_HOUSE_KEEPING_DATA_LENGTH, FOB_HOUSE_KEEPING_DATA_LENGTH, FSC_HOUSE_KEEPING_DATA_LENGTH};
 uint8_t fee_cmd[3][CMD_PACKET_SIZE];
 
 uint8_t * cmd_packet[3] = {
@@ -12,50 +18,15 @@ uint8_t * cmd_packet[3] = {
   default_fee_cmd
 };
 
-void create_pc_packet(int index)
-{
-  if (index == 0) {
-    for (int l = 0; l < 10; l++, size_of_pc_packet++) {
-      pc_packet_arr[size_of_pc_packet] = fib_pack.science_data[l];
-    }
-  }
-
-  if (index == 1) {
-    for (int l = 0; l < 10; l++, size_of_pc_packet++) {
-      pc_packet_arr[size_of_pc_packet] = fob_pack.science_data[l];
-    }
-  }
-
-  if (index == 2) {
-    for (int l = 0; l < 11; l++, size_of_pc_packet++) {
-      pc_packet_arr[size_of_pc_packet] = fsc_pack.science_data[l];
-    }
-  }
-}
-
 bool process_hk_packet()
 {
   hk_pkt.id = 0x00;
-  hk_pkt.sync_counter = pc_packet_time.sync_counter;
+  hk_pkt.sync_counter = uint32_t(__builtin_bswap32(time_counter));
   adc_read_all(ADC_VSENSE);
   adc_read_all(ADC_ISENSE);
   for (int i = 0; i < 8; i++) {
     hk_pkt.adc_readings[ADC_VSENSE][i] = adc_readings[ADC_VSENSE][i];
     hk_pkt.adc_readings[ADC_ISENSE][i] = adc_readings[ADC_ISENSE][i];
-  }
-
-  if (mode == SCIENCE_MODE) {
-    for (int i = 0; i < FIB_HK_SIZE; i++) {
-      hk_pkt.fib_hk[i] = fib_pack.hk_data[i];
-    }
-
-    for (int i = 0; i < FOB_HK_SIZE; i++) {
-      hk_pkt.fob_hk[i] = fob_pack.hk_data[i];
-    }
-
-    for (int i = 1; i < FSC_HK_SIZE; i++) {
-      hk_pkt.fsc_hk[i] = fsc_pack.hk_data[i];
-    }
   }
   return true;
 }
@@ -64,15 +35,8 @@ bool process_hk_packet()
 bool process_sci_packet()
 
 {
-  // i represents the index for the fib, fob and fsc interface
-  // response_packet_counter is a measure of the number of fib, fob and
-  // fsc bytes recieved during one clock cycle
-  // in the function create_pc_packet we build our science_data
   for (int i = 0; i < 3; i++) {
-    if (response_packet_counter[i] > 0) {
-      create_pc_packet(i);
       response_packet_counter[i] = 0;
-    }
   }
   buffer_index++;
   if (buffer_index == SCIENCE_BUFFER_SIZE) {
@@ -110,23 +74,38 @@ void send_packet(HardwareSerial * port, int index)
   cmd_packet[index] = default_fee_cmd;
 }
 
-void check_port(HardwareSerial * port, int index)
+void configure_port(HardwareSerial * port, int index)
 {
   if (port -> available()) {
-    if (index == 2) {
-      fsc_pack.arr[response_packet_counter[2]] = port -> read();
-      checksum[index] ^= fsc_pack.arr[response_packet_counter[2]];
+    byte config_param_id; 
+    byte config_param_val; 
+    byte checksum;
+    int header = port->read(); 
+    int fee_pointer = 0;
+    while(fee_pointer < fee_sizes[index]){
+     size_of_pc_packet++;
+      pc_packet_arr[size_of_pc_packet] = port->read();  
+      fee_pointer++;
     }
-
-    if (index == 1) {
-      fob_pack.arr[response_packet_counter[1]] = port -> read();
-      checksum[1] ^= fob_pack.arr[response_packet_counter[1]];
+    fee_pointer = 0; 
+    if(index == 0){
+      while(fee_pointer < fee_hk_sizes[index]){
+        hk_pkt.fib_hk[fee_pointer] = port->read();
+      }
     }
-
-    if (index == 0) {
-      fib_pack.arr[response_packet_counter[0]] = port -> read();
-      checksum[0] ^= fib_pack.arr[response_packet_counter[0]];
+    if(index == 1){
+      while(fee_pointer < fee_hk_sizes[index]){
+        hk_pkt.fob_hk[fee_pointer] = port->read(); 
+      }
     }
-    response_packet_counter[index]++;
-  }
+    if(index == 2){
+      while(fee_pointer < fee_hk_sizes[index]){
+        hk_pkt.fsc_hk[fee_pointer] = port->read();
+      }
+    }
+    /*if the values of config_param_id, config_param_val and checksum need to be saved, these can be done by adding appropiate fields in house-keeping.h*/
+    config_param_id = port->read(); 
+    config_param_val = port->read(); 
+    checksum = port->read();
+}
 }
