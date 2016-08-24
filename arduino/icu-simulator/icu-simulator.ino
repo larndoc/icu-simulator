@@ -184,14 +184,6 @@
           }
               
        break; 
-  
-  /*****************************************************************************************************************************SCIENCE MODE*****************************************************************************************************************************/
-     /*
-      * in science mode, we check to see if the packet has been sent and processed, if the packet has been sent, we listen for any incoming data on the three FEEs
-      * processing of the packet allows us to determine whether the data in the packet is good/bad, if the data is good, we package it for sending to the pc. We check to see if a packet exists, and if it does not exist we set the n_fib/n_fob/n_fsc back to zero.
-      * the science data for FIB and FOB is 10, whereas the size of the science data for FSC is set to 11 
-      */
-      
       
       case SCIENCE_MODE:
       { 
@@ -215,10 +207,6 @@
          }
          break; 
       }
-
-     
-  /******************************************************************************************************************************PC_TRANSMIT*********************************************************************************************************************************/
-
       default:
         mode = CONFIG_MODE;
     }
@@ -241,7 +229,7 @@
   
   
   void fee_deactivate(char index){
-    if ((index) > 2 || (index) < 0){
+    if (index > 2 || index < 0){
       return; 
     }
     else{
