@@ -70,7 +70,6 @@ bool process_sci_packet()
   // in the function create_pc_packet we build our science_data
   for (int i = 0; i < 3; i++) {
     if (response_packet_counter[i] > 0) {
-      pc_packet_arr[5 + i] = BUFFER_SIZE;
       create_pc_packet(i);
       response_packet_counter[i] = 0;
     }
