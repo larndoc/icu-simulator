@@ -26,8 +26,7 @@
   enum set mode  = CONFIG_MODE;
   /*fee packet and pointer to the three fee_packets, the data structure used for fee_packet is a union which is included in the folder fee_packet_structure*/ 
   int buffer_index = 0; 
-  /*declaration of the pc packet, used to package the recieved bytes from the three interfaces and write it out the serial port, the struct used for pc packet is a union defined in pc_data_dump.h */
-  pc_packet_meta_data pc_packet_time =  {0};       
+  /*declaration of the pc packet, used to package the recieved bytes from the three interfaces and write it out the serial port, the struct used for pc packet is a union defined in pc_data_dump.h */    
   byte pc_packet_arr[SCIENCE_BUFFER_SIZE * 64];
   
   house_keeping hk_pkt;
@@ -36,7 +35,7 @@
   bool fee_enabled[3]                  = {false, false, false};
   HardwareSerial* port[3]              = {&Serial1, &Serial2, &Serial3};
   const uint8_t sync_pins[3]           = {11, 13, 12};
-  uint32_t time_counter                = 0;
+  uint32_t time_counter                = 0x000000000;
   bool packet_sent = false;
   bool packet_processed = false;
   int size_of_pc_packet = 8; 
@@ -50,12 +49,12 @@
     }
   }
   
+
   void timer_isr() {
-    uint32_t t;
-    time_counter++;
+     time_counter++; 
+     uint32_t t; 
     if(time_counter % FREQUENCY == 0){hk_send =  process_hk_packet() ;}
     if(mode == SCIENCE_MODE) {
-      pc_packet_time.sync_counter = uint32_t(__builtin_bswap32(time_counter));
       t = micros();
       for(int i = 0; i < 3; i++){
         if(fee_enabled[i]){
@@ -68,7 +67,8 @@
         packet_sent = false;   
         packet_processed = process_sci_packet();    
     }
-
+ 
+  
     if(mode == SCIENCE_MODE) { 
       wait_us(PULSE_WIDTH_US, t);   
       for(int i = 0; i < 3; i++){
@@ -186,12 +186,14 @@
         if(packet_processed){ 
           packet_processed = false; 
           pc_packet_arr[0] = 0x01; 
-          int j = 0; 
-          for(int i = 1; i < 5; i++, j++){
-            pc_packet_arr[i] = pc_packet_time.arr[j];
-          }
           Serial.write(pc_packet_arr, size_of_pc_packet);  
           size_of_pc_packet = 8;
+          //copying the time 
+          //the first byte in the pc_packet should in essence be the MSB ( 0x01, TIME_MSB.......TIME_LSB, DATA )
+          pc_packet_arr[1] = time_counter >> 24; 
+          pc_packet_arr[2] = time_counter >> 16; 
+          pc_packet_arr[3] = time_counter >> 8; 
+          pc_packet_arr[4] = time_counter; 
          }
          break; 
       }
@@ -200,6 +202,9 @@
     }
      if(hk_send == true){
         Serial.write(hk_pkt.arr, TOTAL_HK_SIZE);
+        for(int i = 1; i < 5; i++){
+          hk_pkt.arr[i] = 0; 
+        }
         hk_send = false;
       }
   }
