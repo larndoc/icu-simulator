@@ -1,8 +1,5 @@
 /* in order to reject any noise interference the appropiate boolean values for the variable fee_enabled need to be set */ 
 /*currently serial1 is configured to the synchronisation pin at pin 11, serial2 is configured to the synchronisation pin at pin 13 and serial is configured to the synchromnisation pin at pin 12 */ 
-/*currently use keypad button 'A' to initiate simulation */
-  
-  #include <Time.h>
   #include <DueTimer.h>
   #include <time.h>
   #include <stdlib.h>
