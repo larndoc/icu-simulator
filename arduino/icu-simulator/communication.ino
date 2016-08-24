@@ -75,7 +75,7 @@ bool process_sci_packet()
     }
   }
   buffer_index++;
-  if (buffer_index == BUFFER_SIZE) {
+  if (buffer_index == SCIENCE_BUFFER_SIZE) {
     buffer_index = 0;
     return true;
   } else {
