@@ -183,18 +183,12 @@
   
             case 0x05:
                 while(Serial.available() == 0);
-                if(mode == CONFIG_MODE){  
-                  active_selector = Serial.read(); 
-                  fee_activate(active_selector);
-                }
+                  if(mode == CONFIG_MODE){fee_activate(Serial.read());}
                break; 
             
             case 0x06: 
                 while(Serial.available() == 0); 
-                if(mode == CONFIG_MODE){
-                 deactive_selector = Serial.read(); 
-                 fee_deactivate(deactive_selector); 
-               }
+                if(mode == CONFIG_MODE){fee_deactivate(Serial.read());} 
            break; 
            
            default:;
@@ -291,6 +285,3 @@
     digitalWrite(sync_pins[index], LOW); 
     port[index]->end(); 
   }
-
-
-
