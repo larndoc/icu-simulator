@@ -232,10 +232,10 @@
         if(packet_processed){ 
           packet_processed = false; 
           pc_packet_arr[0] = 0x01; 
-          pc_packet_arr[1] = pc_packet_time.arr[0]; 
-          pc_packet_arr[2] = pc_packet_time.arr[1]; 
-          pc_packet_arr[3] = pc_packet_time.arr[2]; 
-          pc_packet_arr[4] = pc_packet_time.arr[3];
+          j = 0; 
+          for(int i = 1; i < 5; i++, j++){
+            pc_packet_arr[i] = pc_packet_time.arr[j];
+          }
           Serial.write(pc_packet_arr, size_of_pc_packet);  
           size_of_pc_packet = 8;
          }
