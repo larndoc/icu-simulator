@@ -43,12 +43,12 @@
   bool fee_enabled[3]                  = {false, false, false};
   HardwareSerial* port[3]              = {&Serial1, &Serial2, &Serial3};
   const uint8_t sync_pins[3]           = {11, 13, 12};
-  bool hk_send = false; 
   uint32_t t;
   uint32_t time_counter            = 0;
   bool packet_sent = false;
   bool packet_processed = false;
   int size_of_pc_packet = 8; 
+  bool hk_send;
   /*prototype of the functions implemented in the filed /* 
    * void wait(unsigned long delta_us)  //when the sync pins are set high, this function is used to wait the time given by delta_us in microseconds before setting them to zero again 
    * void timer_isr()                   //called at 7.8125 ms 
@@ -84,7 +84,7 @@
   void timer_isr() {
     time_counter++;
     if(time_counter % FREQUENCY == 0){
-      hk_send = true; 
+      hk_send = process_hk_packet(); 
     }
     if(mode == SCIENCE_MODE) {
       pc_packet_time.sync_counter = uint32_t(__builtin_bswap32(time_counter));
@@ -100,7 +100,7 @@
         
     if(packet_sent) { 
         packet_sent = false;   
-        packet_processed = process_packet(i);    
+        packet_processed = process_sci_packet();    
         buffer_index++;
     }
  
@@ -209,7 +209,16 @@
    /****************************************************************************************************************************CONFIGURATION MODE***********************************************************************************************************************/
        
        case CONFIG_MODE: 
-        mode = CONFIG_MODE;       
+         for(int i = 0; i < FIB_HK_SIZE; i++){
+            hk_pkt.fib_hk[i] = 0; 
+          }
+          for(int i = 0; i < FOB_HK_SIZE; i++){
+            hk_pkt.fob_hk[i] = 0; 
+          }
+          for(int i = 0; i < FSC_HK_SIZE; i++){
+            hk_pkt.fsc_hk[i] = 0; 
+          }
+              
        break; 
   
   /*****************************************************************************************************************************SCIENCE MODE*****************************************************************************************************************************/
@@ -241,61 +250,15 @@
          }
          break; 
       }
+
+      if(hk_send){
+        Serial.write(hk_pkt.arr, TOTAL_HK_SIZE);
+      }
   /******************************************************************************************************************************PC_TRANSMIT*********************************************************************************************************************************/
 
       default:
         mode = CONFIG_MODE;
     }
-
-    /*
-     * the flag is only set every 128th tick of the clock, we prepare our house keeping packet and transmit it
-     */
-
-      if( hk_send == true){
-          hk_send = false; 
-          /*now we must prepare our house keeping packet*/
-          hk_pkt.id = 0x00; 
-          hk_pkt.sync_counter = uint32_t (__builtin_bswap32(time_counter));
-        
-          adc_read_all(ADC_VSENSE); 
-          adc_read_all(ADC_ISENSE);
-        
-        for(int i = 0; i < 8; i++){
-          hk_pkt.adc_readings[ADC_VSENSE][i] = adc_readings[ADC_VSENSE][i]; 
-          hk_pkt.adc_readings[ADC_ISENSE][i] = adc_readings[ADC_ISENSE][i];
-        }
-        
-        if(mode == CONFIG_MODE){
-          for(int i = 0; i < FIB_HK_SIZE; i++){
-            hk_pkt.fib_hk[i] = 0; 
-          }
-          for(int i = 0; i < FOB_HK_SIZE; i++){
-            hk_pkt.fob_hk[i] = 0; 
-          }
-          for(int i = 0; i < FSC_HK_SIZE; i++){
-            hk_pkt.fsc_hk[i] = 0; 
-          }
-        }
-
-        else if(mode == SCIENCE_MODE){
-          /* 
-           *  the zeroeth byte of the fib and fob house keeping should be the last byte of the science data, because the length of science_data has been set to 11
-           */
-            for(int i = 0; i < FIB_HK_SIZE; i++){
-              hk_pkt.fib_hk[i] =  fib_pack.hk_data[i];
-            }
-          
-            for(int i = 0; i < FOB_HK_SIZE; i++){
-              hk_pkt.fob_hk[i] =  fob_pack.hk_data[i];
-            }
-            
-          for(int i = 1; i < FSC_HK_SIZE;i++){
-            hk_pkt.fsc_hk[i] = fsc_pack.hk_data[i];
-          }
-        }
-          //Serial.write(hk_pkt.arr, TOTAL_HK_SIZE); 
-       }
-   
   }
   
   void fee_activate(int index){
