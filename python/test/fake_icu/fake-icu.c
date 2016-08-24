@@ -115,18 +115,21 @@ struct timeval _tv, _tv_orig;
 #define init_clk() (gettimeofday(&_tv_orig, NULL))
 #define clk() (gettimeofday(&_tv, NULL), (double)(_tv.tv_sec - _tv_orig.tv_sec)\
 		+ 1e-6*(_tv.tv_usec - _tv_orig.tv_usec))
-
-long make_int(char *str)
+bool parse_long(char *str, long *ret)
 {
 	char *check;
-	int ret = strtol(str, &check, 10);
-	if (((ret == LONG_MAX || ret == LONG_MIN) && errno == ERANGE)
-	                                          || (check == str))
+	long _ret = strtol(str, &check, 10);
+	if (((_ret == LONG_MAX || _ret == LONG_MIN) && errno == ERANGE)
+	                                          || (check == str)) {
 		debug(D_NOTICE, TEXT_BOLD FG_RED
-				"Warning: expected integer, got %s\n" COLOR_END
-				"Proceeding with ret=0\n",
+				"Warning: expected integer, got string \"%s\""
+				COLOR_END "\nProceeding with ret=0",
 				str);
-	return ret;
+		return false;
+	}
+
+	*ret = _ret;
+	return true;
 }
 
 const char interfaces[N_DEV][8] = { "fib_sci",
@@ -187,13 +190,10 @@ typedef int (*data_generator_func_t)(int, double);
 struct {
 	bool enabled[N_DEV];
 	data_generator_func_t wf[N_DEV];
-	double freq[N_DEV];
-	double T;
-	char *dir_out;
+	double freq[N_DEV], T;
 	bool verbose;
-	char min_priority;
-	unsigned int n;
-	int noise_ampl;
+	char min_priority, *dir_out;
+	long n, noise_ampl;
 } opts;
 
 int sine(int A, double f)
@@ -371,7 +371,10 @@ int main(int argc, char *argv[])
 		/* set number of data points */
 		else IF_ARG("n") {
 			NEXT_ARG_MUST_EXIST;
-			opts.n = atoi(THIS_ARG);
+			if (!parse_long(THIS_ARG, &opts.n)) {
+				debug(D_NOTICE, "Ignoring data point cap...\n");
+				opts.n = 0;
+			}
 		}
 
 		/* user wants a particular waveform */
@@ -427,7 +430,13 @@ int main(int argc, char *argv[])
 			noise:
 			NEXT_ARG;
 			IF_ARG_EXISTS {
-				opts.noise_ampl = atoi(THIS_ARG);
+				if (!parse_long(THIS_ARG, &opts.noise_ampl)) {
+					debug(D_NOTICE,
+					      "Continuing with noise amplitude"
+					      " %d\n", DEFAULT_NOISE_AMPL);
+					opts.noise_ampl = DEFAULT_NOISE_AMPL;
+					PREV_ARG;
+				}
 			} else {
 				PREV_ARG;
 				opts.noise_ampl = DEFAULT_NOISE_AMPL;
@@ -557,7 +566,7 @@ int main(int argc, char *argv[])
 	for (int i = 0; i < N_DEV; i++)
 		if (opts.enabled[i])
 			strcat(buf, interfaces[i]), strcat(buf, " ");
-	debug(D_NOTICE, TEXT_BOLD "Enabled interfaces: " COLOR_END "%s\n", buf);
+	debug(D_NOTICE, TEXT_BOLD "Enabled interfaces: " COLOR_END "%s", buf);
 
 	/* Loop forever (or if opts.n was set, until count > opts.n); *
 	 * we expect to be killed by a signal otherwise.              */
@@ -631,15 +640,16 @@ void _debug(int loglevel, char *file, const char *func,
 
 	/* compute log tag length and prepare a buffer of *
 	 * empty spaces to produce nice-looking logs      */
-	size_t tag_len = strlen(log_tags[loglevel]) + strlen(file)
-		       + strlen(func) + ceil(log(line)/log(10.))
-		       + 11;
+	size_t tag_len = strlen(log_tags[loglevel])
+                       + strlen(file)
+                       + strlen(func)
+                       + ceil(log(line) / log(10.));
 	char *buf = malloc(tag_len + 1);
 	memset(buf, ' ', tag_len);
 	buf[tag_len] = 0;
 
 	/* handle log tag */
-	printf("%s %s:%d call %s() | ",
+	printf("%s %s:%d in %s() | ",
 	       log_tags[loglevel], file, line, func);
 
 	/* account for log tag on line breaks */
@@ -647,5 +657,5 @@ void _debug(int loglevel, char *file, const char *func,
 	printf("%s\n", to_print);
 
 	while (to_print = strtok(NULL, "\n"))
-		printf("%s| %s", buf, to_print);
+		printf("%s| %s\n", buf, to_print);
 }
