@@ -83,9 +83,7 @@
   */
   void timer_isr() {
     time_counter++;
-    if(time_counter % FREQUENCY == 0){
-      hk_send = process_hk_packet(); 
-    }
+    if(time_counter % FREQUENCY == 0) hk_send = process_hk_packet(); 
     if(mode == SCIENCE_MODE) {
       pc_packet_time.sync_counter = uint32_t(__builtin_bswap32(time_counter));
       t = micros();
@@ -101,7 +99,6 @@
     if(packet_sent) { 
         packet_sent = false;   
         packet_processed = process_sci_packet();    
-        buffer_index++;
     }
  
   
@@ -294,3 +291,6 @@
     digitalWrite(sync_pins[index], LOW); 
     port[index]->end(); 
   }
+
+
+
