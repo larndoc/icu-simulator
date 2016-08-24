@@ -11,12 +11,13 @@
   #include <SPI.h>
   
   #define BUFFER_SIZE           3
+  #define SPI_PIN               41 
+  #define DEBUG_PIN             10
   //********************************************************************************CLOCK INFORMATION****************************************************************//
   #define FREQUENCY             128
   #define PULSE_WIDTH_US        1000
   #define PERIOD_US             100000/FREQUENCY
   #define BAUD_RATE             115200
-  
   //******************************************************************************GLOBAL VARIABLES***************************************************************//
 
   /*set of states that the user transverses through based on the input(which can be intrinsic or defined by the user(external)*/ 
@@ -27,11 +28,11 @@
   enum set mode  = CONFIG_MODE;
   /*fee packet and pointer to the three fee_packets, the data structure used for fee_packet is a union which is included in the folder fee_packet_structure*/ 
   int buffer_index = 0; 
-  fib_paket fib_pack[BUFFER_SIZE]; 
-  fob_packet fob_pack[BUFFER_SIZE]; 
-  fsc_packet fsc_pack[BUFFER_SIZE]; 
+  fib_paket fib_pack; 
+  fob_packet fob_pack; 
+  fsc_packet fsc_pack; 
   /*declaration of the pc packet, used to package the recieved bytes from the three interfaces and write it out the serial port, the struct used for pc packet is a union defined in pc_data_dump.h */
-  pc_data pc_packet  =  {0x01, 1};       
+  pc_packet_meta_data pc_packet_time =  {0};       
   byte pc_packet_arr[BUFFER_SIZE * 64];
   
   house_keeping hk_pkt;
@@ -43,13 +44,11 @@
   HardwareSerial* port[3]              = {&Serial1, &Serial2, &Serial3};
   const uint8_t sync_pins[3]           = {11, 13, 12};
   bool hk_send = false; 
-  const uint8_t debug_pin    = 10; 
-  uint32_t current_time;
   uint32_t t;
   uint32_t time_counter            = 0;
   bool packet_sent = false;
   bool packet_processed = false;
-  int size_of_pc_packet = 0; 
+  int size_of_pc_packet = 8; 
   /*prototype of the functions implemented in the filed /* 
    * void wait(unsigned long delta_us)  //when the sync pins are set high, this function is used to wait the time given by delta_us in microseconds before setting them to zero again 
    * void timer_isr()                   //called at 7.8125 ms 
@@ -84,11 +83,11 @@
   */
   void timer_isr() {
     time_counter++;
-    if(time_counter % 128 == 0){
+    if(time_counter % FREQUENCY == 0){
       hk_send = true; 
     }
     if(mode == SCIENCE_MODE) {
-      pc_packet.sync_counter = int32_t(__builtin_bswap32(time_counter));
+      pc_packet_time.sync_counter = uint32_t(__builtin_bswap32(time_counter));
       t = micros();
       // take the time (currently only sync counter) when we have sent the sync pulse 
     
@@ -98,22 +97,11 @@
         }
       }
     }
-        if((fee_enabled[0] || fee_enabled[1] || fee_enabled[2]) && (buffer_index == 0)){
-          size_of_pc_packet = 8; 
-          /*status byte*/
-          pc_packet_arr[0] = 0x01; 
-          pc_packet_arr[1] = pc_packet.arr[1]; 
-          pc_packet_arr[2] = pc_packet.arr[2]; 
-          pc_packet_arr[3] = pc_packet.arr[3]; 
-          pc_packet_arr[4] = pc_packet.arr[4];
-        }
         
         if(packet_sent) {
         // only if a packet has been sent in the previous timer_isr()
         // we will try and process packets from enabled FEEs    
-        packet_sent = false;
-        
-        
+        packet_sent = false;   
         for(int i = 0; i < 3; i++){
           if(fee_enabled[i]){
             process_packet(i); 
@@ -155,8 +143,8 @@
      port[i] represents each set of communication pins respectively.
   */
   void setup() {
-    pinMode(41, OUTPUT);
-    pinMode(debug_pin, OUTPUT);
+    pinMode(SPI_PIN, OUTPUT);
+    pinMode(DEBUG_PIN, OUTPUT);
     Serial.begin(BAUD_RATE);
     SPI.begin(); 
     for (int i = 0; i < 3; i++) {
@@ -255,7 +243,13 @@
         }
         if(packet_processed){ 
           packet_processed = false; 
-          Serial.write(pc_packet_arr, pc_packet_size);  
+          pc_packet_arr[0] = 0x01; 
+          pc_packet_arr[1] = pc_packet_time.arr[0]; 
+          pc_packet_arr[2] = pc_packet_time.arr[1]; 
+          pc_packet_arr[3] = pc_packet_time.arr[2]; 
+          pc_packet_arr[4] = pc_packet_time.arr[3];
+          Serial.write(pc_packet_arr, size_of_pc_packet);  
+          size_of_pc_packet = 8;
          }
          break; 
       }
@@ -300,18 +294,18 @@
            *  the zeroeth byte of the fib and fob house keeping should be the last byte of the science data, because the length of science_data has been set to 11
            */
             for(int i = 0; i < FIB_HK_SIZE; i++){
-              hk_pkt.fib_hk[i] =  fib_pack[buffer_index].hk_data[i];
+              hk_pkt.fib_hk[i] =  fib_pack.hk_data[i];
             }
           
             for(int i = 0; i < FOB_HK_SIZE; i++){
-              hk_pkt.fob_hk[i] =  fob_pack[buffer_index].hk_data[i];
+              hk_pkt.fob_hk[i] =  fob_pack.hk_data[i];
             }
             
           for(int i = 1; i < FSC_HK_SIZE;i++){
-            hk_pkt.fsc_hk[i] = fsc_pack[buffer_index].hk_data[i];
+            hk_pkt.fsc_hk[i] = fsc_pack.hk_data[i];
           }
         }
-         // Serial.write(hk_pkt.arr, TOTAL_HK_SIZE); 
+          //Serial.write(hk_pkt.arr, TOTAL_HK_SIZE); 
        }
    
   }
@@ -324,7 +318,6 @@
     else{
         activate_pins(index); 
         fee_enabled[index] = true; 
-        pc_packet_arr[5 + index] += 1;
     }
   }
   
@@ -350,4 +343,6 @@
     digitalWrite(sync_pins[index], LOW); 
     port[index]->end(); 
   }
+
+
 
