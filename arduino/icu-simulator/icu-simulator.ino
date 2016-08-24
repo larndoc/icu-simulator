@@ -236,6 +236,7 @@
         return;  
     }
     else{
+        pc_packet_arr[5 + index] = BUFFER_SIZE;
         activate_pins(index); 
         fee_enabled[index] = true; 
     }
@@ -247,7 +248,8 @@
       return; 
     }
     else{
-      deactivate_pins(index); 
+    pc_packet_arr[5 + index] = 0;
+    deactivate_pins(index); 
     fee_enabled[index] = false; 
     }
   }
