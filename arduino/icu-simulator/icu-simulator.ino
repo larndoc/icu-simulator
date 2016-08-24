@@ -48,7 +48,7 @@
   bool packet_sent = false;
   bool packet_processed = false;
   int size_of_pc_packet = 8; 
-  bool hk_send;
+  bool hk_send = false;
   /*prototype of the functions implemented in the filed /* 
    * void wait(unsigned long delta_us)  //when the sync pins are set high, this function is used to wait the time given by delta_us in microseconds before setting them to zero again 
    * void timer_isr()                   //called at 7.8125 ms 
@@ -83,7 +83,7 @@
   */
   void timer_isr() {
     time_counter++;
-    if(time_counter % FREQUENCY == 0) hk_send = process_hk_packet(); 
+    if(time_counter % 128 == 0){hk_send =  process_hk_packet() ;}
     if(mode == SCIENCE_MODE) {
       pc_packet_time.sync_counter = uint32_t(__builtin_bswap32(time_counter));
       t = micros();
@@ -118,7 +118,6 @@
       
     }
   }
-  
   
   
   /*
@@ -232,7 +231,7 @@
         if(packet_processed){ 
           packet_processed = false; 
           pc_packet_arr[0] = 0x01; 
-          j = 0; 
+          int j = 0; 
           for(int i = 1; i < 5; i++, j++){
             pc_packet_arr[i] = pc_packet_time.arr[j];
           }
@@ -242,14 +241,16 @@
          break; 
       }
 
-      if(hk_send){
-        Serial.write(hk_pkt.arr, TOTAL_HK_SIZE);
-      }
+     
   /******************************************************************************************************************************PC_TRANSMIT*********************************************************************************************************************************/
 
       default:
         mode = CONFIG_MODE;
     }
+     if(hk_send == true){
+        Serial.write(hk_pkt.arr, TOTAL_HK_SIZE);
+        hk_send = false;
+      }
   }
   
   void fee_activate(int index){
@@ -285,3 +286,4 @@
     digitalWrite(sync_pins[index], LOW); 
     port[index]->end(); 
   }
+
