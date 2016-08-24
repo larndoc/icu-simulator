@@ -98,22 +98,10 @@
       }
     }
         
-        if(packet_sent) {
-        // only if a packet has been sent in the previous timer_isr()
-        // we will try and process packets from enabled FEEs    
+    if(packet_sent) { 
         packet_sent = false;   
-        for(int i = 0; i < 3; i++){
-          if(fee_enabled[i]){
-            process_packet(i); 
-          }
-        }
-        if(fee_enabled[0] || fee_enabled[1] || fee_enabled[2]){
-          buffer_index++;   
-        }
-        if(buffer_index == BUFFER_SIZE){
-            packet_processed = true; 
-            buffer_index = 0; 
-        }
+        packet_processed = process_packet(i);    
+        buffer_index++;
     }
  
   
@@ -343,6 +331,3 @@
     digitalWrite(sync_pins[index], LOW); 
     port[index]->end(); 
   }
-
-
-
