@@ -1,18 +1,40 @@
-  #include "pc_data_dump.h"
+ #include "pc_data_dump.h"
   #define CMD_PACKET_SIZE 6 
    uint8_t default_fee_cmd[CMD_PACKET_SIZE] = {0x01, 0x00, 0x00, 0x00, 0x00, 0x01}; 
    uint8_t fee_cmd[3][CMD_PACKET_SIZE]; 
    uint8_t *cmd_packet[3] = {default_fee_cmd, default_fee_cmd, default_fee_cmd};
   
+  
+  void create_pc_packet(int index){
+    if(index == 0){
+     pc_packet_arr[5] = BUFFER_SIZE;
+      for(int l = 0; l < 10; l++, size_of_pc_packet++){
+        pc_packet_arr[size_of_pc_packet] = fib_pack[buffer_index].science_data[l];
+      }
+    }
+     else if(index == 1){
+     pc_packet_arr[6] = BUFFER_SIZE; 
+      for(int l = 0; l < 10; l++, size_of_pc_packet++){
+        pc_packet_arr[size_of_pc_packet] = fib_pack[buffer_index].science_data[l];
+      }
+     }
+
+     else if(index == 2){
+     pc_packet_arr[7] = BUFFER_SIZE; 
+      for(int l = 0; l < 10; l++, size_of_pc_packet++){
+        pc_packet_arr[size_of_pc_packet] = fib_pack[buffer_index].science_data[l];
+      }
+  }
+  
+  }
+ 
+ 
   void process_packet(uint8_t index){                                                     //on every sync signal check to see if there is some processing to do and send the UART packet to the rest of the interfaces respectively. 
       check_checksum(index); 
       if(response_packet_counter[index] > 0){
-      packet_exists[index] = true;
-      }
-      response_packet_counter[index] = 0; 
-
-      global_packet_counter[index]++; 
-      
+        create_pc_packet(index);  
+        response_packet_counter[index] = 0; 
+  }
   }
 
   void create_cmd_packet(uint8_t * command){
@@ -48,16 +70,21 @@
   
   void check_port(HardwareSerial* port, int index){
     if(port->available() > 0){
-      if(buffer_index == BUFFER_SIZE - 1){
-                write_command = true; 
-              }
-      if(pc_packet.n_fsc > 0){
-      fsc_pack[buffer_index].arr[response_packet_counter[index]] = port->read();
-      checksum[index] ^= fsc_pack[buffer_index].arr[response_packet_counter[index]]; 
-      response_packet_counter[index]++;  
+      if(index == 2){
+          fsc_pack[buffer_index].arr[response_packet_counter[2]] = port->read();
+          checksum[index] ^= fsc_pack[buffer_index].arr[response_packet_counter[2]]; 
+          response_packet_counter[2]++;  
       }
-      if(response_packet_counter[index] > FSC_TOTAL_LENGTH){
-                                                               //if packet size exceeds the maximum fee_packet_size then set the flag, i.e set pin 10 HIGH and continue mode of operation
+      
+      if(index == 1){
+          fob_pack[buffer_index].arr[response_packet_counter[1]] = port->read(); 
+          checksum[1] ^= fob_pack[buffer_index].arr[response_packet_counter[1]]; 
+          response_packet_counter[1]++;
+      }
+      if(index == 0){
+          fib_pack[buffer_index].arr[response_packet_counter[0]] = port->read(); 
+          checksum[0] ^= fib_pack[buffer_index].arr[response_packet_counter[0]]; 
+          response_packet_counter[0]++;
       }
     }
   }
