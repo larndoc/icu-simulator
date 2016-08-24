@@ -1,4 +1,4 @@
-#include "pc_data_dump.h"
+ #include "pc_data_dump.h"
   #define CMD_PACKET_SIZE 6 
    uint8_t default_fee_cmd[CMD_PACKET_SIZE] = {0x01, 0x00, 0x00, 0x00, 0x00, 0x01}; 
    uint8_t fee_cmd[3][CMD_PACKET_SIZE]; 
@@ -25,15 +25,54 @@
         pc_packet_arr[size_of_pc_packet] = fsc_pack.science_data[l];
       }
   }
-  
   }
  
- 
-  void process_packet(uint8_t index){                                                     //on every sync signal check to see if there is some processing to do and send the UART packet to the rest of the interfaces respectively. 
-      if(response_packet_counter[index] > 0){
-        create_pc_packet(index);  
-        response_packet_counter[index] = 0; 
+  bool process_hk_packet(){
+          hk_pkt.id = 0x00; 
+          hk_pkt.sync_counter = uint32_t (__builtin_bswap32(time_counter));
+        
+          adc_read_all(ADC_VSENSE); 
+          adc_read_all(ADC_ISENSE);
+        
+        for(int i = 0; i < 8; i++){
+          hk_pkt.adc_readings[ADC_VSENSE][i] = adc_readings[ADC_VSENSE][i]; 
+          hk_pkt.adc_readings[ADC_ISENSE][i] = adc_readings[ADC_ISENSE][i];
+        }
+    
+
+       if(mode == SCIENCE_MODE){
+            for(int i = 0; i < FIB_HK_SIZE; i++){
+              hk_pkt.fib_hk[i] =  fib_pack.hk_data[i];
+            }
+          
+            for(int i = 0; i < FOB_HK_SIZE; i++){
+              hk_pkt.fob_hk[i] =  fob_pack.hk_data[i];
+            }
+            
+          for(int i = 1; i < FSC_HK_SIZE;i++){
+            hk_pkt.fsc_hk[i] = fsc_pack.hk_data[i];
+          }
+        }
+        return true; 
   }
+  bool process_sci_packet(){      
+    //i represents the index for the fib, fob and fsc interface
+    //response_packet_counter is a measure of the number of fib, fob and fsc bytes recieved during one clock cycle 
+    //in the function create_pc_packet we build our science_data 
+     for(int i = 0; i < 3; i++){
+      if(response_packet_counter[i] > 0){
+        create_pc_packet(i);  
+        response_packet_counter[i] = 0; 
+      }
+    }
+    buffer_index++;
+    if(buffer_index == BUFFER_SIZE){
+        buffer_index = 0; 
+        return true;  
+   }
+   else{
+        return false; 
+   }
   }
 
   void create_cmd_packet(uint8_t * command){
