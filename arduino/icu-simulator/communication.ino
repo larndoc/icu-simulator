@@ -34,7 +34,9 @@ bool process_hk_packet()
 
 
 bool process_sci_packet()
-
+/*
+insert checking checksum here 
+*/
 {
   for (int i = 0; i < 3; i++) {
       response_packet_counter[i] = 0;
@@ -83,23 +85,25 @@ void configure_port(HardwareSerial * port, int index)
     byte checksum;
     int header = port->read(); 
     int fee_pointer = 0;
+    if(status == 0x00){ //status confimed OK 
     while(fee_pointer < fee_sizes[index]){
      size_of_pc_packet++;
       pc_packet_arr[size_of_pc_packet] = port->read();  
       fee_pointer++;
     }
+    
     fee_pointer = 0; 
     if(index == 0){
       while(fee_pointer < fee_hk_sizes[index]){
         hk_pkt.fib_hk[fee_pointer] = port->read();
       }
     }
-    if(index == 1){
+    else if(index == 1){
       while(fee_pointer < fee_hk_sizes[index]){
         hk_pkt.fob_hk[fee_pointer] = port->read(); 
       }
     }
-    if(index == 2){
+    else if(index == 2){
       while(fee_pointer < fee_hk_sizes[index]){
         hk_pkt.fsc_hk[fee_pointer] = port->read();
       }
@@ -107,5 +111,6 @@ void configure_port(HardwareSerial * port, int index)
     config_param_id = port->read(); 
     config_param_val = port->read(); 
     checksum = port->read();
+}
 }
 }
