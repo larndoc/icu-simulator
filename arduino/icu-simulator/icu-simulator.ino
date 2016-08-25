@@ -1,5 +1,3 @@
-/* in order to reject any noise interference the appropiate boolean values for the variable fee_enabled need to be set */ 
-/*currently serial1 is configured to the synchronisation pin at pin 11, serial2 is configured to the synchronisation pin at pin 13 and serial is configured to the synchromnisation pin at pin 12 */ 
   #include <DueTimer.h>
   #include <time.h>
   #include <stdlib.h>
@@ -7,7 +5,7 @@
   #include "house-keeping.h"
   #include <SPI.h>
   
-  #define SCIENCE_BUFFER_SIZE   3
+  #define SCIENCE_BUFFER_SIZE   1
   #define SPI_PIN               41 
   #define DEBUG_PIN             10
   //********************************************************************************CLOCK INFORMATION****************************************************************//
@@ -27,7 +25,8 @@
   int buffer_index = 0; 
   /*declaration of the pc packet, used to package the recieved bytes from the three interfaces and write it out the serial port, the struct used for pc packet is a union defined in pc_data_dump.h */    
   byte pc_packet_arr[SCIENCE_BUFFER_SIZE * 64];
-  
+  int size_of_fee_packet = 0;
+int i = 0;
   house_keeping hk_pkt;
   uint8_t response_packet_counter[3]   = {0, 0, 0};
   bool checksum[3]                     = {false, false, false};
@@ -83,6 +82,9 @@
       } 
       
     }
+    size_of_pc_packet = 8; 
+    size_of_fee_packet=0; 
+    i=0; 
   }
   
   
@@ -175,24 +177,43 @@
       
       case SCIENCE_MODE:
       { 
+        
+        
         if(packet_sent){
+          if(size_of_fee_packet < 4){
+            for(int i = 0; i < 3; i++){
+              if(fee_enabled[i]){
+                if(port[i]->available()){
+                  byte meta_data = port[i]->read(); 
+                }
+              }
+            }
+            size_of_fee_packet++; 
+          }
+          else{
           for (int i = 0; i < 3; i++) {
             if(fee_enabled[i]){
               configure_port(port[i], i);
             }
           }
+          size_of_fee_packet++;
+          size_of_pc_packet++; 
+          i++; 
+         }
         }
+       
         if(packet_processed){ 
           packet_processed = false; 
           pc_packet_arr[0] = 0x01; 
-          Serial.write(pc_packet_arr, size_of_pc_packet);  
-          size_of_pc_packet = 8;
-          //copying the time 
+                //copying the time 
           //the first byte in the pc_packet should in essence be the MSB ( 0x01, TIME_MSB.......TIME_LSB, DATA )
           pc_packet_arr[1] = time_counter >> 24; 
           pc_packet_arr[2] = time_counter >> 16; 
           pc_packet_arr[3] = time_counter >> 8; 
           pc_packet_arr[4] = time_counter; 
+          Serial.write(pc_packet_arr, 8);  
+          size_of_pc_packet = 8;
+  
          }
          break; 
       }
@@ -200,7 +221,7 @@
         mode = CONFIG_MODE;
     }
      if(hk_send == true){
-        Serial.write(hk_pkt.arr, TOTAL_HK_SIZE);
+       // Serial.write(hk_pkt.arr, TOTAL_HK_SIZE);
         for(int i = 1; i < 5; i++){
           hk_pkt.arr[i] = 0; 
         }
