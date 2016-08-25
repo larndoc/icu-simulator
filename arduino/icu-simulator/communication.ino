@@ -34,9 +34,7 @@ bool process_hk_packet()
 
 
 bool process_sci_packet()
-/*
-insert checking checksum here 
-*/
+
 {
   for (int i = 0; i < 3; i++) {
       response_packet_counter[i] = 0;
@@ -44,6 +42,7 @@ insert checking checksum here
   buffer_index++;
   if (buffer_index == SCIENCE_BUFFER_SIZE) {
     buffer_index = 0;
+    packet_processed = true;
     return true;
   } else {
     return false;
@@ -76,41 +75,42 @@ void send_packet(HardwareSerial * port, int index)
   port -> write(cmd_packet[index], CMD_PACKET_SIZE);
   cmd_packet[index] = default_fee_cmd;
 }
-
+  
 void configure_port(HardwareSerial * port, int index)
 {
-  if (port -> available()) {
-    byte config_param_id; 
-    byte config_param_val; 
-    byte checksum;
-    int header = port->read(); 
-    int fee_pointer = 0;
-    if(status == 0x00){ //status confimed OK 
-    while(fee_pointer < fee_sizes[index]){
-     size_of_pc_packet++;
-      pc_packet_arr[size_of_pc_packet] = port->read();  
-      fee_pointer++;
-    }
-    
-    fee_pointer = 0; 
-    if(index == 0){
-      while(fee_pointer < fee_hk_sizes[index]){
-        hk_pkt.fib_hk[fee_pointer] = port->read();
+    if(port->available()){
+      if(index == 0){
+        if(size_of_fee_packet < 14){
+          pc_packet_arr[size_of_pc_packet] = port->read();
+        }
+        else if(size_of_fee_packet < 14 + FIB_HOUSE_KEEPING_DATA_LENGTH){
+          hk_pkt.fib_hk[i] = port->read(); 
+        }
+        else if(size_of_fee_packet < 18 + FIB_HOUSE_KEEPING_DATA_LENGTH){
+          byte tail = port->read(); 
+        }
       }
-    }
-    else if(index == 1){
-      while(fee_pointer < fee_hk_sizes[index]){
-        hk_pkt.fob_hk[fee_pointer] = port->read(); 
+      else if(index == 1){
+        if(size_of_fee_packet < 14){
+          pc_packet_arr[size_of_pc_packet + 10] = port->read(); 
+        }
+         else if(size_of_fee_packet < 14 + FOB_HOUSE_KEEPING_DATA_LENGTH){
+          hk_pkt.fob_hk[i] = port->read(); 
+        }
+        else if(size_of_fee_packet < 18 + FOB_HOUSE_KEEPING_DATA_LENGTH){
+          byte tail = port->read(); 
+        } 
       }
-    }
-    else if(index == 2){
-      while(fee_pointer < fee_hk_sizes[index]){
-        hk_pkt.fsc_hk[fee_pointer] = port->read();
+      else if(index == 2){
+        if(size_of_fee_packet < 15){
+          pc_packet_arr[size_of_pc_packet + 20] = port->read(); 
+        }
+         else if(size_of_fee_packet < 15 + FIB_HOUSE_KEEPING_DATA_LENGTH){
+          hk_pkt.fib_hk[i] = port->read(); 
+        }
+        else if(size_of_fee_packet < 19 + FIB_HOUSE_KEEPING_DATA_LENGTH){
+          byte tail = port->read(); 
+        }
       }
-    }
-    config_param_id = port->read(); 
-    config_param_val = port->read(); 
-    checksum = port->read();
-}
 }
 }
