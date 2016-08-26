@@ -79,7 +79,6 @@ void timer_isr() {
 
   // create trigger flags
   if((time_counter % HK_CADENCE)==0) send_hk = true;
-  if((time_counter % SCI_CADENCE)==0) send_sci = true; 
 
   if( send_hk ) {
     init_hk_packet(t);    
@@ -87,6 +86,7 @@ void timer_isr() {
 
   // create sync pulse rising edge
   if(mode == SCIENCE_MODE) {
+    if((time_counter % SCI_CADENCE)==0) send_sci = true; 
     t = micros();
     for(int i = 0; i < 3; i++){
       if(fee_enabled[i]){
