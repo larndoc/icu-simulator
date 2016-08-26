@@ -87,13 +87,14 @@ void receive_fee_response(HardwareSerial * port, int fee) {
   }
 }
 
+
 /* process_fee_response(fee):
  *  copies the dataframes "Sci" and "HK" from the
  *  received response to the defined storage spaces
  *  returns true if that goes ok.
  */
 bool process_fee_response(uint8_t fee) {
-  int i;
+  uint8_t i;
   int sci_size = fee_sci_sizes[fee];
   int hk_size = fee_hk_sizes[fee];
   int data_size = 1+sci_size+hk_size+5;
@@ -175,10 +176,9 @@ void init_sci_packet(unsigned long t) {
   int i;
   
   sci_header.id = 0x01;  
-  sci_header.counter[0] = t >> 24;
-  sci_header.counter[1] = t >> 16;
-  sci_header.counter[2] = t >> 8;
-  sci_header.counter[3] = t;
+  for(int i = 0; i < 4; i++){
+    sci_header.counter[i] = t >> (8 * (3 - i)); 
+  }
   for(i=0;i<3;i++) {
     sci_header.n[i] = sci_data[i].n;
     // calculate bytes to send for each fee science data frame
@@ -195,10 +195,9 @@ void init_sci_packet(unsigned long t) {
  */
 void init_hk_packet(unsigned long t) {
   hk_packet.id = 0x00;
-  hk_packet.counter[3] = t; 
-  hk_packet.counter[2] = t >> 8;
-  hk_packet.counter[1] = t >> 16; 
-  hk_packet.counter[0] = t >> 24;
+  for(int i = 0; i < 4; i++){
+    hk_packet.counter[i] = t >> (8 * (3 - i));
+  }
 }
 
 /* send_sci_packet():
@@ -279,7 +278,3 @@ bool send_hk_packet() {
     return false;
   }  
 }
-
-
-
-
