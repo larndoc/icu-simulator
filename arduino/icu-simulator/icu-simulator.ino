@@ -74,20 +74,19 @@ void fee_deactivate(unsigned int fee) {
 }
 
 void timer_isr() {
-  uint32_t t; 
+  uint32_t t = micros(); 
   time_counter++;
 
   // create trigger flags
   if((time_counter % HK_CADENCE)==0) send_hk = true;
 
   if( send_hk ) {
-    init_hk_packet(t);    
+    init_hk_packet(time_counter - 1);    
   }
 
   // create sync pulse rising edge
   if(mode == SCIENCE_MODE) {
     if((time_counter % SCI_CADENCE)==0) send_sci = true; 
-    t = micros();
     for(int i = 0; i < 3; i++){
       if(fee_enabled[i]){
         digitalWrite(sync_pins[i], HIGH);         //setting up of the pins 
