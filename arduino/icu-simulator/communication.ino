@@ -1,60 +1,44 @@
-#define CMD_PACKET_SIZE 6
-#define FSC_SCI_DATA_LENGTH               11
-#define FIB_SCI_DATA_LENGTH               10 
-#define FOB_SCI_DATA_LENGTH               10 
-#define FIB_HOUSE_KEEPING_DATA_LENGTH     40 
-#define FOB_HOUSE_KEEPING_DATA_LENGTH     4
-#define FSC_HOUSE_KEEPING_DATA_LENGTH     53
-uint8_t default_fee_cmd[CMD_PACKET_SIZE] = {0x01,0x00,0x00,0x00,0x00,0x01};
-uint8_t fee_sizes[3] = {FIB_SCI_DATA_LENGTH, FOB_SCI_DATA_LENGTH, FSC_SCI_DATA_LENGTH};
-uint8_t fee_hk_sizes[3] = {FIB_HOUSE_KEEPING_DATA_LENGTH, FOB_HOUSE_KEEPING_DATA_LENGTH, FSC_HOUSE_KEEPING_DATA_LENGTH};
-uint8_t fee_cmd[3][CMD_PACKET_SIZE];
+#include "communication.h"
 
+uint8_t default_fee_cmd[CMD_PACKET_SIZE] = {0x01,0x00,0x00,0x00,0x00,0x01};
+uint8_t fee_cmd[3][CMD_PACKET_SIZE];
+uint8_t fee_rec[3][REC_PACKET_SIZE];
+uint8_t fee_rec_counter[3] = {0,0,0};
+enum sci_queues sci_queue = HEADER;
+int sci_send_counter = 0;
+int hk_send_counter = 0; 
+
+uint8_t fee_sci_sizes[3] = {
+  FIB_SCI_SIZE, 
+  FOB_SCI_SIZE, 
+  FSC_SCI_SIZE
+};
+
+int fee_sci_to_send[3] = {0,0,0};
+
+uint8_t fee_hk_sizes[3] = {
+  FIB_HK_SIZE, 
+  FOB_HK_SIZE, 
+  FSC_HK_SIZE
+};
 uint8_t * cmd_packet[3] = {
   default_fee_cmd,
   default_fee_cmd,
   default_fee_cmd
 };
 
-bool process_hk_packet()
-{
-  hk_pkt.arr[0] = 0x00;
-  hk_pkt.arr[4] = time_counter; 
-  hk_pkt.arr[3] = time_counter >> 8;
-  hk_pkt.arr[2] = time_counter >> 16; 
-  hk_pkt.arr[1] = time_counter >> 24 ;
-  adc_read_all(ADC_VSENSE);
-  adc_read_all(ADC_ISENSE);
-  for (int i = 0; i < 8; i++) {
-    hk_pkt.adc_readings[ADC_VSENSE][i] = adc_readings[ADC_VSENSE][i];
-    hk_pkt.adc_readings[ADC_ISENSE][i] = adc_readings[ADC_ISENSE][i];
-  }
-  return true;
-}
+hk_packet_t hk_packet;
 
+sci_header_t sci_header;
+sci_data_t sci_data[3];
 
-bool process_sci_packet()
-/*
-insert checking checksum here 
-*/
-{
-  for (int i = 0; i < 3; i++) {
-      response_packet_counter[i] = 0;
-  }
-  buffer_index++;
-  if (buffer_index == SCIENCE_BUFFER_SIZE) {
-    buffer_index = 0;
-    return true;
-  } else {
-    return false;
-  }
-}
-
-void create_cmd_packet(uint8_t * command)
-{
+/* create_cmd_packet(arr):
+ *  inteprets arr and creates a new command packet for 
+ *  the corresponding fee (first byte in arr)
+ */
+void create_cmd_packet(uint8_t * command) {
   uint8_t index = command[0];
   int j = 2;
-  cmd_packet[index] = fee_cmd[index];
   fee_cmd[index][0] = 0x00;
   if (command[1] == 0) {
     fee_cmd[index][0] |= 0x03;
@@ -68,49 +52,217 @@ void create_cmd_packet(uint8_t * command)
   for (int i = 0; i < 5; i++) {
     fee_cmd[index][5] ^= fee_cmd[index][i];
   }
+  // set this at last, to avoid conflicts
+  cmd_packet[index] = fee_cmd[index];
 }
 
-void send_packet(HardwareSerial * port, int index)
-{
-
-  port -> write(cmd_packet[index], CMD_PACKET_SIZE);
-  cmd_packet[index] = default_fee_cmd;
+/* send_fee_packet(&port, fee):
+ *  sends a command packet to fee on port.
+ *  resets command packet to default cmd after execution
+ */
+void send_fee_cmd(HardwareSerial * port, int fee) {
+  port->write(cmd_packet[fee], CMD_PACKET_SIZE);
+  cmd_packet[fee] = default_fee_cmd;
 }
 
-void configure_port(HardwareSerial * port, int index)
-{
-  if (port -> available()) {
-    byte config_param_id; 
-    byte config_param_val; 
-    byte checksum;
-    int header = port->read(); 
-    int fee_pointer = 0;
-    if(status == 0x00){ //status confimed OK 
-    while(fee_pointer < fee_sizes[index]){
-     size_of_pc_packet++;
-      pc_packet_arr[size_of_pc_packet] = port->read();  
-      fee_pointer++;
+/* receive_fee_response(&port, ree):
+ *  If one byte is available on the serial port, this function
+ *  appends it to arr[n] and increments n
+ */
+void receive_fee_response(HardwareSerial * port, int fee) {
+  if(port->available()) {
+    if(fee_rec_counter[fee] < REC_PACKET_SIZE) {
+      fee_rec[fee][fee_rec_counter[fee]] = port->read();
+      fee_rec_counter[fee]++;
     }
-    
-    fee_pointer = 0; 
-    if(index == 0){
-      while(fee_pointer < fee_hk_sizes[index]){
-        hk_pkt.fib_hk[fee_pointer] = port->read();
-      }
-    }
-    else if(index == 1){
-      while(fee_pointer < fee_hk_sizes[index]){
-        hk_pkt.fob_hk[fee_pointer] = port->read(); 
-      }
-    }
-    else if(index == 2){
-      while(fee_pointer < fee_hk_sizes[index]){
-        hk_pkt.fsc_hk[fee_pointer] = port->read();
-      }
-    }
-    config_param_id = port->read(); 
-    config_param_val = port->read(); 
-    checksum = port->read();
+  }
 }
+
+/* process_fee_response(fee):
+ *  copies the dataframes "Sci" and "HK" from the
+ *  received response to the defined storage spaces
+ *  returns true if that goes ok.
+ */
+bool process_fee_response(uint8_t fee) {
+  int i;
+  int sci_size = fee_sci_sizes[fee];
+  int hk_size = fee_hk_sizes[fee];
+  uint8_t *arr = fee_rec[fee];
+  byte* hk_data;
+  
+  // prepare data frames to write into
+  switch(fee) {
+    case 0:
+      hk_data = hk_packet.fib;
+      break;
+    case 1:
+      hk_data = hk_packet.fob;
+      break;
+    case 2:
+      hk_data = hk_packet.fsc;
+      break;
+    default:
+      // got a wrong FEE number (not 0, 1 or 2)
+      return false;
+  }
+  
+  // calculate checksum over length of packet
+  if( checksum(arr, 1+sci_size+hk_size+5) ) {
+    // don't do anything yet
+  }
+
+  // start decoding the packet
+  if(*arr == 0x00) {
+    // status byte is ok, so we copy over the data
+    arr++; // go to science data start
+    // append science data to ring buffers
+    for(i=0; i<sci_size; i++, arr++) {
+      sci_data[fee].data[sci_data[i].head] = *arr;
+      sci_data[fee].head = (sci_data[fee].head+1)%SCI_DATA_SIZE;
+      // might include check if head is still bigger tail
+    }
+    sci_data[fee].n++;
+    // copy over housekeeping
+    for(i=0; i<hk_size; i++, arr++) {
+      hk_data[i] = *arr;
+    }
+    // config parmater id and config paramater value are thrown away for now
+    for(i=0; i<4; i++, arr++) {
+      // throw away config id and params
+    }
+    return true;    
+  } else {
+    // FEE flags error, TBD what to really do (ask Peter)   
+    return false;
+  }
 }
+
+/* checksum(arr, length):
+ *  calculates a checksum over the arr.
+ */
+uint8_t checksum(uint8_t * arr, int l) {
+  uint8_t c = 0;
+  while(l--) {
+    c ^= *arr;
+    arr++;
+  }
+  return c;
 }
+
+/* init_sci_packet(t):
+ *  initializes the science packet with timestamp t
+ *  at this point whatever is in the ring buffer for science data
+ *  will be taken for sending
+ */
+void init_sci_packet(unsigned long t) {
+  // initialize the sci header...
+  int i;
+  
+  sci_header.id = 0x01;  
+  sci_header.counter[0] = t >> 24;
+  sci_header.counter[1] = t >> 16;
+  sci_header.counter[2] = t >> 8;
+  sci_header.counter[3] = t;
+  for(i=0;i<3;i++) {
+    sci_header.n[i] = sci_data[i].n;
+    // calculate bytes to send for each fee science data frame
+    // as this can change, we cannot use a #define as for hk or 
+    // the sci header.
+    fee_sci_to_send[i] = sci_header.n[i]*fee_sci_sizes[0];
+    // reset ring buffer n, counting new sci data now
+    sci_data[i].n = 0;
+  }
+}
+
+/* init_sci_packet(t):
+ *  initializes the hk packet with timestamp t
+ */
+void init_hk_packet(unsigned long t) {
+  hk_packet.id = 0x00;
+  hk_packet.counter[3] = t; 
+  hk_packet.counter[2] = t >> 8;
+  hk_packet.counter[1] = t >> 16; 
+  hk_packet.counter[0] = t >> 24;
+}
+
+/* send_sci_packet():
+ *  tries to send (as many) bytes from the sci_packet as possible without blocking
+ *  another call of the function will continue sending
+ *  whilst sending is still ongoing, the function returns true
+ *  once sending is complete, the function returns false
+ */
+bool send_sci_packet() {
+  // start a sending queue, first header, then body
+  switch(sci_queue) {
+    case HEADER:
+      if(Serial.availableForWrite()) {
+        Serial.write(sci_header.arr[sci_send_counter]);
+        sci_send_counter++;
+      }
+      break;
+    case FIB_DATA:
+    case FOB_DATA:
+    case FSC_DATA:
+      // make sure we can write to the port and the buffer has values to write
+      if(Serial.availableForWrite() && (sci_data[sci_queue].tail < sci_data[sci_queue].head)) {
+        Serial.write(sci_data[sci_queue].data[sci_data[sci_queue].tail]);
+        sci_data[sci_queue].tail = (sci_data[sci_queue].tail+1)%SCI_DATA_SIZE;
+        sci_send_counter++;
+      }
+      break;
+  }
+   
+  // swtich dataframes if needed
+  switch(sci_queue) {
+    case HEADER:
+      if(sci_send_counter >= SCI_HEADER_SIZE) {
+        sci_queue = FIB_DATA;
+        sci_send_counter = 0;
+      }
+      break;
+    case FIB_DATA:
+      if(sci_send_counter >= fee_sci_to_send[0]) {
+        sci_queue = FOB_DATA;
+        sci_send_counter = 0;
+      }
+      break;
+    case FOB_DATA:
+      if(sci_send_counter >= fee_sci_to_send[0]) {
+        sci_queue = FSC_DATA;
+        sci_send_counter = 0;
+      }
+      break;
+    case FSC_DATA:
+      if(sci_send_counter >= fee_sci_to_send[0]) {
+        sci_queue = HEADER;
+        sci_send_counter = 0;
+      }
+      break;
+  }
+  // we are back to start of dataframe, so we finished sending
+  if((sci_queue == HEADER) && (sci_send_counter == 0)) return false;
+  else return true;
+}
+
+/* send_hk_packet():
+ *  tries to send (as many) bytes from the hk_packet as possible without blocking
+ *  another call of the function will continue sending
+ *  whilst sending is still ongoing, the function returns true
+ *  once sending is complete, the function returns false
+ */
+bool send_hk_packet() {
+  if(hk_send_counter < HK_SIZE) {
+    if(Serial.availableForWrite()) {        
+      Serial.write(hk_packet.arr[hk_send_counter]);
+      hk_send_counter++;
+    }
+    return true;
+  } else {
+    hk_send_counter = 0;
+    return false;
+  }  
+}
+
+
+
+

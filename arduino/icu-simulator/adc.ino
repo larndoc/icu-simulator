@@ -1,7 +1,6 @@
 /* Lab model of ICU: PCU ADC */
 #include <SPI.h>
 #include <errno.h>
-
 #include "adc.h"
 
 uint16_t adc_readings[NUM_ADCS][8];
