@@ -148,7 +148,7 @@ void setup() {
 }
 
 void loop() {
-
+  if(Serial.available()) user_cmd = Serial.read()
   // stuff to do all the time
   // 1) check for external input from PC
   // 2) send HK data
@@ -157,7 +157,6 @@ void loop() {
   switch(user_cmd) {  
     case 0x03:
       mode = SCIENCE_MODE; 
-      user_cmd = 0;
       break; 
   
     case 0x02:
@@ -165,14 +164,12 @@ void loop() {
       if(Serial.available() >= 6) {
         Serial.readBytes(user_fee_cmd, 6);
         create_cmd_packet(user_fee_cmd); 
-        user_cmd = 0;
       }
       //the input remains the same, if we are in science mode we stay in science mode and if we are in config mode, then we stay in config mode, hence it is not required to update the input  
       break; 
       
   case 0x04:
     mode = CONFIG_MODE;
-    user_cmd = 0;
     break;
   
   case 0x05:
@@ -184,7 +181,6 @@ void loop() {
         // just read and throw away otherwise
         Serial.read();
       }
-      user_cmd = 0;
     }
     break; 
   
@@ -196,15 +192,10 @@ void loop() {
         // just read and throw away otherwise
         Serial.read();
       }
-      user_cmd = 0;
     }
     break; 
   
   default:
-    // if no user command was set, check for a new one
-    if(Serial.available()) {
-      user_cmd = Serial.read();
-    }
   }
 
   // only HK send if Sci is not sending already
@@ -236,7 +227,7 @@ void loop() {
       }      
       break; 
   }
-  
+  user_cmd = 0; 
 } // loop ends
 
 
