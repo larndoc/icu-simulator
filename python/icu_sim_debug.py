@@ -33,18 +33,16 @@ def build_fee_packet(fee_number):
 	return int(fee_interface, 0).to_bytes(1, byteorder = 'big')
 
 class hk_data: 	
-		def __init__(self, port): 
-			self.port = port
-		def update(self, values):
-			#values['house_keeping'] = '' 
-			counter = bytes(self.port.read(size = 4))
-			values['house_keeping'] = b'\x00' + counter + self.port.read(size = 32) + self.port.read(size = 40) + self.port.read(size = 4) + self.port.read(size = 53)
+	def __init__(self, port): 
+		self.port = port
+	def update(self):
+		counter = self.port.read(size = 4)
+		data_stream = b'\x00' + counter + self.port.read(size = 129)
+		return str(binascii(data_stream))
 		 
 class packet_reciever(Thread):
 	#recieves a packet and reads the first byte 
 	logdir = ''
-	hk_values = dict()
-	sci_values = dict() 
 	files   = dict()
 	start_running = True
 	
@@ -74,32 +72,30 @@ class packet_reciever(Thread):
 		self.serial.flushInput()
 		s = fee_science(self.serial) 
 		h = hk_data(self.serial)
-		values = [self.hk_values, self.sci_values]
 		while self.start_running:
 			while self.serial.inWaiting(): 
 				decision_hk_sci = bytes(self.serial.read(size = 1))
 				if decision_hk_sci[0] == 0:  
-					h.update(values[0])
-				if decision_hk_sci[0] == 1:
-					s.update(values[1])
-				for key,f in values[decision_hk_sci[0]].items(): 
-						with open(self.files[key], 'a') as infile: 
-							if f != '': 
-								infile.write("{}\n".format(tokenize(str(binascii.hexlify(f)), 2)))
+					with open(self.files['house_keeping'], 'a') as infile:
+						infile.write("{}\n".format(tokenize(h.update(), 2)))
+				elif decision_hk_sci[0] == 1:
+					with open(self.files['fee_science_tm'], 'a') as infile: 
+						infile.write("{}\n".format(tokenize(s.update(), 2)))
 class fee_science():
 		def __init__(self, port): 
 			self.port = port
-		def update(self, values):
-			counter = bytes(self.port.read(size = 4))
+		def update(self):
+			counter = self.port.read(size = 4)
 			n_fee = self.port.read(size = 3)
-			values['fee_sci_tm'] = b'\x01' + counter + n_fee 
+			data_stream = b'\x01' + counter + n_fee
 			for i in range(0, n_fee[0]): 
-				values['fee_sci_tm'] += self.port.read(size = 10) 			
+				data_stream += self.port.read(size = 10) 			
 			for i in range(0, n_fee[1]): 
-				values['fee_sci_tm'] += self.port.read(size = 10)
+				data_stream += self.port.read(size = 10)
 			for i in range(0, n_fee[2]):
-				values['fee_sci_tm'] += self.port.read(size = 11)
-											
+				data_stream += self.port.read(size = 11)
+			return str(binascii(data_stream)) 
+			
 if __name__ == '__main__':
 		logging.basicConfig(filename='statistics.log', format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 		logger = logging.getLogger()
