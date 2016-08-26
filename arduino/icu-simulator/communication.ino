@@ -32,6 +32,15 @@ hk_packet_t hk_packet;
 sci_header_t sci_header;
 sci_data_t sci_data[3];
 
+void init_sci_data() {
+  int i;
+  for(i=0;i<3;i++) {
+    sci_data[i].tail=0;
+    sci_data[i].head=0;
+    sci_data[i].n=0;
+  }
+}
+
 /* create_cmd_packet(arr):
  *  inteprets arr and creates a new command packet for 
  *  the corresponding fee (first byte in arr)
@@ -87,6 +96,7 @@ bool process_fee_response(uint8_t fee) {
   int i;
   int sci_size = fee_sci_sizes[fee];
   int hk_size = fee_hk_sizes[fee];
+  int data_size = 1+sci_size+hk_size+5;
   uint8_t *arr = fee_rec[fee];
   byte* hk_data;
   
@@ -105,19 +115,25 @@ bool process_fee_response(uint8_t fee) {
       // got a wrong FEE number (not 0, 1 or 2)
       return false;
   }
+
+  if(fee_rec_counter[fee] < data_size) {
+    // error, TBD to do
+  }
   
   // calculate checksum over length of packet
-  if( checksum(arr, 1+sci_size+hk_size+5) ) {
+  if( checksum(arr, data_size) ) {
     // don't do anything yet
   }
+  // reset receive buffer counter when processing
+  fee_rec_counter[fee]=0;
 
   // start decoding the packet
-  if(*arr == 0x00) {
+  if((*arr == 0x00) || true) {
     // status byte is ok, so we copy over the data
     arr++; // go to science data start
     // append science data to ring buffers
     for(i=0; i<sci_size; i++, arr++) {
-      sci_data[fee].data[sci_data[i].head] = *arr;
+      sci_data[fee].data[sci_data[fee].head] = *arr;
       sci_data[fee].head = (sci_data[fee].head+1)%SCI_DATA_SIZE;
       // might include check if head is still bigger tail
     }
@@ -168,7 +184,7 @@ void init_sci_packet(unsigned long t) {
     // calculate bytes to send for each fee science data frame
     // as this can change, we cannot use a #define as for hk or 
     // the sci header.
-    fee_sci_to_send[i] = sci_header.n[i]*fee_sci_sizes[0];
+    fee_sci_to_send[i] = sci_header.n[i]*fee_sci_sizes[i];
     // reset ring buffer n, counting new sci data now
     sci_data[i].n = 0;
   }
@@ -204,9 +220,10 @@ bool send_sci_packet() {
     case FOB_DATA:
     case FSC_DATA:
       // make sure we can write to the port and the buffer has values to write
-      if(Serial.availableForWrite() && (sci_data[sci_queue].tail < sci_data[sci_queue].head)) {
+      if(Serial.availableForWrite() && (sci_send_counter < fee_sci_to_send[sci_queue])) {
         Serial.write(sci_data[sci_queue].data[sci_data[sci_queue].tail]);
-        sci_data[sci_queue].tail = (sci_data[sci_queue].tail+1)%SCI_DATA_SIZE;
+        sci_data[sci_queue].tail++;
+        sci_data[sci_queue].tail = sci_data[sci_queue].tail % SCI_DATA_SIZE;
         sci_send_counter++;
       }
       break;
@@ -227,13 +244,13 @@ bool send_sci_packet() {
       }
       break;
     case FOB_DATA:
-      if(sci_send_counter >= fee_sci_to_send[0]) {
+      if(sci_send_counter >= fee_sci_to_send[1]) {
         sci_queue = FSC_DATA;
         sci_send_counter = 0;
       }
       break;
     case FSC_DATA:
-      if(sci_send_counter >= fee_sci_to_send[0]) {
+      if(sci_send_counter >= fee_sci_to_send[2]) {
         sci_queue = HEADER;
         sci_send_counter = 0;
       }

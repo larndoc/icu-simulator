@@ -33,6 +33,7 @@ HardwareSerial* fee_ports[3]         = {&Serial1, &Serial2, &Serial3};
 const uint8_t sync_pins[3]           = {11, 13, 12};
 
 uint32_t time_counter = 0;
+unsigned long t_isr;
 
 bool cmd_packet_sent = false;
 bool send_hk = false;
@@ -43,7 +44,7 @@ bool sending_sci = false;
 byte user_cmd = 0;
 uint8_t user_fee_cmd[6] = {0};
 
-void wait_us(unsigned long delta_us, uint32_t t) {
+void wait_us(unsigned long delta_us, unsigned long t) {
   while ( (micros()  - t ) < delta_us ) {
     if (micros() - t < 0) {      
       delta_us = delta_us - (0xFFFFFFFF - t);
@@ -51,81 +52,76 @@ void wait_us(unsigned long delta_us, uint32_t t) {
   }
 }
 
-void fee_activate(unsigned int fee) {  
-  if (fee > 2) {
-    return;  
-  } else {
-    pinMode(sync_pins[fee],  OUTPUT); 
-    digitalWrite(sync_pins[fee], LOW); 
-    fee_ports[fee]->begin(BAUD_RATE);
-    fee_enabled[fee] = true; 
+void fee_activate(uint8_t fee) {  
+  if (fee < 3) {
+    if(!fee_enabled[fee]) {
+      fee_ports[fee]->begin(BAUD_RATE);
+      fee_enabled[fee] = true; 
+    }
   }
 }
 
-void fee_deactivate(unsigned int fee) {
-  if (fee > 2) {
-    return; 
-  } else {
-    pinMode(sync_pins[fee], INPUT);
-    digitalWrite(sync_pins[fee], LOW); 
-    fee_ports[fee]->end();
-    fee_enabled[fee] = false; 
+void fee_deactivate(uint8_t fee) {
+  if (fee < 3) {
+    if(fee_enabled[fee]) {
+      fee_ports[fee]->end();
+      fee_enabled[fee] = false; 
+    }
   }
 }
 
 void timer_isr() {
-  uint32_t t = micros(); 
+  int i;
   time_counter++;
+  t_isr = micros(); 
+  digitalWrite(DEBUG_PIN, HIGH);
 
   // create trigger flags
-  if((time_counter % HK_CADENCE)==0) send_hk = true;
-
-  if( send_hk ) {
+  if((time_counter % HK_CADENCE)==0) {
+    send_hk = true;
     init_hk_packet(time_counter - 1);    
   }
 
   // create sync pulse rising edge
   if(mode == SCIENCE_MODE) {
-    if((time_counter % SCI_CADENCE)==0) send_sci = true; 
-    for(int i = 0; i < 3; i++){
+    if((time_counter % SCI_CADENCE)==0) {
+      send_sci = true; 
+      init_sci_packet(time_counter - SCI_CADENCE);
+    }
+    for(i = 0; i < 3; i++){
       if(fee_enabled[i]){
         digitalWrite(sync_pins[i], HIGH);         //setting up of the pins 
       }
     }
-    // we need to capture the timestamp, as this will be the
-    // sync pulse which generates a new science package
-    if( send_sci ) {   
-      init_sci_packet(time_counter - SCI_CADENCE);
-    }    
   }
 
   // process old data if a packet was sent
   if(cmd_packet_sent) { 
     cmd_packet_sent = false;   
-    for(int i = 0; i < 3; i++){
+    for(i = 0; i < 3; i++){
       if(fee_enabled[i]){
         process_fee_response(i);
       }        
     }
     // emulate real ICU processing time here
-    wait_us(PULSE_WIDTH_US, t); 
+    //wait_us(PULSE_WIDTH_US, t_isr); 
   }
 
   // init packet transfer and generate sync falling edge
   if(mode == SCIENCE_MODE) { 
-    for(int i = 0; i < 3; i++){
+    for(i = 0; i < 3; i++){
       if(fee_enabled[i]){
         send_fee_cmd(fee_ports[i], i);
       }
     }
     cmd_packet_sent = true;
-    for (int i = 0; i < 3; i++) {
+    for (i = 0; i < 3; i++) {
       if (fee_enabled[i]) {
         digitalWrite(sync_pins[i], LOW);
       }
     } 
   }
-  
+  digitalWrite(DEBUG_PIN, LOW);
 }
 
 
@@ -136,6 +132,14 @@ void timer_isr() {
    port[i] represents each set of communication pins respectively.
 */
 void setup() {
+  int i;
+
+  init_sci_data();
+
+  for(i=0; i<3; i++) {
+    pinMode(sync_pins[i], OUTPUT);
+    digitalWrite(sync_pins[i], LOW);
+  }
   pinMode(SPI_PIN, OUTPUT);
   pinMode(DEBUG_PIN, OUTPUT);
   Serial.begin(BAUD_RATE);
@@ -149,7 +153,6 @@ void loop() {
   // 1) check for external input from PC
   // 2) send HK data
   // 3)
-
    
   switch(user_cmd) {  
     case 0x03:
@@ -181,6 +184,7 @@ void loop() {
         // just read and throw away otherwise
         Serial.read();
       }
+      user_cmd = 0;
     }
     break; 
   
@@ -192,6 +196,7 @@ void loop() {
         // just read and throw away otherwise
         Serial.read();
       }
+      user_cmd = 0;
     }
     break; 
   

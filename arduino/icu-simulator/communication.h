@@ -2,8 +2,8 @@
 #define _communication_h
 
 //************************ COMS SETTINGS *******************//
-#define HK_CADENCE            0
-#define SCI_CADENCE           1
+#define HK_CADENCE            128
+#define SCI_CADENCE           128
 
 #define CMD_PACKET_SIZE       6
 #define REC_PACKET_SIZE       64
@@ -17,7 +17,8 @@
 // stay in multiples of 2 (we need at least 11)
 // Ring buffer should be slightly larger anyways
 // SCI CADENCE defines how many packets we need to store
-#define SCI_DATA_SIZE         16*SCI_CADENCE
+// Be AWARE of using MACROS - brackets are your friend!
+const unsigned int SCI_DATA_SIZE = (16*SCI_CADENCE);
 
 //************* HK STRUCTURE **********//
 #define HK_HEADER_SIZE      5
@@ -70,6 +71,7 @@ void receive_fee_response(HardwareSerial * port, int fee);
 bool process_fee_response(uint8_t fee);
 
 // higher level communication functions to talk to PC
+void init_sci_data();
 uint8_t checksum(uint8_t * arr, int l);
 void init_sci_packet(unsigned long t);
 void init_hk_packet(unsigned long t);
