@@ -95,9 +95,9 @@ void receive_fee_response(HardwareSerial * port, int fee) {
  */
 bool process_fee_response(uint8_t fee) {
   uint8_t i;
-  int sci_size = fee_sci_sizes[fee];
-  int hk_size = fee_hk_sizes[fee];
-  int data_size = 1+sci_size+hk_size+5;
+  size_t sci_size = fee_sci_sizes[fee];
+  size_t hk_size = fee_hk_sizes[fee];
+  size_t data_size = 1+sci_size+hk_size+5;
   uint8_t *arr = fee_rec[fee];
   byte* hk_data;
   
