@@ -221,8 +221,7 @@ bool send_sci_packet() {
       // make sure we can write to the port and the buffer has values to write
       if(Serial.availableForWrite() && (sci_send_counter < fee_sci_to_send[sci_queue])) {
         Serial.write(sci_data[sci_queue].data[sci_data[sci_queue].tail]);
-        sci_data[sci_queue].tail++;
-        sci_data[sci_queue].tail = sci_data[sci_queue].tail % SCI_DATA_SIZE;
+        sci_data[sci_queue].tail = (sci_data[sci_queue].tail + 1) % SCI_DATA_SIZE;
         sci_send_counter++;
       }
       break;
