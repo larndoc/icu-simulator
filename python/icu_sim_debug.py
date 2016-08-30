@@ -8,7 +8,7 @@ import os
 from threading import Thread
 
 def tokenize(string, length):
-    return '    '.join(string[i:i+length] for i in range(0,len(string),length))
+    return '    '.join(string[i:i+length] for i in range(2,len(string)-1,length))
 
 def build_config_command_val(fee_number): 
 	print(fee_number)
@@ -38,7 +38,7 @@ class hk_data:
 	def update(self):
 		counter = self.port.read(size = 4)
 		data_stream = b'\x00' + counter + self.port.read(size = 129)
-		return str(binascii(data_stream))
+		return str(binascii.hexlify(data_stream))
 		 
 class packet_reciever(Thread):
 	#recieves a packet and reads the first byte 
