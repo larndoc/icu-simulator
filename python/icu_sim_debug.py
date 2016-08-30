@@ -49,10 +49,10 @@ class packet_reciever(Thread):
 		super(packet_reciever, self).__init__()
 		self.port = serial_port 
 		if logdir is None: 
-			self.files = {'fee_sci_tm': 'data\fee_science.log', 'house_keeping' : 'data\hk.log'}
+			self.files = {'fee_sci_tm': 'data/fee_science.log', 'house_keeping' : 'data/hk.log'}
 		else: 
 			if os.path.exists(self.logdir): 
-				self.files = {'fee_sci_tm': (str(self.logdir) + '\fee_science.log', 'a'), 'house_keeping' :(str(self.logdir) + '\hk.log', 'a')}
+				self.files = {'fee_sci_tm': (self.logdir + '/fee_science.log', 'a'), 'house_keeping' :(self.logdir + '/hk.log', 'a')}
 			else: 
 				raise SystemExit 
 		self.logdir = logdir 		
@@ -66,26 +66,23 @@ class packet_reciever(Thread):
 		s = fee_science(self.serial) 
 		h = hk_data(self.serial)
 		with open(self.files['house_keeping'], 'a') as infile, open(self.files['fee_sci_tm'], 'a') as infile2:
-			while self.start_running:
-				while self.serial.inWaiting(): 
+			while self.start_running: 
 					decision_hk_sci = bytes(self.serial.read(size = 1))
-					if decision_hk_sci[0] == 0:  
+					if len(decision_hk_sci) > 0:
+						if decision_hk_sci[0] == 0:  
 							infile.write("{}\n".format(tokenize(h.update(), 2)))
-					elif decision_hk_sci[0] == 1: 
+						elif decision_hk_sci[0] == 1: 
 							infile2.write("{}\n".format(tokenize(s.update(), 2)))
 							
 class fee_science():
 		def __init__(self, port): 
 			self.port = port
 			self.total_count = 0 
-		def update(self):
-			
+		def update(self):	
 			counter = self.port.read(size = 4)
 			n_fee = self.port.read(size = 3)
-			
 			self.total_count += n_fee[0] + n_fee[1] + n_fee[2] 
 			logger.info('n_total %s n_fib %s, n_fob %s, n_fsc %s', self.total_count, n_fee[0], n_fee[1], n_fee[2])
-			
 			data_stream = b'\x01' + counter + n_fee
 			for i in range(0, n_fee[0]): 
 				data_stream += self.port.read(size = 10) 			
@@ -96,11 +93,15 @@ class fee_science():
 			return str(binascii.hexlify(data_stream)) 
 			
 if __name__ == '__main__':
-		logging.basicConfig(filename='statistics.log', format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
-		logger = logging.getLogger()
-		switch_off = False
+		logging.basicConfig(filename='fee_pkt_freq.log', format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+		logger = logging.getLogger('fee_pkt_freq.log')
 		logger.setLevel(logging.INFO) 
-	
+		logger.info('the first byte in fee_science.log should always be 0x01')
+		logger.info('the next four bytes in fee_science.log represent the counter and should increment at a rate determined by SCIENCE CADENCE defined in icu_simulator.ino')
+		logger.info('the next three bytes represent the number of fib, fob and fsc which are contained in the pc packet')
+		logger.info('FIB SCI consists of 10 packets, and the third, sixth and ninth byte should increment by 1, other bytes should be constant,the last byte should be 0x00')
+		logger.info('FOB_SCI consists of 10 packets, and all bytes should be set to zero')
+		logger.info('FSC_SCI consists of 11 packets, every first three bytes increment by one, seventh byte increments by one and the tenth and eleventh byte increment by one - XXX 00 02 02 X 02 02 X X')
 	
 		parser = argparse.ArgumentParser();
 		parser.add_argument(dest = 'port', help = "serial port of the ICU Simulator unit", type = str)
@@ -114,9 +115,7 @@ if __name__ == '__main__':
 		time.sleep(2)
 		## needed as arduino needs to come up, do not remove. 
 		## should update the global time here as it is more readable 
-		
-		
-		cmd_menu	= ("1) Set Time Command \n"
+		cmd_menu = ("1) Set Time Command \n"
 				   "2) Set Config Command \n"
 				   "3) Science Mode \n"
 				   "4) Config Mode \n"
@@ -128,7 +127,7 @@ if __name__ == '__main__':
 				   "1> FOB \n"
 				   "2> FSC \n")
 		command = ''
-		while(switch_off == False):  
+		while pkt_reciever.start_running:  
 			print(cmd_menu)
 			nb = input('please choose an option: ')
 			try: 
@@ -150,7 +149,7 @@ if __name__ == '__main__':
 				pkt_reciever.start_running = False
 				switch_off = True
 			if choice != 7 and pkt_reciever.is_alive() == True:
-					pkt_reciever.serial.write(bytes(command));
+				pkt_reciever.serial.write(bytes(command));
 			print(command)	
 		pkt_reciever.join()
 		print("program end")

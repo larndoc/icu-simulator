@@ -175,7 +175,9 @@ void init_sci_packet(unsigned long t) {
   int i;
   
   sci_header.id = 0x01;  
-  *(uint32_t *)hk_packet.counter = time_counter; 
+  for(int i = 0; i < 4; i++){
+    sci_header.counter[i] = t >> (8 * (3 - i)); 
+  }
   for(i=0;i<3;i++) {
     sci_header.n[i] = sci_data[i].n;
     // calculate bytes to send for each fee science data frame
@@ -192,7 +194,9 @@ void init_sci_packet(unsigned long t) {
  */
 void init_hk_packet(unsigned long t) {
   hk_packet.id = 0x00;
-  *(uint32_t *)hk_packet.counter = time_counter; 
+  for(int i = 0; i < 4; i++){
+    hk_packet.counter[i] = t >> (8 * (3 - i));
+  }
 }
 
 /* send_sci_packet():
