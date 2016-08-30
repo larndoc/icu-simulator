@@ -197,9 +197,8 @@ void init_sci_packet(unsigned long t) {
 /* init_sci_packet(t):
  *  initializes the hk packet with timestamp t
  */
-void init_hk_packet(unsigned long t) {
+void update_hk(){
   byte p_loc[32];
-  hk_packet.id = 0x00;
   adc_read_all(1, p_loc); 
   adc_read_all(0, p_loc + 16); 
   hk_packet.pkt_length[0] = HK_SIZE >> 8;
@@ -208,6 +207,11 @@ void init_hk_packet(unsigned long t) {
   for(i = 0, j = 31; i < 32; i++, j--){
     hk_packet.pcu[i] = p_loc[j]; 
   }
+}
+void init_hk_packet(unsigned long t) {
+  update_hk();
+  hk_packet.id = 0x00;
+ 
   byte* counter_ptr = hk_packet.arr;
   copy_timestamp(counter_ptr, t); 
 }
@@ -291,8 +295,8 @@ bool send_hk_packet() {
 }
 
 void copy_timestamp(byte* arr, unsigned long t){
-  int i = 4; 
-  while(i > 0){
+  int i = 5; 
+  while(i > 1){
     arr[i] = (0x000000FF & t); 
     t = t >> 8;
     i--; 

@@ -35,7 +35,10 @@ uint32_t time_counter = 0;
 unsigned long t_isr;
 
 bool cmd_packet_sent = false;
-bool send_hk, send_sci, sending_hk, sending_sci = false;
+bool send_hk = false; 
+bool send_sci = false; 
+bool sending_hk = false; 
+bool sending_sci = false;
  
 byte user_cmd = 0;
 uint8_t user_fee_cmd[6] = {0};
@@ -209,6 +212,7 @@ void loop() {
   // only HK send if Sci is not sending already
   if(send_hk && !sending_sci){
     sending_hk = send_hk_packet();
+   // update_hk(); 
     // this will reset the send_hk flag once sending is done
     send_hk = sending_hk;
   }
