@@ -1,6 +1,5 @@
 import serial 
 import argparse
-import datetime
 import logging
 import time
 import binascii
@@ -59,8 +58,6 @@ class packet_reciever(Thread):
 	def set_up_serial(self):
 		return serial.Serial(self.port,  115200 , timeout =  0.5)
 		
-	def update_global_time(self): 
-		return datetime.datetime.now()
 	def update_files(self): 
 		default_sci_files = 'data/fee_science.log' 
 		default_hk_files  = 'data/hk.log' 
@@ -98,7 +95,7 @@ class fee_science():
 				data_stream += self.port.read(size = 10)
 			for i in range(0, n_fee[2]):
 				data_stream += self.port.read(size = 11)
-			return str(binascii(data_stream)) 
+			return str(binascii.hexlify(data_stream)) 
 			
 if __name__ == '__main__':
 		logging.basicConfig(filename='statistics.log', format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
