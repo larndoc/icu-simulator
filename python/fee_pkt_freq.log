@@ -1,32 +1,94 @@
-08/30/2016 04:54:46 PM the first byte in fee_science.log should always be 0x01
-08/30/2016 04:54:46 PM the next four bytes in fee_science.log represent the counter and should increment at a rate determined by SCIENCE CADENCE defined in icu_simulator.ino
-08/30/2016 04:54:46 PM the next three bytes represent the number of fib, fob and fsc which are contained in the pc packet
-08/30/2016 04:54:46 PM FIB SCI consists of 10 packets, and the third, sixth and ninth byte should increment by 1, other bytes should be constant,the last byte should be 0x00
-08/30/2016 04:54:46 PM FOB_SCI consists of 10 packets, and all bytes should be set to zero
-08/30/2016 04:54:46 PM FSC_SCI consists of 11 packets, every first three bytes increment by one, seventh byte increments by one and the tenth and eleventh byte increment by one - XXX 00 02 02 X 02 02 X X
-08/30/2016 04:54:47 PM recieved house_keeping packet
-08/30/2016 04:54:48 PM recieved house_keeping packet
-08/30/2016 04:54:49 PM recieved house_keeping packet
-08/30/2016 04:54:50 PM recieved house_keeping packet
-08/30/2016 04:54:51 PM recieved house_keeping packet
-08/30/2016 04:54:52 PM recieved house_keeping packet
-08/30/2016 04:54:53 PM recieved house_keeping packet
-08/30/2016 04:54:54 PM recieved house_keeping packet
-08/30/2016 04:54:55 PM recieved house_keeping packet
-08/30/2016 04:54:56 PM recieved house_keeping packet
-08/30/2016 04:54:57 PM recieved house_keeping packet
-08/30/2016 04:54:58 PM recieved house_keeping packet
-08/30/2016 04:54:59 PM recieved house_keeping packet
-08/30/2016 04:55:00 PM recieved house_keeping packet
-08/30/2016 04:55:01 PM recieved house_keeping packet
-08/30/2016 04:55:02 PM recieved house_keeping packet
-08/30/2016 04:55:03 PM recieved house_keeping packet
-08/30/2016 04:55:04 PM recieved house_keeping packet
-08/30/2016 04:55:05 PM recieved house_keeping packet
-08/30/2016 04:55:06 PM recieved house_keeping packet
-08/30/2016 04:55:07 PM recieved house_keeping packet
-08/30/2016 04:55:08 PM recieved house_keeping packet
-08/30/2016 04:55:09 PM recieved house_keeping packet
-08/30/2016 04:55:10 PM recieved house_keeping packet
-08/30/2016 04:55:11 PM recieved house_keeping packet
-08/30/2016 04:55:12 PM recieved house_keeping packet
+08/30/2016 05:52:39 PM the first byte in fee_science.log should always be 0x01
+08/30/2016 05:52:39 PM the next four bytes in fee_science.log represent the counter and should increment at a rate determined by SCIENCE CADENCE defined in icu_simulator.ino
+08/30/2016 05:52:39 PM the next three bytes represent the number of fib, fob and fsc which are contained in the pc packet
+08/30/2016 05:52:39 PM FIB SCI consists of 10 packets, and the third, sixth and ninth byte should increment by 1, other bytes should be constant,the last byte should be 0x00
+08/30/2016 05:52:39 PM FOB_SCI consists of 10 packets, and all bytes should be set to zero
+08/30/2016 05:52:39 PM FSC_SCI consists of 11 packets, every first three bytes increment by one, seventh byte increments by one and the tenth and eleventh byte increment by one - XXX 00 02 02 X 02 02 X X
+08/30/2016 05:52:40 PM recieved house_keeping packet
+08/30/2016 05:52:41 PM recieved house_keeping packet
+08/30/2016 05:52:42 PM recieved house_keeping packet
+08/30/2016 05:52:43 PM recieved house_keeping packet
+08/30/2016 05:52:44 PM recieved house_keeping packet
+08/30/2016 05:52:45 PM recieved house_keeping packet
+08/30/2016 05:52:46 PM recieved house_keeping packet
+08/30/2016 05:52:47 PM recieved house_keeping packet
+08/30/2016 05:52:48 PM recieved house_keeping packet
+08/30/2016 05:52:49 PM recieved house_keeping packet
+08/30/2016 05:52:50 PM recieved house_keeping packet
+08/30/2016 05:52:51 PM recieved house_keeping packet
+08/30/2016 05:52:52 PM recieved house_keeping packet
+08/30/2016 05:52:53 PM recieved house_keeping packet
+08/30/2016 05:52:54 PM recieved house_keeping packet
+08/30/2016 05:52:55 PM recieved house_keeping packet
+08/30/2016 05:52:56 PM recieved house_keeping packet
+08/30/2016 05:52:57 PM recieved house_keeping packet
+08/30/2016 05:52:58 PM recieved house_keeping packet
+08/30/2016 05:52:59 PM recieved house_keeping packet
+08/30/2016 05:53:00 PM recieved house_keeping packet
+08/30/2016 05:53:01 PM recieved house_keeping packet
+08/30/2016 05:53:02 PM recieved house_keeping packet
+08/30/2016 05:53:03 PM recieved house_keeping packet
+08/30/2016 05:53:04 PM recieved house_keeping packet
+08/30/2016 05:53:05 PM recieved house_keeping packet
+08/30/2016 05:53:06 PM recieved house_keeping packet
+08/30/2016 05:53:07 PM recieved house_keeping packet
+08/30/2016 05:53:08 PM recieved house_keeping packet
+08/30/2016 05:53:09 PM recieved house_keeping packet
+08/30/2016 05:53:10 PM recieved house_keeping packet
+08/30/2016 05:53:11 PM recieved house_keeping packet
+08/30/2016 05:53:12 PM recieved house_keeping packet
+08/30/2016 05:53:13 PM recieved house_keeping packet
+08/30/2016 05:53:14 PM recieved house_keeping packet
+08/30/2016 05:53:15 PM recieved house_keeping packet
+08/30/2016 05:53:16 PM recieved house_keeping packet
+08/30/2016 05:53:17 PM recieved house_keeping packet
+08/30/2016 05:53:18 PM recieved house_keeping packet
+08/30/2016 05:53:19 PM recieved house_keeping packet
+08/30/2016 05:53:20 PM recieved house_keeping packet
+08/30/2016 05:53:21 PM recieved house_keeping packet
+08/30/2016 05:53:22 PM recieved house_keeping packet
+08/30/2016 05:53:23 PM recieved house_keeping packet
+08/30/2016 05:53:24 PM recieved house_keeping packet
+08/30/2016 05:53:25 PM recieved house_keeping packet
+08/30/2016 05:53:26 PM recieved house_keeping packet
+08/30/2016 05:53:27 PM recieved house_keeping packet
+08/30/2016 05:53:28 PM recieved house_keeping packet
+08/30/2016 05:53:29 PM recieved house_keeping packet
+08/30/2016 05:53:30 PM recieved house_keeping packet
+08/30/2016 05:53:31 PM recieved house_keeping packet
+08/30/2016 05:53:32 PM recieved house_keeping packet
+08/30/2016 05:53:33 PM recieved house_keeping packet
+08/30/2016 05:53:34 PM recieved house_keeping packet
+08/30/2016 05:53:35 PM recieved house_keeping packet
+08/30/2016 05:53:36 PM recieved house_keeping packet
+08/30/2016 05:53:37 PM recieved house_keeping packet
+08/30/2016 05:53:38 PM recieved house_keeping packet
+08/30/2016 05:53:39 PM recieved house_keeping packet
+08/30/2016 05:53:40 PM recieved house_keeping packet
+08/30/2016 05:53:41 PM recieved house_keeping packet
+08/30/2016 05:53:42 PM recieved house_keeping packet
+08/30/2016 05:53:43 PM recieved house_keeping packet
+08/30/2016 05:53:44 PM recieved house_keeping packet
+08/30/2016 05:53:45 PM recieved house_keeping packet
+08/30/2016 05:53:46 PM recieved house_keeping packet
+08/30/2016 05:53:47 PM recieved house_keeping packet
+08/30/2016 05:53:48 PM recieved house_keeping packet
+08/30/2016 05:53:49 PM recieved house_keeping packet
+08/30/2016 05:53:50 PM recieved house_keeping packet
+08/30/2016 05:53:51 PM recieved house_keeping packet
+08/30/2016 05:53:52 PM recieved house_keeping packet
+08/30/2016 05:53:53 PM recieved house_keeping packet
+08/30/2016 05:53:54 PM recieved house_keeping packet
+08/30/2016 05:53:55 PM recieved house_keeping packet
+08/30/2016 05:53:56 PM recieved house_keeping packet
+08/30/2016 05:53:57 PM recieved house_keeping packet
+08/30/2016 05:53:58 PM recieved house_keeping packet
+08/30/2016 05:53:59 PM recieved house_keeping packet
+08/30/2016 05:54:00 PM recieved house_keeping packet
+08/30/2016 05:54:01 PM recieved house_keeping packet
+08/30/2016 05:54:02 PM recieved house_keeping packet
+08/30/2016 05:54:03 PM recieved house_keeping packet
+08/30/2016 05:54:04 PM recieved house_keeping packet
+08/30/2016 05:54:05 PM recieved house_keeping packet
+08/30/2016 05:54:06 PM recieved house_keeping packet
+08/30/2016 06:15:43 PM recieved house_keeping packet

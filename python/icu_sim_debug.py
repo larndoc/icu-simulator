@@ -43,36 +43,40 @@ class hk_data:
 class packet_reciever(Thread):
 	#recieves a packet and reads the first byte 
 	logdir = ''
-	files   = dict()
+	__filename   = dict()
+	__files 		 = dict()
 	start_running = True
-	
 	def __init__(self, serial_port, logdir): 
 		super(packet_reciever, self).__init__()
-		self.__serial = self.set_up_serial(serial_port) 
+		self.__serial = self.set_up_serial(serial_port)
+		self.__filename["hk"] = "hk.txt"
+		self.__filename["sci"] = "sci.txt"
 		if logdir is None: 
-			self.__files = {'fee_sci_tm': 'data/fee_science.log', 'house_keeping' : 'data/hk.log'}
+			logdir = "data"
 		else: 
-			if os.path.exists(logdir): 
-				self.__files = {'fee_sci_tm': (logdir + '/fee_science.log', 'a'), 'house_keeping' :(logdir + '/hk.log', 'a')}
-			else: 
-				raise SystemExit 		
+			logdir = logdir.rstrip("/")
+		if os.path.exists(logdir): 
+			for key, value in self.__filename.items(): 
+				self.__files[key] = logdir + "/" + value
+		else: 
+			raise SystemExit 		
 
 	def set_up_serial(self, serial_port):
-		return serial.Serial(serial_port,  115200 , timeout =  0.5)
+		return serial.Serial(serial_port,  115200 , timeout =  None)
 		
 	def run(self):
 		self.__serial.flushInput()
 		s = fee_science(self.__serial) 
 		h = hk_data(self.__serial)
-		with open(self.__files['house_keeping'], 'w') as infile, open(self.__files['fee_sci_tm'], 'w') as infile2:
-			infile2.write("{}\n".format('status, time_3, time_2, time_1, time_0, n_fib, n_fob, n_fsc'))
+		with open(self.__files['hk'], 'w') as f_hk, open(self.__files['sci'], 'w') as f_sci:
+			f_sci.write("{}\n".format('status, time_3, time_2, time_1, time_0, n_fib, n_fob, n_fsc'))
 			while self.start_running: 
 					decision_hk_sci = self.__serial.read(size = 1)
 					if len(decision_hk_sci) > 0:
 						if decision_hk_sci[0] == 0:  
-							infile.write("{}\n".format(tokenize(h.update(), 2)))
+							f_hk.write("{}\n".format(tokenize(h.update(), 2)))
 						elif decision_hk_sci[0] == 1: 
-							infile2.write("{}\n".format(tokenize(s.update(), 2)))
+							f_sci.write("{}\n".format(tokenize(s.update(), 2)))
 							
 class fee_science():
 		def __init__(self, port): 
@@ -93,22 +97,21 @@ class fee_science():
 			return str(binascii.hexlify(data_stream)) 
 			
 if __name__ == '__main__':
-		logging.basicConfig(filename='fee_pkt_freq.log', format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', filemode = 'w')
-		logger = logging.getLogger('fee_pkt_freq.log')
+		logging.basicConfig(filename='icu_sim_debug.log', format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', filemode = 'w')
+		logger = logging.getLogger('icu_sim_debug.log')
 		logger.setLevel(logging.INFO) 
-		logger.info('the first byte in fee_science.log should always be 0x01')
-		logger.info('the next four bytes in fee_science.log represent the counter and should increment at a rate determined by SCIENCE CADENCE defined in icu_simulator.ino')
-		logger.info('the next three bytes represent the number of fib, fob and fsc which are contained in the pc packet')
-		logger.info('FIB SCI consists of 10 packets, and the third, sixth and ninth byte should increment by 1, other bytes should be constant,the last byte should be 0x00')
-		logger.info('FOB_SCI consists of 10 packets, and all bytes should be set to zero')
-		logger.info('FSC_SCI consists of 11 packets, every first three bytes increment by one, seventh byte increments by one and the tenth and eleventh byte increment by one - XXX 00 02 02 X 02 02 X X')
-	
+
 		parser = argparse.ArgumentParser();
 		parser.add_argument(dest = 'port', help = "serial port of the ICU Simulator unit", type = str)
 		parser.add_argument('--logdir', dest = 'logdir', help = "path to store data files", type = str)
-		args 	 = parser.parse_args()
-	
-		pkt_reciever = packet_reciever(parser.parse_args().port, parser.parse_args().logdir)
+		parser.add_argument(help = """'the first byte in fee_science.log should always be 0x01
+		the next four bytes in fee_science.log represent the counter and should increment at a rate determined by SCIENCE CADENCE defined in icu_simulator.ino)
+		'FIB SCI consists of 10 packets, and the third, sixth and ninth byte should increment by 1, other bytes should be constant,the last byte should be 0x00'
+		'the next three bytes represent the number of fib, fob and fsc which are contained in the pc packet'
+		'FOB_SCI consists of 10 packets, and all bytes should be set to zero'
+		'FSC_SCI consists of 11 packets, every first three bytes increment by one, seventh byte increments by one and the tenth and eleventh byte increment by one - XXX 00 02 02 X 02 02 X X'""")
+		args  = parser.parse_args()
+		pkt_reciever = packet_reciever(args.port, args.logdir)
 		pkt_reciever.start() 
 		while not pkt_reciever.is_alive(): 
 			pass 

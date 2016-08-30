@@ -29,6 +29,7 @@ uint8_t * cmd_packet[3] = {
 
 
 sci_header_t sci_header;
+hk_packet_t hk_packet;
 sci_data_t sci_data[3];
 
 void init_sci_data() {
@@ -199,6 +200,21 @@ void init_hk_packet(unsigned long t) {
   }
 }
 
+void update_hk(){
+  byte p_loc[32];
+  adc_read_all(1, p_loc); 
+  adc_read_all(0, p_loc+16);
+  /*copying first channel into p_loc*/ 
+  int i;
+  int j;
+  for( i = 0, j = 15; i < 16; i++, j--){
+    hk_packet.pcu[i] = p_loc[j]; 
+  }
+  /*copying second channel into p_loc*/
+  for( i = 16, j = 31; i < 32; i++, j--){
+    hk_packet.pcu[i] = p_loc[j];
+  }
+}
 /* send_sci_packet():
  *  tries to send (as many) bytes from the sci_packet as possible without blocking
  *  another call of the function will continue sending

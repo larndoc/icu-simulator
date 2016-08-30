@@ -27,7 +27,6 @@ enum icu_modes {
 };
 
 enum icu_modes mode  = CONFIG_MODE;
-hk_packet_t hk_packet;
 bool fee_enabled[3]                  = {false, false, false};
 HardwareSerial* fee_ports[3]         = {&Serial1, &Serial2, &Serial3};
 const uint8_t sync_pins[3]           = {11, 13, 12};
@@ -242,26 +241,4 @@ void loop() {
   }
 } // loop ends
 
-void update_hk(){
-  byte p_loc[32];
-  adc_read_all(1, hk_packet.pcu); 
-  adc_read_all(0, hk_packet.pcu+16);
-  /*copying first channel into p_loc*/ 
-  int i;
-  int j;
-  for( i = 0, j = 15; i < 16; i++, j--){
-    p_loc[i] = hk_packet.pcu[j]; 
-  }
-  /*copying second channel into p_loc*/
-  for( i = 16, j = 31; i < 32; i++, j--){
-    p_loc[i] = hk_packet.pcu[j];
-  }
-  
-  for(i = 0; i < 16; i++){
-    hk_packet.pcu[i] = p_loc[i];
-  }
-  for (i= 16; i < 32; i++){
-    hk_packet.pcu[i] = p_loc[i];
-  }
-}
 

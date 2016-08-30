@@ -77,5 +77,5 @@ void init_sci_packet(unsigned long t);
 void init_hk_packet(unsigned long t);
 bool send_sci_packet();
 bool send_hk_packet();
-
+void update_hk();
 #endif /* !defined _adc_h */
