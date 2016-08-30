@@ -148,13 +148,13 @@ void setup() {
 }
 
 void loop() {
-  if(Serial.available()) user_cmd = Serial.read()
+  if(Serial.available()) user_cmd = Serial.read();
   // stuff to do all the time
   // 1) check for external input from PC
   // 2) send HK data
   // 3)
    
-  switch(user_cmd) {  
+  switch(user_cmd){  
     case 0x03:
       mode = SCIENCE_MODE; 
       break; 
@@ -195,7 +195,7 @@ void loop() {
     }
     break; 
   
-  default:
+  default:;
   }
 
   // only HK send if Sci is not sending already
@@ -227,7 +227,9 @@ void loop() {
       }      
       break; 
   }
+ if(user_cmd != 5 || user_cmd != 6){
   user_cmd = 0; 
+ }
 } // loop ends
 
 
