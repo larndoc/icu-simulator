@@ -49,8 +49,7 @@ class packet_reciever(Thread):
 	
 	def __init__(self, serial_port, logdir): 
 		super(packet_reciever, self).__init__()
-		self.port = serial_port
-		self.serial = self.set_up_serial() 
+		self.serial = self.set_up_serial(serial_port) 
 		if logdir is None: 
 			self.files = {'fee_sci_tm': 'data/fee_science.log', 'house_keeping' : 'data/hk.log'}
 		else: 
@@ -59,8 +58,8 @@ class packet_reciever(Thread):
 			else: 
 				raise SystemExit 		
 
-	def set_up_serial(self):
-		return serial.Serial(self.port,  115200 , timeout =  0.5)
+	def set_up_serial(self, serial_port):
+		return serial.Serial(serial_port,  115200 , timeout =  0.5)
 		
 	def run(self):
 		self.serial.flushInput()
