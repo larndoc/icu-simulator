@@ -48,28 +48,20 @@ class packet_reciever(Thread):
 	def __init__(self, serial_port, logdir): 
 		super(packet_reciever, self).__init__()
 		self.port = serial_port 
+		if logdir is None: 
+			self.files = {'fee_sci_tm': 'data\fee_science.log', 'house_keeping' : 'data\hk.log'}
+		else: 
+			if os.path.exists(self.logdir): 
+				self.files = {'fee_sci_tm': (str(self.logdir) + '\fee_science.log', 'a'), 'house_keeping' :(str(self.logdir) + '\hk.log', 'a')}
+			else: 
+				raise SystemExit 
 		self.logdir = logdir 		
 		self.serial = self.set_up_serial()
-		self.total = 1 
-		self.n_fib = 0 
-		self.n_fob = 0 
-		self.n_fsc = 0
 
 	def set_up_serial(self):
 		return serial.Serial(self.port,  115200 , timeout =  0.5)
 		
-	def update_files(self): 
-		default_sci_files = 'data/fee_science.log' 
-		default_hk_files  = 'data/hk.log' 
-		self.files = {'fee_sci_tm': default_sci_files, 'house_keeping':  default_hk_files}
-		if(self.logdir != None):
-			if(os.path.exists(self.logdir)):
-				self.files = {'fee_sci_tm': open(str(self.logdir) + '/fee_science.log', 'a'), 'house_keeping' : open(str(self.logdir) + '/hk.log', 'a')}
-			else: 
-				raise SystemExit
-				
 	def run(self):
-		self.update_files()
 		self.serial.flushInput()
 		s = fee_science(self.serial) 
 		h = hk_data(self.serial)
@@ -81,12 +73,19 @@ class packet_reciever(Thread):
 							infile.write("{}\n".format(tokenize(h.update(), 2)))
 					elif decision_hk_sci[0] == 1: 
 							infile2.write("{}\n".format(tokenize(s.update(), 2)))
+							
 class fee_science():
 		def __init__(self, port): 
 			self.port = port
+			self.total_count = 0 
 		def update(self):
+			
 			counter = self.port.read(size = 4)
 			n_fee = self.port.read(size = 3)
+			
+			self.total_count += n_fee[0] + n_fee[1] + n_fee[2] 
+			logger.info('n_total %s n_fib %s, n_fob %s, n_fsc %s', self.total_count, n_fee[0], n_fee[1], n_fee[2])
+			
 			data_stream = b'\x01' + counter + n_fee
 			for i in range(0, n_fee[0]): 
 				data_stream += self.port.read(size = 10) 			
