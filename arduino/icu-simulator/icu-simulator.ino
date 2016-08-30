@@ -249,18 +249,18 @@ void update_hk(){
   /*copying first channel into p_loc*/ 
   int i;
   int j;
-  for( i = 0, j = 15, j = 15; i < 16; i++, j--){
+  for( i = 0, j = 15; i < 16; i++, j--){
     p_loc[i] = hk_packet.pcu[j]; 
   }
   /*copying second channel into p_loc*/
-  for( i = 16, j = 31, j = 31; i < 32; i++, j--){
+  for( i = 16, j = 31; i < 32; i++, j--){
     p_loc[i] = hk_packet.pcu[j];
   }
   
   for(i = 0; i < 16; i++){
     hk_packet.pcu[i] = p_loc[i];
   }
-  for (i= 16; i < 32; j++){
+  for (i= 16; i < 32; i++){
     hk_packet.pcu[i] = p_loc[i];
   }
 }
