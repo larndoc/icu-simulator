@@ -65,8 +65,12 @@ class packet_reciever(Thread):
 		default_sci_files = 'data/fee_science.log' 
 		default_hk_files  = 'data/hk.log' 
 		self.files = {'fee_sci_tm': default_sci_files, 'house_keeping':  default_hk_files}
-		#if(logdir != ''):
-			#self.files = {'fee_sci_tm': self.logdir + '/fee_science.log', 'house_keeping' : self.logdir + '/hk.log'}
+		if(self.logdir != None):
+			if(os.path.exists(self.logdir)):
+				self.files = {'fee_sci_tm': open(str(self.logdir) + '/fee_science.log', 'a'), 'house_keeping' : open(str(self.logdir) + '/hk.log', 'a')}
+			else: 
+				raise SystemExit
+				
 	def run(self):
 		self.update_files()
 		self.serial.flushInput()
