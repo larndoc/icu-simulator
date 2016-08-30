@@ -35,10 +35,7 @@ uint32_t time_counter = 0;
 unsigned long t_isr;
 
 bool cmd_packet_sent = false;
-bool send_hk = false;
-bool send_sci = false;
-bool sending_hk = false;
-bool sending_sci = false;
+bool send_hk, send_sci, sending_hk, sending_sci = false;
  
 byte user_cmd = 0;
 uint8_t user_fee_cmd[6] = {0};

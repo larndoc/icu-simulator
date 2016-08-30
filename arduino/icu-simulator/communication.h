@@ -26,7 +26,7 @@ const unsigned int SCI_DATA_SIZE = (16*SCI_CADENCE);
 #define FIB_HK_SIZE         40 
 #define FOB_HK_SIZE         4
 #define FSC_HK_SIZE         53
-#define HK_SIZE             HK_HEADER_SIZE + PCU_HK_SIZE + FIB_HK_SIZE + FOB_HK_SIZE + FSC_HK_SIZE
+#define HK_SIZE             HK_HEADER_SIZE + PCU_HK_SIZE + FIB_HK_SIZE + FOB_HK_SIZE + FSC_HK_SIZE + 2
 
 // a bit of a hack, sci_queue enum should match up FEE numbering...
 enum sci_queues {
