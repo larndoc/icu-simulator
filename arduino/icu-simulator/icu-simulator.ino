@@ -243,17 +243,25 @@ void loop() {
 } // loop ends
 
 void update_hk(){
-  byte p_loc[16];
-  byte p_loc1[16];
+  byte p_loc[32];
   adc_read_all(1, hk_packet.pcu); 
-  adc_read_all(0, hk_packet.pcu+16); 
-  for(int i = 0; i < 16; i++){
-    p_loc[i] = hk_packet.pcu[15 - i]; 
-    p_loc1[i] = hk_packet.pcu[31 - i];
+  adc_read_all(0, hk_packet.pcu+16);
+  /*copying first channel into p_loc*/ 
+  int i;
+  int j;
+  for( i = 0, j = 15, j = 15; i < 16; i++, j--){
+    p_loc[i] = hk_packet.pcu[j]; 
   }
-  for(int i = 0; i < 16; i++){
+  /*copying second channel into p_loc*/
+  for( i = 16, j = 31, j = 31; i < 32; i++, j--){
+    p_loc[i] = hk_packet.pcu[j];
+  }
+  
+  for(i = 0; i < 16; i++){
     hk_packet.pcu[i] = p_loc[i];
-    hk_packet.pcu[i + 16] = p_loc1[i];
+  }
+  for (i= 16; i < 32; j++){
+    hk_packet.pcu[i] = p_loc[i];
   }
 }
 
