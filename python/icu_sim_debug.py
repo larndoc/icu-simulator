@@ -35,9 +35,19 @@ class hk_data:
 	def __init__(self, port): 
 		self.__port = port
 	def update(self):
+		size = int(self.__port.read(size = 2)) - 2 #this is the true size of the packet excluding the first two bytes that represent the size of the packet 
 		counter = self.__port.read(size = 4)
-		data_stream = b'\x00' + counter + self.__port.read(size = 129)
-		logger.info('recieved house_keeping packet')
+		data = self.__port.read(size = 129)
+		data_stream = b'\x00' + counter + data
+		if len(counter) + len(data_stream) is not size: 
+			logger.info('house_keeping_packet malformed!')
+			if len(counter) is not 4:
+				logger.info('could not read after counter')
+			elif len(data) is not 129: 
+				logger.info('could not read data')
+		else: 
+			logger.info('recieved house_keeping packet, status OK')
+		#we still want to se the contents of the malformed packet
 		return str(binascii.hexlify(data_stream))
 		 
 class packet_reciever(Thread):
@@ -90,6 +100,7 @@ class fee_science():
 			self.__port = port
 			self.total_count = 0
 		def update(self):	
+			size = self.__port.read(size = 2)
 			counter = self.__port.read(size = 4)
 			n_fee = self.__port.read(size = 3)
 			self.total_count += n_fee[0] + n_fee[1] + n_fee[2] 
