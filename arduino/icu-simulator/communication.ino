@@ -174,7 +174,7 @@ uint8_t checksum(uint8_t * arr, int l) {
 void init_sci_packet(unsigned long t) {
   // initialize the sci header...
   int i;
-  
+  uint8_t total_size = 0x00;
   sci_header.id = 0x01;  
   for(int i = 0; i < 4; i++){
     sci_header.counter[i] = t >> (8 * (3 - i)); 
@@ -188,6 +188,11 @@ void init_sci_packet(unsigned long t) {
     // reset ring buffer n, counting new sci data now
     sci_data[i].n = 0;
   }
+  for(int i = 0; i<3; i++){
+    total_size += fee_sci_to_send[i];
+  }
+  sci_header.pkt_length[0] = total_size >> 4;
+  sci_header.pkt_length[1] = total_size; 
 }
 
 /* init_sci_packet(t):
@@ -198,12 +203,20 @@ void init_hk_packet(unsigned long t) {
   for(int i = 0; i < 4; i++){
     hk_packet.counter[i] = t >> (8 * (3 - i));
   }
+  update_hk(); 
 }
 
 void update_hk(){
+  
+  
   byte p_loc[32];
   adc_read_all(1, p_loc); 
   adc_read_all(0, p_loc+16);
+  /*copying the first two bytes that represent the size of the hk_packet*/ 
+  hk_packet.pkt_length[0] = HK_SIZE >> 4 ;
+  hk_packet.pkt_length[1] = HK_SIZE;
+  
+  
   /*copying first channel into p_loc*/ 
   int i;
   int j;

@@ -211,7 +211,6 @@ void loop() {
 
   // only HK send if Sci is not sending already
   if(send_hk && !sending_sci){
-    update_hk();
     sending_hk = send_hk_packet();
     // this will reset the send_hk flag once sending is done
     send_hk = sending_hk;
