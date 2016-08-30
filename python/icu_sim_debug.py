@@ -49,16 +49,15 @@ class packet_reciever(Thread):
 	
 	def __init__(self, serial_port, logdir): 
 		super(packet_reciever, self).__init__()
-		self.port = serial_port 
+		self.port = serial_port
+		self.serial = self.set_up_serial() 
 		if logdir is None: 
 			self.files = {'fee_sci_tm': 'data/fee_science.log', 'house_keeping' : 'data/hk.log'}
 		else: 
 			if os.path.exists(self.logdir): 
-				self.files = {'fee_sci_tm': (self.logdir + '/fee_science.log', 'a'), 'house_keeping' :(self.logdir + '/hk.log', 'a')}
+				self.files = {'fee_sci_tm': (logdir + '/fee_science.log', 'a'), 'house_keeping' :(logdir + '/hk.log', 'a')}
 			else: 
-				raise SystemExit 
-		self.logdir = logdir 		
-		self.serial = self.set_up_serial()
+				raise SystemExit 		
 
 	def set_up_serial(self):
 		return serial.Serial(self.port,  115200 , timeout =  0.5)
