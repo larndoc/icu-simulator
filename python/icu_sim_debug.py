@@ -61,13 +61,13 @@ class packet_reciever(Thread):
 		return serial.Serial(serial_port,  115200 , timeout =  0.5)
 		
 	def run(self):
-		self.serial.flushInput()
-		s = fee_science(self.serial) 
-		h = hk_data(self.serial)
-		with open(self.files['house_keeping'], 'w') as infile, open(self.files['fee_sci_tm'], 'w') as infile2:
+		self.__serial.flushInput()
+		s = fee_science(self.__serial) 
+		h = hk_data(self.__serial)
+		with open(self.__files['house_keeping'], 'w') as infile, open(self.__files['fee_sci_tm'], 'w') as infile2:
 			infile2.write("{}\n".format('status, time_3, time_2, time_1, time_0, n_fib, n_fob, n_fsc'))
 			while self.start_running: 
-					decision_hk_sci = bytes(self.serial.read(size = 1))
+					decision_hk_sci = self.__serial.read(size = 1)
 					if len(decision_hk_sci) > 0:
 						if decision_hk_sci[0] == 0:  
 							infile.write("{}\n".format(tokenize(h.update(), 2)))
