@@ -73,15 +73,14 @@ class packet_reciever(Thread):
 		self.serial.flushInput()
 		s = fee_science(self.serial) 
 		h = hk_data(self.serial)
-		while self.start_running:
-			while self.serial.inWaiting(): 
-				decision_hk_sci = bytes(self.serial.read(size = 1))
-				if decision_hk_sci[0] == 0:  
-					with open(self.files['house_keeping'], 'a') as infile:
-						infile.write("{}\n".format(tokenize(h.update(), 2)))
-				elif decision_hk_sci[0] == 1:
-					with open(self.files['fee_science_tm'], 'a') as infile: 
-						infile.write("{}\n".format(tokenize(s.update(), 2)))
+		with open(self.files['house_keeping'], 'a') as infile, open(self.files['fee_sci_tm'], 'a') as infile2:
+			while self.start_running:
+				while self.serial.inWaiting(): 
+					decision_hk_sci = bytes(self.serial.read(size = 1))
+					if decision_hk_sci[0] == 0:  
+							infile.write("{}\n".format(tokenize(h.update(), 2)))
+					elif decision_hk_sci[0] == 1: 
+							infile2.write("{}\n".format(tokenize(s.update(), 2)))
 class fee_science():
 		def __init__(self, port): 
 			self.port = port
