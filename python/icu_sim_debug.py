@@ -5,7 +5,6 @@ import time
 import binascii
 import os
 from threading import Thread
-import matplotlib
 
 def tokenize(string, length):
     return ' '.join(string[i:i+length] for i in range(2,len(string)-1,length))
@@ -34,10 +33,10 @@ def build_fee_packet(fee_number):
 
 class hk_data: 	
 	def __init__(self, port): 
-		self.port = port
+		self.__port = port
 	def update(self):
-		counter = self.port.read(size = 4)
-		data_stream = b'\x00' + counter + self.port.read(size = 129)
+		counter = self.__port.read(size = 4)
+		data_stream = b'\x00' + counter + self.__port.read(size = 129)
 		logger.info('recieved house_keeping packet')
 		return str(binascii.hexlify(data_stream))
 		 
@@ -49,12 +48,12 @@ class packet_reciever(Thread):
 	
 	def __init__(self, serial_port, logdir): 
 		super(packet_reciever, self).__init__()
-		self.serial = self.set_up_serial(serial_port) 
+		self.__serial = self.set_up_serial(serial_port) 
 		if logdir is None: 
-			self.files = {'fee_sci_tm': 'data/fee_science.log', 'house_keeping' : 'data/hk.log'}
+			self.__files = {'fee_sci_tm': 'data/fee_science.log', 'house_keeping' : 'data/hk.log'}
 		else: 
-			if os.path.exists(self.logdir): 
-				self.files = {'fee_sci_tm': (logdir + '/fee_science.log', 'a'), 'house_keeping' :(logdir + '/hk.log', 'a')}
+			if os.path.exists(logdir): 
+				self.__files = {'fee_sci_tm': (logdir + '/fee_science.log', 'a'), 'house_keeping' :(logdir + '/hk.log', 'a')}
 			else: 
 				raise SystemExit 		
 
@@ -77,11 +76,11 @@ class packet_reciever(Thread):
 							
 class fee_science():
 		def __init__(self, port): 
-			self.port = port
-			self.total_count = 0 
+			self.__port = port
+			self.total_count = 0
 		def update(self):	
-			counter = self.port.read(size = 4)
-			n_fee = self.port.read(size = 3)
+			counter = self.__port.read(size = 4)
+			n_fee = self.__port.read(size = 3)
 			self.total_count += n_fee[0] + n_fee[1] + n_fee[2] 
 			logger.info('n_total %s n_fib %s, n_fob %s, n_fsc %s', self.total_count, n_fee[0], n_fee[1], n_fee[2])
 			data_stream = b'\x01' + counter + n_fee
