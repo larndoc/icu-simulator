@@ -27,7 +27,7 @@ uint8_t * cmd_packet[3] = {
   default_fee_cmd
 };
 
-hk_packet_t hk_packet;
+
 sci_header_t sci_header;
 sci_data_t sci_data[3];
 

@@ -27,7 +27,7 @@ enum icu_modes {
 };
 
 enum icu_modes mode  = CONFIG_MODE;
-
+hk_packet_t hk_packet;
 bool fee_enabled[3]                  = {false, false, false};
 HardwareSerial* fee_ports[3]         = {&Serial1, &Serial2, &Serial3};
 const uint8_t sync_pins[3]           = {11, 13, 12};
@@ -212,6 +212,7 @@ void loop() {
 
   // only HK send if Sci is not sending already
   if(send_hk && !sending_sci){
+    update_hk();
     sending_hk = send_hk_packet();
     // this will reset the send_hk flag once sending is done
     send_hk = sending_hk;
@@ -241,5 +242,18 @@ void loop() {
   }
 } // loop ends
 
-
+void update_hk(){
+  byte p_loc[16];
+  byte p_loc1[16];
+  adc_read_all(1, hk_packet.pcu); 
+  adc_read_all(0, hk_packet.pcu+16); 
+  for(int i = 0; i < 16; i++){
+    p_loc[i] = hk_packet.pcu[15 - i]; 
+    p_loc1[i] = hk_packet.pcu[31 - i];
+  }
+  for(int i = 0; i < 16; i++){
+    hk_packet.pcu[i] = p_loc[i];
+    hk_packet.pcu[i + 16] = p_loc1[i];
+  }
+}
 

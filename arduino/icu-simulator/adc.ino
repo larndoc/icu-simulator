@@ -3,9 +3,6 @@
 #include <errno.h>
 #include "adc.h"
 
-uint16_t adc_readings[NUM_ADCS][8];
- hk_packet.pcu = *adc_readings; 
-
 inline
 int16_t adc_get_chip_select(int16_t adc)
 {
@@ -38,7 +35,7 @@ void adc_read_one(uint8_t chip, uint8_t pin)
 	adc_readings[chip][pin] = result;
 }
 
-void adc_read_all(uint8_t chip)
+void adc_read_all(uint8_t chip, uint8_t *arr)
 {
 	int16_t result, chip_select = adc_get_chip_select(chip);
 	if (chip_select < 0) return;
@@ -48,7 +45,7 @@ void adc_read_all(uint8_t chip)
 	
 	  SPI.transfer16(0); /* ignore the last result */
 	  for (int i = 0; i < 8; i++) 
-	  	  adc_readings[chip][i] = SPI.transfer16((i+1) << 11) & 0x0FFF;
+	  	  arr[i] = SPI.transfer16((i+1) << 11) & 0x0FFF;
 	
 	digitalWrite(chip_select, HIGH);
 	SPI.endTransaction();
