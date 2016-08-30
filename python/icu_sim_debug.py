@@ -7,7 +7,7 @@ import os
 from threading import Thread
 
 def tokenize(string, length):
-    return ' '.join(string[i:i+length] for i in range(2,len(string)-1,length))
+    return ' '.join(string[i:i+length] for i in range(2,len(string)-1,length)) + "\n"
 
 def build_config_command_val(fee_number): 
 	print(fee_number)
@@ -69,14 +69,21 @@ class packet_reciever(Thread):
 		s = fee_science(self.__serial) 
 		h = hk_data(self.__serial)
 		with open(self.__files['hk'], 'w') as f_hk, open(self.__files['sci'], 'w') as f_sci:
-			f_sci.write("{}\n".format('status, time_3, time_2, time_1, time_0, n_fib, n_fob, n_fsc'))
+			f_sci.write('status time_3 time_2 time_1 time_0 n_fib n_fob n_fsc + \n')
+			header = [] 
+			header.append("status time_3 time_2 time_1 time_0") 
+			header.append(" ".join(["pcu"+str(v) for v in range(31,-1,-1)]))
+      		header.append(" ".join(["fib"+str(v) for v in range(39,-1,-1)]))
+			header.append(" ".join(["fob"+str(v) for v in range(3,-1,-1)]))
+			header.append(" ".join(["fsc"+str(v) for v in range(52,-1,-1)]))
+			f_hk.write(" ".join(header) + "\n") 
 			while self.start_running: 
 					decision_hk_sci = self.__serial.read(size = 1)
 					if len(decision_hk_sci) > 0:
 						if decision_hk_sci[0] == 0:  
-							f_hk.write("{}\n".format(tokenize(h.update(), 2)))
+							f_hk.write(tokenize(h.update(), 2))
 						elif decision_hk_sci[0] == 1: 
-							f_sci.write("{}\n".format(tokenize(s.update(), 2)))
+							f_sci.write(tokenize(s.update(), 2))
 							
 class fee_science():
 		def __init__(self, port): 
