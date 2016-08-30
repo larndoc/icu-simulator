@@ -1,5 +1,5 @@
 #include "communication.h"
-
+#include "adc.h"
 uint8_t default_fee_cmd[CMD_PACKET_SIZE] = {0x01,0x00,0x00,0x00,0x00,0x01};
 uint8_t fee_cmd[3][CMD_PACKET_SIZE];
 uint8_t fee_rec[3][REC_PACKET_SIZE];
@@ -94,14 +94,14 @@ void receive_fee_response(HardwareSerial * port, int fee) {
  */
 bool process_fee_response(uint8_t fee) {
   uint8_t i;
-  size_t sci_size = fee_sci_sizes[fee];
-  size_t hk_size = fee_hk_sizes[fee];
-  size_t data_size = 1+sci_size+hk_size+5;
+  uint8_t sci_size = fee_sci_sizes[fee];
+  uint8_t hk_size = fee_hk_sizes[fee];
+  uint8_t data_size = 1+sci_size+hk_size+5;
   uint8_t *arr = fee_rec[fee];
   byte* hk_data;
-  
   // prepare data frames to write into
-  switch(fee) {
+    
+   switch(fee) {
     case 0:
       hk_data = hk_packet.fib;
       break;

@@ -4,6 +4,7 @@
 #include "adc.h"
 
 uint16_t adc_readings[NUM_ADCS][8];
+ hk_packet.pcu = *adc_readings; 
 
 inline
 int16_t adc_get_chip_select(int16_t adc)
