@@ -5,9 +5,10 @@ import time
 import binascii
 import os
 from threading import Thread
+import matplotlib
 
 def tokenize(string, length):
-    return '    '.join(string[i:i+length] for i in range(2,len(string)-1,length))
+    return ' '.join(string[i:i+length] for i in range(2,len(string)-1,length))
 
 def build_config_command_val(fee_number): 
 	print(fee_number)
@@ -37,6 +38,7 @@ class hk_data:
 	def update(self):
 		counter = self.port.read(size = 4)
 		data_stream = b'\x00' + counter + self.port.read(size = 129)
+		logger.info('recieved house_keeping packet')
 		return str(binascii.hexlify(data_stream))
 		 
 class packet_reciever(Thread):
@@ -65,7 +67,8 @@ class packet_reciever(Thread):
 		self.serial.flushInput()
 		s = fee_science(self.serial) 
 		h = hk_data(self.serial)
-		with open(self.files['house_keeping'], 'a') as infile, open(self.files['fee_sci_tm'], 'a') as infile2:
+		with open(self.files['house_keeping'], 'w') as infile, open(self.files['fee_sci_tm'], 'w') as infile2:
+			infile2.write("{}\n".format('status, time_3, time_2, time_1, time_0, n_fib, n_fob, n_fsc'))
 			while self.start_running: 
 					decision_hk_sci = bytes(self.serial.read(size = 1))
 					if len(decision_hk_sci) > 0:
@@ -93,7 +96,7 @@ class fee_science():
 			return str(binascii.hexlify(data_stream)) 
 			
 if __name__ == '__main__':
-		logging.basicConfig(filename='fee_pkt_freq.log', format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+		logging.basicConfig(filename='fee_pkt_freq.log', format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', filemode = 'w')
 		logger = logging.getLogger('fee_pkt_freq.log')
 		logger.setLevel(logging.INFO) 
 		logger.info('the first byte in fee_science.log should always be 0x01')
