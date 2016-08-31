@@ -29,8 +29,6 @@ def mp_magn(x):
 
 p = mp.Pool(processes=8)
 
-#from bokeh.palettes import Spectral9
-
 colors = ["#008080", "#8B0000", "#006400", "#2F4F4F",
           "#800000", "#FF00FF", "#4B0082", "#191970",
           "#808000", "#696969", "#0000FF", "#FF4500"]
@@ -40,29 +38,19 @@ colors = ["#008080", "#8B0000", "#006400", "#2F4F4F",
 # IOErrors in CSV_Reader.get_header()
 data_dir = '/data/'
 
-# On the fence about whether this
-# should be a class or just
-# a single method with sane defaults.
-class Figure_Factory:
-    def __init__(self, **kwargs):
-        """
-        Constructor. Pass parameters for the graph here.
-        """
-        # This is a decent way of setting graph defaults if
-        # there are none specified. These values are all fairly sane.
-        # default values are overridden if specified at instantiation.
-        kwargs['plot_height'] = kwargs.get('plot_height', 600)
-        kwargs['plot_width']  = kwargs.get('plot_width', 600)
-        kwargs['tools']       = kwargs.get('tools', 'pan,wheel_zoom,box_zoom,reset')
-        kwargs['x_axis_type'] = kwargs.get('x_axis_type', 'datetime')
-        kwargs['webgl'] = kwargs.get('webgl', False)
-        self.kwargs = kwargs
-
-    def gen_figure(self):
-        """
-        Get a new figure.
-        """
-        return figure(**self.kwargs)
+def default_figure(kwargs):
+    """
+    default figure callback
+    """
+    print("default_figure(): kwargs={}".format(kwargs))
+    if type(kwargs) != dict:
+        print("default_figure(): kwargs is not dict!")
+    kwargs['plot_height'] = kwargs.get('plot_height', 600)
+    kwargs['plot_width']  = kwargs.get('plot_width', 600)
+    kwargs['tools']       = kwargs.get('tools', 'pan,wheel_zoom,box_zoom,reset')
+    kwargs['x_axis_type'] = kwargs.get('x_axis_type', 'datetime')
+    kwargs['webgl']       = kwargs.get('webgl', False)
+    return figure(**kwargs)
 
 # Data_Cooker objects can be injected
 # into Grapher or CSV_Reader objects
@@ -72,7 +60,11 @@ class Figure_Factory:
 # DataFrame object and create a new one
 # from it. The only important method
 # (for now) is apply(). This parent class
-# is a nop.
+# is a nop. -----------------------------
+# This is a class because we want the
+# ability to store state, even though
+# these don't do anything particularly
+# unusual.
 class Data_Cooker:
     def __init__(self, df=None):
         """
@@ -166,7 +158,7 @@ class Natural_Unit_Cooker(Data_Cooker):
     def __init__(self, factors, df=None):
         """
         Constructor.
-        factors is a list of conversion factors to multiply
+        factors is a dict of conversion factors to multiply
         the raw data by. This assumes that there is a linear
         relationship between raw data and data in natural units.
         """
@@ -194,9 +186,8 @@ class CSV_Reader:
         Constructor method.
             fname       : file name to read
             num_dp      : number of data points to display
-            data_cooker : An object of class Data_Cooker,
-                          which optionally post-processes
-                          DataFrames after parsing.
+            data_cooker : cooks data (e.g. fft)
+            indep_var   : the file's independent variable
         """
         self.fname = fname
         self.num_dp = num_dp
@@ -211,7 +202,7 @@ class CSV_Reader:
 
     def set_fname(self, fname):
         """
-        Setter method for fnam
+        Setter method for fname
         """
         self.fname = fname
         # purge stale cached info
@@ -220,11 +211,12 @@ class CSV_Reader:
 
     def set_num_dp(self, num_dp):
         """
-        Setter method for num_dp
+        Setter method for num_dp.
         """
         self.num_dp = num_dp
 
     def blocks(self, f, sz=16384):
+        # generator reads 16kb blocks
         while True:
             b = f.read(sz)
             if not b:
@@ -240,13 +232,6 @@ class CSV_Reader:
         If the header would be included in
         a tail of the file, returns '' instead;
         returning another value would cause an error.
-        This is the newer, faster version.
-                    n   tottime percall cumtime percall
-        BLOCKWISE:  210 0.000   0.000   0.001   0.000
-            NAIVE:  144 0.000   0.000   0.003   0.000
-        Note the 3x speedup after moving to a blockwise
-        read cumtime, despite blockwise having n=210.
-        Estimated 4.4x speedup of this function.
         """
         if self.header is not None and self.dp_count > self.num_dp:
             return self.header
@@ -267,25 +252,9 @@ class CSV_Reader:
     def tail(self):
         """
         Tail the file; takes num_dp lines from the bottom.
-        Parsing with deque over tailer gives a significant
-        speedup; serving stale FIB data, I got the following:
-                       n      tottime  percall  cumtime  percall
-        TAILER TAILER: 206    0.007    0.000    2.456    0.012
-        DEQUE TAILER:  755    0.183    0.000    1.114    0.001
-        tottime measures total time in the function /not including/
-        subcalls; cumtime gives the actuall call-to-return latency.
-        Disregard the tottime increase; of *course* we get a higher
-        number, because we do less in our subcalls with deque tail().
-        Please note that these are cumulative over all calls, where
-        n=206 for libtailer tail(), and n=755 for deque tail().
-        Notice the order-of-magnitude improvement in cumtime percall,
-        which gives the best measure of actual performance. Even
-        with 3.7x as many calls, deque tail() runs 2.2x as fast.
-        I estimate an 8.1x speedup of this function with this change.
         """
         with open(self.fname, 'r') as f:
             q = deque(f, self.num_dp)
-        # this is not worth parallelizing
         return reduce(mp_concat, q)
 
     def get_dataframe(self):
@@ -295,6 +264,7 @@ class CSV_Reader:
         csv = self.get_header() + self.tail()
         df = pandas.read_csv(StringIO(str(csv)))
         try:
+            # ISO 8601 datetime string -> Python datetime object
             df['Time'] = p.map(dt_parse, df['Time'])
         except KeyError:
             pass
@@ -309,7 +279,7 @@ class CSV_Reader:
         self.cook_data = not self.cook_data
 
 class Grapher:
-    def __init__(self, csv_reader=None, pattern=None, figure_factory=None, key_groups=None, indep_var='Time', cooker=None):
+    def __init__(self, csv_reader=None, pattern=None, figure_opts=None, key_groups=None, indep_var='Time', cooker=None):
         """
         Constructor.
             csv_reader      : an object of class CSV_Reader,
@@ -318,8 +288,8 @@ class Grapher:
                               to a glob pattern specified here every
                               time update_graphs() is called. This specifies
                               that glob pattern.
-            figure_factory  : an object of class Figure_Factory;
-                              if this is None, then defaults are assumed
+            figure_cb       : callback to generate a figure;
+                              there is a sane default here.
             key_groups      : a list of lists of strings;
                               each string should be from the
                               CSV header / a working dataframe
@@ -334,10 +304,8 @@ class Grapher:
                               .apply() method in the instance
         """
         self.active_lines = {}
-        if figure_factory is None:
-            self.figure_factory = Figure_Factory()
-        else:
-            self.figure_factory = figure_factory
+        self.figure_opts  = figure_opts
+        print("Have figure opts: {}".format(figure_opts))
         if type(csv_reader) is str:
             self.csv_reader = CSV_Reader(csv_reader, data_cooker=cooker, indep_var=indep_var)
             self.pattern = None
@@ -357,37 +325,49 @@ class Grapher:
         self.indep_var = indep_var
         self.cooker = cooker
 
+    def get_figure_opts(self, idx):
+        """
+        Get figure options. Either
+        pass an array of figure opts
+        or use one set of options.
+        """
+        print("get_figure_opts(): idx={}, self.figure_opts={}".format(idx, self.figure_opts))
+        if self.figure_opts is None:
+            return dict()
+        if type(self.figure_opts) == list:
+            if self.figure_opts[idx] is not None:
+                return self.figure_opts[idx]
+            return dict()
+        return self.figure_opts
+
+
     def get_csv_reader(self):
         return self.csv_reader
 
     def make_new_graphs(self):
         """
-        Creates an entirely new graph.
-        !! This function is appropriate for
-        setting members of the layout object
-        directly; this WILL trigger a page refresh,
-        which is slow. AVOID THIS METHOD.
-        But you should call it at least once to
-        actually make the graph. Do as I do, not as I say.
+        Creates a new set of graphs.
         """
         # the old lines don't matter and get tossed out
         # hope the GC is feeling performant today
+        print("make_new_graphs()")
         self.active_lines = {}
         figures = []
-        #p = self.figure_factory.gen_figure()
+        j = 0
         df = self.csv_reader.get_dataframe()
+        print("Have dataframe for key groups {}".format(self.key_groups))
         for key_group in self.key_groups:
             i = 0
-            figures.append(self.figure_factory.gen_figure())
+            figures.append(default_figure(self.get_figure_opts(j)))
             for x in key_group:
                 if x == self.indep_var:
                     continue
                 # storing the line renderer objects will allow us to update the
                 # lines without triggering a page redraw
                 self.active_lines[x] = figures[-1].line(df[self.indep_var], df[x], legend=x,
-                                                        color=colors[i], line_width=1.5
-                )
+                                                        color=colors[i], line_width=1.5)
                 i += 1
+            j += 1
         return figures
 
     def update_graphs(self):

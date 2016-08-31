@@ -250,7 +250,7 @@ char *prepare_path(char *path, char *fname)
 	if (path[strlen(path)-1] != '/')
 		strcat(ret, "/");
 	strcat(ret, fname);
-	debug(D_BUG_RESOLVED, "Prepared path: %s\n", ret);
+	debug(D_BUG_UNRESOLVED, "Prepared path: %s\nat <0x%x>", ret, (unsigned long long) ret);
 	return ret;
 }
 
@@ -548,7 +548,9 @@ int main(int argc, char *argv[])
 		tm->tm_mon++;
 		sprintf(fnames[i], names[i], fmt_from_tm(tm));
 		char *path = prepare_path(opts.dir_out, fnames[i]);
+		debug(D_BUG_UNRESOLVED, "Have path at <0x%x>: %s\n", (unsigned long long) path, path);
 		out[i] = fopen(path, "w");
+		debug(D_INFO, "Have output file struct at <0x%x>\n", (unsigned long long) out[i]);
 		fprintf(out[i], "%s\n", headers[i]);
 		debug(D_INFO, "Wrote headers: %s\n", headers[i]);
 		free(path);
@@ -599,13 +601,13 @@ int main(int argc, char *argv[])
 
 			/* Compute output and print */
 			for (int j = 0; j < num_dp[i]-1; j++) {
-				debug(D_BUG_UNRESOLVED,
+				debug(D_BUG_RESOLVED,
 				      "Calling <0x%llx> (dev id=%d)\n",
 				      (unsigned long long)opts.wf[i],
 				      i);
 				int _out = opts.wf[i](DEFAULT_AMPLITUDE,
 						     opts.freq[i]);
-				debug(D_BUG_UNRESOLVED, "out=%d\n", _out);
+				debug(D_BUG_RESOLVED, "out=%d\n", _out);
 				fprintf(out[i], "%d,", _out);
 					//opts.wf[i](DEFAULT_AMPLITUDE,
 				//		   opts.freq[i]));
@@ -629,7 +631,7 @@ void _debug(int loglevel, char *file, const char *func,
 {
 	/* check if verbose logging is enabled before *
 	 * dumping everything into stdout 	      */
-	if (loglevel == D_INFO && !opts.verbose) return;
+	if (loglevel == D_INFO         && !opts.verbose) return;
 	if (loglevel == D_BUG_RESOLVED && !opts.verbose) return;
 
 	/* naturally this is a variadic function */
@@ -643,7 +645,7 @@ void _debug(int loglevel, char *file, const char *func,
 	size_t tag_len = strlen(log_tags[loglevel])
                        + strlen(file)
                        + strlen(func)
-                       + ceil(log(line) / log(10.));
+                       + ceil(log(line) / log(10.)) - 4;
 	char *buf = malloc(tag_len + 1);
 	memset(buf, ' ', tag_len);
 	buf[tag_len] = 0;

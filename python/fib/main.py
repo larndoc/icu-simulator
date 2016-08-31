@@ -6,10 +6,13 @@ import jmag_bokeh_if as jbif
 
 mag_dc = jbif.Magnitude_Cooker()
 fft_dc = jbif.FFT_Cooker()
-ff     = jbif.Figure_Factory(x_axis_type='linear')
 
-ts = jbif.Grapher(pattern="FIB_Sci*.csv", key_groups=[['Bx'], ['By'], ['Bz'], ['Status']])
-sp = jbif.Grapher(pattern="FIB_Sci*.csv", cooker=fft_dc, indep_var='Freq', key_groups=[['Bx'], ['By'], ['Bz']], figure_factory=ff)
+ts = jbif.Grapher(pattern="FIB_Sci*.csv", key_groups=[['Bx'], ['By'], ['Bz'], ['Status']],
+        figure_opts=[{'plot_width':1000, 'plot_height':1000},
+                     {'plot_width':600 , 'plot_height':600 },
+                     None,
+                     None])
+sp = jbif.Grapher(pattern="FIB_Sci*.csv", cooker=fft_dc, indep_var='Freq', key_groups=[['Bx'], ['By'], ['Bz']], figure_opts={'x_axis_type':'linear'})
 mg = jbif.Grapher(pattern="FIB_Sci*.csv", cooker=mag_dc, key_groups=[['mag']])
 
 timeseries = ts.make_new_graphs()
