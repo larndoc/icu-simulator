@@ -35,7 +35,7 @@ void adc_read_one(uint8_t chip, uint8_t pin)
 	adc_readings[chip][pin] = result;
 }
 
-void adc_read_all(uint8_t chip, uint8_t *arr)
+void adc_read_all(uint8_t chip)
 {
 	int16_t result, chip_select = adc_get_chip_select(chip);
 	if (chip_select < 0) return;
@@ -45,7 +45,7 @@ void adc_read_all(uint8_t chip, uint8_t *arr)
 	
 	  SPI.transfer16(0); /* ignore the last result */
 	  for (int i = 0; i < 8; i++) 
-	  	  arr[i] = SPI.transfer16((i+1) << 11) & 0x0FFF;
+	  	  adc_readings[chip][i] = SPI.transfer16((i+1) << 11) & 0x0FFF;
 	
 	digitalWrite(chip_select, HIGH);
 	SPI.endTransaction();

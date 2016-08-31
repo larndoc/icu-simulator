@@ -199,18 +199,19 @@ void init_sci_packet(unsigned long t) {
  */
 
 void init_hk_packet(unsigned long t) {
-    byte p_loc[32];
-    if(read_second_channel == true) adc_read_all(1, p_loc); 
-    else adc_read_all(0, p_loc + 16); 
-    read_second_channel != read_second_channel;
-    hk_packet.pkt_length[0] = (HK_SIZE - 2) >> 8;
-    hk_packet.pkt_length[1] = (HK_SIZE - 2); 
-    int i, j; 
-    for(i = 0, j = 31; i < 32; i++, j--){
-     hk_packet.pcu[i] = p_loc[j]; 
-    }
-    hk_packet.id = 0x00;
-    copy_timestamp(hk_packet.counter, t); 
+  int i, j; 
+  hk_packet.pkt_length[0] = (HK_SIZE - 2) >> 8;
+  hk_packet.pkt_length[1] = (HK_SIZE - 2); 
+  hk_packet.id = 0x00;
+  copy_timestamp(hk_packet.counter, t);   
+  for(i=0;i<8;i++) {
+    hk_packet.pcu[2*i+1] = 0xFF & adc_readings[0][i];
+    hk_packet.pcu[2*i+0] = 0xFF & (adc_readings[0][i] >> 8);
+  }
+  for(i=0;i<8;i++) {
+    hk_packet.pcu[2*i+1+16] = 0xFF & adc_readings[1][i];
+    hk_packet.pcu[2*i+0+16] = 0xFF & (adc_readings[1][i] >> 8);
+  }
 }
 
 /* send_sci_packet():
@@ -293,7 +294,7 @@ bool send_hk_packet() {
 
 void copy_timestamp(byte* arr, unsigned long t){
   int i = 3; 
-  while(i > -1){
+  while(i >= 0) {
     arr[i] = (0x000000FF & t); 
     t = t >> 8;
     i--; 

@@ -95,8 +95,10 @@ class packet_reciever(Thread):
 					if len(decision_hk_sci) > 0:
 						if decision_hk_sci[0] == 0:  
 							f_hk.write(tokenize(h.update(size), 2))
+							f_hk.flush()
 						elif decision_hk_sci[0] == 1: 
 							f_sci.write(tokenize(s.update(size), 2))
+							f_sci.flush()
 							
 class fee_science():
 		def __init__(self, port): 
@@ -155,7 +157,7 @@ if __name__ == '__main__':
 		pkt_reciever.start() 
 		while not pkt_reciever.is_alive(): 
 			pass 
-		time.sleep(2)
+		time.sleep(1)
 		## needed as arduino needs to come up, do not remove. 
 		## should update the global time here as it is more readable 
 		cmd_menu = ("1) Set Time Command \n"
@@ -170,6 +172,7 @@ if __name__ == '__main__':
 				   "1> FOB \n"
 				   "2> FSC \n")
 		command = ''
+		pkt_reciever.write(b'\x00')
 		while pkt_reciever.start_running:  
 			print(cmd_menu)
 			nb = input('please choose an option: ')

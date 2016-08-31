@@ -70,7 +70,7 @@ void fee_deactivate(uint8_t fee) {
 }
 
 void timer_isr() {
-  int i;
+  uint16_t i;
   time_counter++;
   t_isr = micros(); 
   digitalWrite(DEBUG_PIN, HIGH);
@@ -120,6 +120,10 @@ void timer_isr() {
       }
     } 
   }
+
+  // every other time read from other adc
+  adc_read_all(time_counter%2);
+  
   digitalWrite(DEBUG_PIN, LOW);
 }
 
@@ -133,6 +137,7 @@ void timer_isr() {
 void setup() {
   int i;
 
+  // in order to initialize the data ring buffers for sci data
   init_sci_data();
 
   for(i=0; i<3; i++) {
@@ -144,6 +149,14 @@ void setup() {
   Serial.begin(BAUD_RATE);
   SPI.begin(); 
   Timer.getAvailable().attachInterrupt(timer_isr).setFrequency(FREQUENCY).start();        /*attach the interrupt to the function timer_isr at 128 Hz (FREQUENCY)*/
+  // wait until we get one byte from the PC, so we sync the link
+  while(true) {
+    if(Serial.available()) {
+      if(Serial.read() == 0x00) {
+        break;
+      }
+    }
+  }
 }
 
 void loop() {
@@ -212,7 +225,6 @@ void loop() {
   // only HK send if Sci is not sending already
   if(send_hk && !sending_sci){
     sending_hk = send_hk_packet();
-   // update_hk(); 
     // this will reset the send_hk flag once sending is done
     send_hk = sending_hk;
   }
