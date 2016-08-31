@@ -34,12 +34,12 @@ def build_fee_packet(fee_number):
 class hk_data: 	
 	def __init__(self, port): 
 		self.__port = port
-	def update(self):
-		size = int.from_bytes(self.__port.read(size = 2),byteorder = 'big', signed = False) #this is the true size of the packet excluding the first two bytes that represent the size of the packet 
+	def update(self, size):
+		size_t = int.from_bytes(size,byteorder = 'big', signed = False) #this is the true size of the packet excluding the first two bytes that represent the size of the packet 
 		counter = self.__port.read(size = 4)
 		data = self.__port.read(size = 129)
 		data_stream = b'\x00' + counter + data
-		if len(counter) + len(data_stream) is not size: 
+		if len(counter) + len(data_stream) is not size_t: 
 			logger.info('house_keeping_packet malformed!')
 			if len(counter) is not 4:
 				logger.info('could not read counter')
@@ -54,20 +54,22 @@ class packet_reciever(Thread):
 	#recieves a packet and reads the first byte 
 	logdir = ''
 	__filename   = dict()
-	__files 		 = dict()
 	start_running = True
+	def write(self, data):
+		self.__serial.write(bytes(data))
+	
 	def __init__(self, serial_port, logdir, sci_filename, hk_filename): 
 		super(packet_reciever, self).__init__()
 		self.__serial = self.set_up_serial(serial_port)
-		self.__filename["hk"] = sci_filename
-		self.__filename["sci"] = hk_filename
+		self.__filename["hk"] = hk_filename
+		self.__filename["sci"] = sci_filename
 		if logdir is None: 
 			logdir = "data"
 		else: 
 			logdir = logdir.rstrip("/")
 		if os.path.exists(logdir): 
 			for key, value in self.__filename.items(): 
-				self.__files[key] = logdir + "/" + value
+				self.__filename[key] = logdir + "/" + value
 		else: 
 			raise SystemExit('not a valid directory')	
 
@@ -78,29 +80,30 @@ class packet_reciever(Thread):
 		self.__serial.flushInput()
 		s = fee_science(self.__serial) 
 		h = hk_data(self.__serial)
-		with open(self.__files['hk'], 'w') as f_hk, open(self.__files['sci'], 'w') as f_sci:
-			f_sci.write('status time_3 time_2 time_1 time_0 n_fib n_fob n_fsc + \n')
+		with open(self.__filename['hk'], 'w') as f_hk, open(self.__filename['sci'], 'w') as f_sci:
+			f_sci.write("{}\n".format('status time_3 time_2 time_1 time_0 n_fib n_fob n_fsc'))
 			header = [] 
 			header.append("status time_3 time_2 time_1 time_0") 
 			header.append(" ".join(["pcu"+str(v) for v in range(31,-1,-1)]))
 			header.append(" ".join(["fib"+str(v) for v in range(39,-1,-1)]))
 			header.append(" ".join(["fob"+str(v) for v in range(3,-1,-1)]))
 			header.append(" ".join(["fsc"+str(v) for v in range(51,-1,-1)]))
-			f_hk.write(" ".join(header) + "\n") 
+			f_hk.write("{}\n".format(" ".join(header))) 
 			while self.start_running: 
+					size = self.__serial.read(size = 2)
 					decision_hk_sci = self.__serial.read(size = 1)
 					if len(decision_hk_sci) > 0:
 						if decision_hk_sci[0] == 0:  
-							f_hk.write(tokenize(h.update(), 2))
+							f_hk.write(tokenize(h.update(size), 2))
 						elif decision_hk_sci[0] == 1: 
-							f_sci.write(tokenize(s.update(), 2))
+							f_sci.write(tokenize(s.update(size), 2))
 							
 class fee_science():
 		def __init__(self, port): 
 			self.__port = port
 			self.total_count = 0
-		def update(self):	
-			size = int.from_bytes(self.__port.read(size = 2),byteorder = 'big', signed = False)
+		def update(self, size):	
+			size = int.from_bytes(size ,byteorder = 'big', signed = False)
 			counter = self.__port.read(size = 4)
 			n_fee = self.__port.read(size = 3)
 			
@@ -189,7 +192,7 @@ if __name__ == '__main__':
 				pkt_reciever.start_running = False
 				switch_off = True
 			if choice != 7 and pkt_reciever.is_alive() == True:
-				pkt_reciever.serial.write(bytes(command));
+				pkt_reciever.write(command)
 			print(command)	
 		pkt_reciever.join()
 		print("program end")

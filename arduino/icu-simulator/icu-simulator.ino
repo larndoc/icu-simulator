@@ -103,7 +103,7 @@ void timer_isr() {
       }        
     }
     // emulate real ICU processing time here
-    //wait_us(PULSE_WIDTH_US, t_isr); 
+    wait_us(PULSE_WIDTH_US, t_isr); 
   }
 
   // init packet transfer and generate sync falling edge

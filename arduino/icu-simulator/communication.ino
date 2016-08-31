@@ -7,7 +7,7 @@ uint8_t fee_rec_counter[3] = {0,0,0};
 enum sci_queues sci_queue = HEADER;
 int sci_send_counter = 0;
 int hk_send_counter = 0; 
-
+bool read_second_channel = false; 
 uint8_t fee_sci_sizes[3] = {
   FIB_SCI_SIZE, 
   FOB_SCI_SIZE, 
@@ -201,8 +201,9 @@ void init_sci_packet(unsigned long t) {
 
 void init_hk_packet(unsigned long t) {
     byte p_loc[32];
-    adc_read_all(1, p_loc); 
-    adc_read_all(0, p_loc + 16); 
+    if(read_second_channel == true) adc_read_all(1, p_loc); 
+    else adc_read_all(0, p_loc + 16); 
+    read_second_channel != read_second_channel;
     hk_packet.pkt_length[0] = (HK_SIZE - 2) >> 8;
     hk_packet.pkt_length[1] = (HK_SIZE - 2); 
     int i, j; 
