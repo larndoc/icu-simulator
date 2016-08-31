@@ -39,7 +39,8 @@ class hk_data:
 		counter = self.__port.read(size = 4)
 		data = self.__port.read(size = 129)
 		data_stream = b'\x00' + counter + data
-		if len(counter) + len(data_stream) is not size_t: 
+		if size_t != len(data_stream): 
+			print('house_keeping packet malformed')
 			logger.info('house_keeping_packet malformed!')
 			if len(counter) is not 4:
 				logger.info('could not read counter')
@@ -120,7 +121,8 @@ class fee_science():
 				data_stream += self.__port.read(size = 10)
 			for i in range(0, n_fee[2]):
 				data_stream += self.__port.read(size = 11)
-			if size is not len(data_stream): 
+			if size != len(data_stream): 
+				print('sci packet malformed!')
 				logger.info('sci packet malformed!')
 				if len(counter) is not 4: 
 					logger.info('could not read counter')
