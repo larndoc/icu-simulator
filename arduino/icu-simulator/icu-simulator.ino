@@ -11,9 +11,10 @@
 
 #include "adc.h"
 #include "communication.h"
+#include "variable-load.h"
+#include "icu-simulator-pins.h"
 
-#define SPI_PIN               41 
-#define DEBUG_PIN             10
+
 //********************************************************************************SYNC SETTINGS****************************************************************//
 #define FREQUENCY             128
 #define PULSE_WIDTH_US        1000
@@ -28,7 +29,7 @@ enum icu_modes {
 
 enum icu_modes mode  = CONFIG_MODE;
 bool fee_enabled[3]                  = {false, false, false};
-HardwareSerial* fee_ports[3]         = {&Serial1, &Serial2, &Serial3};
+HardwareSerial* fee_ports[3]         = {UART_FIB, UART_FOB, UART_FSC};
 const uint8_t sync_pins[3]           = {11, 13, 12};
 
 uint32_t time_counter = 0;
@@ -146,8 +147,12 @@ void setup() {
   }
   pinMode(SPI_PIN, OUTPUT);
   pinMode(DEBUG_PIN, OUTPUT);
+  pinMode(SUB_IO_ALIVE, OUTPUT); 
   Serial.begin(BAUD_RATE);
-  SPI.begin(); 
+  SPI.begin();
+  digitalWrite(SUB_IO_ALIVE, HIGH);  
+  set_load(0, 0); 
+  set_load(1, 0); 
   Timer.getAvailable().attachInterrupt(timer_isr).setFrequency(FREQUENCY).start();        /*attach the interrupt to the function timer_isr at 128 Hz (FREQUENCY)*/
   // wait until we get one byte from the PC, so we sync the link
   while(true) {
