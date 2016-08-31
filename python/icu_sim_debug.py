@@ -91,7 +91,6 @@ class packet_reciever(Thread):
 			f_hk.write("{}\n".format(" ".join(header))) 
 			while self.start_running: 
 					size = self.__serial.read(size = 2)
-					print(size)
 					decision_hk_sci = self.__serial.read(size = 1)
 					if len(decision_hk_sci) > 0:
 						if decision_hk_sci[0] == 0:  
