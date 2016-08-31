@@ -1,267 +1,261 @@
-/* in order to reject any noise interference the appropiate boolean values for the variable fee_enabled need to be set */ 
-/*currently serial1 is configured to the synchronisation pin at pin 11, serial2 is configured to the synchronisation pin at pin 13 and serial is configured to the synchromnisation pin at pin 12 */ 
-  #include <DueTimer.h>
-  #include <time.h>
-  #include <stdlib.h>
-  #include "adc.h"
-  #include "errors.h"
-  #include "fee_packet_structure.h"
-  #include "pc_data_dump.h"
-  #include "house-keeping.h"
-  #include <SPI.h>
-  
-  #define BUFFER_SIZE           3
-  #define SPI_PIN               41 
-  #define DEBUG_PIN             10
-  //********************************************************************************CLOCK INFORMATION****************************************************************//
-  #define FREQUENCY             128
-  #define PULSE_WIDTH_US        1000
-  #define PERIOD_US             100000/FREQUENCY
-  #define BAUD_RATE             115200
-  //******************************************************************************GLOBAL VARIABLES***************************************************************//
-
-  /*set of states that the user transverses through based on the input(which can be intrinsic or defined by the user(external)*/ 
-  enum set {
-    SCIENCE_MODE=0,  
-    CONFIG_MODE,  
-    };
-  enum set mode  = CONFIG_MODE;
-  /*fee packet and pointer to the three fee_packets, the data structure used for fee_packet is a union which is included in the folder fee_packet_structure*/ 
-  int buffer_index = 0; 
-  fib_paket fib_pack; 
-  fob_packet fob_pack; 
-  fsc_packet fsc_pack; 
-  /*declaration of the pc packet, used to package the recieved bytes from the three interfaces and write it out the serial port, the struct used for pc packet is a union defined in pc_data_dump.h */
-  pc_packet_meta_data pc_packet_time =  {0};       
-  byte pc_packet_arr[BUFFER_SIZE * 64];
-  
-  house_keeping hk_pkt;
-  
-  /*a 2-D (3 x 6) array for the command packets that includes the command packet to be sent to each interface */ 
-  uint8_t response_packet_counter[3]   = {0, 0, 0};
-  bool checksum[3]                     = {false, false, false};
-  bool fee_enabled[3]                  = {false, false, false};
-  HardwareSerial* port[3]              = {&Serial1, &Serial2, &Serial3};
-  const uint8_t sync_pins[3]           = {11, 13, 12};
-  uint32_t t;
-  uint32_t time_counter            = 0;
-  bool packet_sent = false;
-  bool packet_processed = false;
-  int size_of_pc_packet = 8; 
-  bool hk_send = false;
-
-  
-  void wait_us(unsigned long delta_us) {
-    while ( (micros()  - t ) < delta_us ) {
-      if (micros() - t < 0) {      
-        delta_us = delta_us - (0xFFFFFFFF - t);
-      }
-    }
-  }
-  
-
-  void timer_isr() {
-    time_counter++;
-    if(time_counter % FREQUENCY == 0){hk_send =  process_hk_packet() ;}
-    if(mode == SCIENCE_MODE) {
-      pc_packet_time.sync_counter = uint32_t(__builtin_bswap32(time_counter));
-      t = micros();
-      for(int i = 0; i < 3; i++){
-        if(fee_enabled[i]){
-          digitalWrite(sync_pins[i], HIGH);         //setting up of the pins 
-        }
-      }
-    }
-        
-    if(packet_sent) { 
-        packet_sent = false;   
-        packet_processed = process_sci_packet();    
-    }
+/*
+ * Program description here
+ * 
+ * 
+ * 
+ */
  
-  
-    if(mode == SCIENCE_MODE) { 
-      wait_us(PULSE_WIDTH_US);   
-      for(int i = 0; i < 3; i++){
-        if(fee_enabled[i]){
-          send_packet(port[i], i);
-        }
-      }
-      packet_sent = true;
-      for (int i = 0; i < 3; i++) {
-        if (fee_enabled[i]) {
-          digitalWrite(sync_pins[i], LOW);
-        }
-      } 
-      
+#include <DueTimer.h>
+#include <time.h>
+#include <SPI.h>
+
+#include "adc.h"
+#include "communication.h"
+#include "variable-load.h"
+#include "test-pins.h"
+
+
+//********************************************************************************SYNC SETTINGS****************************************************************//
+#define FREQUENCY             128
+#define PULSE_WIDTH_US        1000
+//********************************************************************************UART SETTINGS****************************************************************//
+#define BAUD_RATE             115200
+//******************************************************************************GLOBAL VARIABLES***************************************************************//
+
+enum icu_modes {
+  SCIENCE_MODE=0,  
+  CONFIG_MODE,  
+};
+
+enum icu_modes mode  = CONFIG_MODE;
+bool fee_enabled[3]                  = {false, false, false};
+HardwareSerial* fee_ports[3]         = {UART_FIB, UART_FOB, UART_FSC};
+const uint8_t sync_pins[3]           = {FIB_SYNC, FOB_SYNC, FSC_SYNC};
+
+uint32_t time_counter = 0;
+unsigned long t_isr;
+
+bool cmd_packet_sent = false;
+bool send_hk = false; 
+bool send_sci = false; 
+bool sending_hk = false; 
+bool sending_sci = false;
+ 
+byte user_cmd = 0;
+uint8_t user_fee_cmd[6] = {0};
+
+void wait_us(unsigned long delta_us, unsigned long t) {
+  while ( (micros()  - t ) < delta_us ) {
+    if (micros() - t < 0) {      
+      delta_us = delta_us - (0xFFFFFFFF - t);
     }
   }
-  
-  
-  /*
-     initialize the Serial monitor to print debug information
-     each interface is driven by a synchronisation pin.
-     only initialize the sync and communication pins if the fee_enabled flag to the respective interface is enabled
-     port[i] represents each set of communication pins respectively.
-  */
-  void setup() {
-    pinMode(SPI_PIN, OUTPUT);
-    pinMode(DEBUG_PIN, OUTPUT);
-    Serial.begin(BAUD_RATE);
-    SPI.begin(); 
-    for (int i = 0; i < 3; i++) {
+}
+
+void fee_activate(uint8_t fee) {  
+  if (fee < 3) {
+    if(!fee_enabled[fee]) {
+      fee_ports[fee]->begin(BAUD_RATE);
+      fee_enabled[fee] = true; 
+    }
+  }
+}
+
+void fee_deactivate(uint8_t fee) {
+  if (fee < 3) {
+    if(fee_enabled[fee]) {
+      fee_ports[fee]->end();
+      fee_enabled[fee] = false; 
+    }
+  }
+}
+
+void timer_isr() {
+  uint16_t i;
+  time_counter++;
+  t_isr = micros(); 
+  digitalWrite(DEBUG_PIN, HIGH);
+
+  // create trigger flags
+  if((time_counter % HK_CADENCE)==0) {
+    send_hk = true;
+    init_hk_packet(time_counter - 1);    
+  }
+
+  // create sync pulse rising edge
+  if(mode == SCIENCE_MODE) {
+    if((time_counter % SCI_CADENCE)==0) {
+      send_sci = true; 
+      init_sci_packet(time_counter - SCI_CADENCE);
+    }
+    for(i = 0; i < 3; i++){
+      if(fee_enabled[i]){
+        digitalWrite(sync_pins[i], HIGH);         //setting up of the pins 
+      }
+    }
+  }
+
+  // process old data if a packet was sent
+  if(cmd_packet_sent) { 
+    cmd_packet_sent = false;   
+    for(i = 0; i < 3; i++){
+      if(fee_enabled[i]){
+        process_fee_response(i);
+      }        
+    }
+    // emulate real ICU processing time here
+   wait_us(PULSE_WIDTH_US, t_isr); 
+  }
+
+  // init packet transfer and generate sync falling edge
+  if(mode == SCIENCE_MODE) { 
+    for(i = 0; i < 3; i++){
+      if(fee_enabled[i]){
+        send_fee_cmd(fee_ports[i], i);
+      }
+    }
+    cmd_packet_sent = true;
+    for (i = 0; i < 3; i++) {
       if (fee_enabled[i]) {
-        pinMode(sync_pins[i], OUTPUT);
         digitalWrite(sync_pins[i], LOW);
-        port[i]->begin(BAUD_RATE);
+      }
+    } 
+  }
+
+  // every other time read from other adc
+  adc_read_all(time_counter%2);
+  
+  digitalWrite(DEBUG_PIN, LOW);
+}
+
+
+/*
+   initialize the Serial monitor to print debug information
+   each interface is driven by a synchronisation pin.
+   only initialize the sync and communication pins if the fee_enabled flag to the respective interface is enabled
+   port[i] represents each set of communication pins respectively.
+*/
+void setup() {
+  int i;
+
+  // in order to initialize the data ring buffers for sci data
+  init_sci_data();
+
+  for(i=0; i<3; i++) {
+    pinMode(sync_pins[i], OUTPUT);
+    digitalWrite(sync_pins[i], LOW);
+  }
+  pinMode(SPI_PIN, OUTPUT);
+  pinMode(DEBUG_PIN, OUTPUT);
+  pinMode(SUB_IO_ALIVE, OUTPUT); 
+  Serial.begin(BAUD_RATE);
+  SPI.begin();
+  digitalWrite(SUB_IO_ALIVE, HIGH);  
+  set_load(0, 0); 
+  set_load(1, 0); 
+  Timer.getAvailable().attachInterrupt(timer_isr).setFrequency(FREQUENCY).start();        /*attach the interrupt to the function timer_isr at 128 Hz (FREQUENCY)*/
+  // wait until we get one byte from the PC, so we sync the link
+  while(true) {
+    if(Serial.available()) {
+      if(Serial.read() == 0x00) {
+        break;
       }
     }
-    Timer.getAvailable().attachInterrupt(timer_isr).setFrequency(FREQUENCY).start();        /*attach the interrupt to the function timer_isr at 128 Hz (FREQUENCY)*/
   }
-  
-  /*
-     implementation of a finite state machine
-     state is represented by the variable task and we have a input variable that determines which state to go to from the default state 
-  */
-  
-  void loop() {
-  
-    /****************************************************************************************************************EXTERNAL INPUTS THAT CHANGE THE CURRENT STATE WITHIN THE STATE DIAGRAM************************************************************************************/
-      if(Serial.available() > 0){    
-           byte cmd_id = Serial.read();
-           byte deactive_selector; 
-           byte active_selector; 
-           switch(cmd_id){
-           
-           case 0x03:
-            mode = SCIENCE_MODE; 
-            break; 
-  
-            case 0x02:
-            {
-            int counter = 0; 
-            uint8_t fee_command[6]; 
-            //counter is the number of bytes that were read from the stream into a buffer
-            //fee_command is the buffer in this case
-            counter = Serial.readBytes(fee_command, 6); 
-            if (counter != 6){ 
-              // we were not able to read 6 bytes into the buffer, catching appropiate error
-            }
-            else{
-              create_cmd_packet(fee_command); 
-            }
-            }
-             //the input remains the same, if we are in science mode we stay in science mode and if we are in config mode, then we stay in config mode, hence it is not required to update the input  
-             break; 
-  
-            case 0x04:
-              mode = CONFIG_MODE;
-              break;
-  
-            case 0x05:
-                while(Serial.available() == 0);
-                  if(mode == CONFIG_MODE){fee_activate(Serial.read());}
-               break; 
-            
-            case 0x06: 
-                while(Serial.available() == 0); 
-                if(mode == CONFIG_MODE){fee_deactivate(Serial.read());} 
-           break; 
-           
-           default:;
+}
+
+void loop() {
+
+  // stuff to do all the time
+  // 1) check for external input from PC
+  // 2) send HK data
+  // 3)
+   
+  switch(user_cmd) {  
+    case 0x03:
+      mode = SCIENCE_MODE; 
+      user_cmd = 0;
+      break; 
+
+    case 0x02:
+      // serial input buffer should be bigger than 6
+      if(Serial.available() >= 6) {
+        Serial.readBytes(user_fee_cmd, 6);
+        create_cmd_packet(user_fee_cmd); 
+        user_cmd = 0;
       }
-      }
+      //the input remains the same, if we are in science mode we stay in science mode and if we are in config mode, then we stay in config mode, hence it is not required to update the input  
+      break; 
       
-    switch (mode) {   
-      
-   /****************************************************************************************************************************CONFIGURATION MODE***********************************************************************************************************************/
-       
-       case CONFIG_MODE: 
-         for(int i = 0; i < FIB_HK_SIZE; i++){
-            hk_pkt.fib_hk[i] = 0; 
-          }
-          for(int i = 0; i < FOB_HK_SIZE; i++){
-            hk_pkt.fob_hk[i] = 0; 
-          }
-          for(int i = 0; i < FSC_HK_SIZE; i++){
-            hk_pkt.fsc_hk[i] = 0; 
-          }
-              
-       break; 
+  case 0x04:
+    mode = CONFIG_MODE;
+    user_cmd = 0;
+    break;
+
   
-  /*****************************************************************************************************************************SCIENCE MODE*****************************************************************************************************************************/
-     /*
-      * in science mode, we check to see if the packet has been sent and processed, if the packet has been sent, we listen for any incoming data on the three FEEs
-      * processing of the packet allows us to determine whether the data in the packet is good/bad, if the data is good, we package it for sending to the pc. We check to see if a packet exists, and if it does not exist we set the n_fib/n_fob/n_fsc back to zero.
-      * the science data for FIB and FOB is 10, whereas the size of the science data for FSC is set to 11 
-      */
-      
-      
-      case SCIENCE_MODE:
-      { 
-        if(packet_sent){
-          for (int i = 0; i < 3; i++) {
-            if(fee_enabled[i]){
-              check_port(port[i], i);
-            }
+  case 0x05:
+    if(Serial.available()) {
+      if(mode == CONFIG_MODE) {
+        // only in config mode activate an fee
+        fee_activate(Serial.read());
+      } else {
+        // just read and throw away otherwise
+        Serial.read();
+      }
+      user_cmd = 0;
+    }
+    break; 
+
+  
+  case 0x06: 
+    if(Serial.available()) {
+      if(mode == CONFIG_MODE) {
+        fee_deactivate(Serial.read());   
+      } else {
+        // just read and throw away otherwise
+        Serial.read();
+      }
+      user_cmd = 0;
+    }
+    break; 
+
+  default:
+    // if no user command was set, check for a new one
+    if(Serial.available()) {
+      user_cmd = Serial.read();
+    }
+  }
+
+
+  // only HK send if Sci is not sending already
+  if(send_hk && !sending_sci){
+    sending_hk = send_hk_packet();
+    // this will reset the send_hk flag once sending is done
+    send_hk = sending_hk;
+  }
+
+  // state machine of the ICU
+  switch (mode) {   
+    case CONFIG_MODE: 
+      // nothing to do in CONFIG MODE yet     
+      break; 
+    case SCIENCE_MODE:
+      // receive fee responses, if we sent a command
+      if(cmd_packet_sent){
+        for (int i = 0; i < 3; i++) {
+          if(fee_enabled[i]){
+            receive_fee_response(fee_ports[i], i);
           }
         }
-        if(packet_processed){ 
-          packet_processed = false; 
-          pc_packet_arr[0] = 0x01; 
-          int j = 0; 
-          for(int i = 1; i < 5; i++, j++){
-            pc_packet_arr[i] = pc_packet_time.arr[j];
-          }
-          Serial.write(pc_packet_arr, size_of_pc_packet);  
-          size_of_pc_packet = 8;
-         }
-         break; 
       }
+      // send Sci data, if not already sending HK data
+      if(send_sci && !sending_hk) {
+        sending_sci = send_sci_packet();
+        // this will reset the send_sci flag once sending is done
+        send_sci = sending_sci;
+      }      
+      break; 
+  }
+} // loop ends
 
-     
-  /******************************************************************************************************************************PC_TRANSMIT*********************************************************************************************************************************/
 
-      default:
-        mode = CONFIG_MODE;
-    }
-     if(hk_send == true){
-        Serial.write(hk_pkt.arr, TOTAL_HK_SIZE);
-        hk_send = false;
-      }
-  }
-  
-  void fee_activate(int index){
-    
-    if ( index > 2 || index < 0){
-        return;  
-    }
-    else{
-        pc_packet_arr[5 + index] = BUFFER_SIZE;
-        activate_pins(index); 
-        fee_enabled[index] = true; 
-    }
-  }
-  
-  
-  void fee_deactivate(char index){
-    if ((index) > 2 || (index) < 0){
-      return; 
-    }
-    else{
-    pc_packet_arr[5 + index] = 0;
-    deactivate_pins(index); 
-    fee_enabled[index] = false; 
-    }
-  }
-  
-  void activate_pins(int index){
-     pinMode(sync_pins[index],  OUTPUT); 
-     digitalWrite(sync_pins[index], LOW); 
-     port[index]->begin(BAUD_RATE);
-  }
-  
-  void deactivate_pins(char index){
-    pinMode(sync_pins[index], INPUT);
-    digitalWrite(sync_pins[index], LOW); 
-    port[index]->end(); 
-  }
