@@ -100,18 +100,31 @@ class fee_science():
 			self.__port = port
 			self.total_count = 0
 		def update(self):	
-			size = self.__port.read(size = 2)
+			size = int.from_bytes(self.__port.read(size = 2),byteorder = 'big', signed = False)
 			counter = self.__port.read(size = 4)
 			n_fee = self.__port.read(size = 3)
+			
 			self.total_count += n_fee[0] + n_fee[1] + n_fee[2] 
 			logger.info('n_total %s n_fib %s, n_fob %s, n_fsc %s', self.total_count, n_fee[0], n_fee[1], n_fee[2])
+			
 			data_stream = b'\x01' + counter + n_fee
+			
 			for i in range(0, n_fee[0]): 
 				data_stream += self.port.read(size = 10) 			
 			for i in range(0, n_fee[1]): 
 				data_stream += self.port.read(size = 10)
 			for i in range(0, n_fee[2]):
 				data_stream += self.port.read(size = 11)
+			if size is not len(data_stream): 
+				logger.info('sci packet malformed!')
+				if len(counter) is not 4: 
+					logger.info('could not read counter')
+				if len(n_fee) is not 3: 
+					logger.info('could not read n_fee')
+				else: 
+					logger.info('could not read data')
+			else: 
+					logger.info('recieved house_keeping_packet, status OK')
 			return str(binascii.hexlify(data_stream)) 
 			
 if __name__ == '__main__':
