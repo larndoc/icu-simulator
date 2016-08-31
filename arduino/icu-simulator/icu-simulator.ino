@@ -12,7 +12,7 @@
 #include "adc.h"
 #include "communication.h"
 #include "variable-load.h"
-#include "icu-simulator-pins.h"
+#include "test-pins.h"
 
 
 //********************************************************************************SYNC SETTINGS****************************************************************//
@@ -30,7 +30,7 @@ enum icu_modes {
 enum icu_modes mode  = CONFIG_MODE;
 bool fee_enabled[3]                  = {false, false, false};
 HardwareSerial* fee_ports[3]         = {UART_FIB, UART_FOB, UART_FSC};
-const uint8_t sync_pins[3]           = {11, 13, 12};
+const uint8_t sync_pins[3]           = {FIB_SYNC, FOB_SYNC, FSC_SYNC};
 
 uint32_t time_counter = 0;
 unsigned long t_isr;
