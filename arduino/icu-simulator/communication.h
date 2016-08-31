@@ -9,7 +9,7 @@
 #define REC_PACKET_SIZE       64
 
 //************* SCI STRUCTURE **********//
-#define SCI_HEADER_SIZE       8
+#define SCI_HEADER_SIZE       10
 #define FSC_SCI_SIZE          11
 #define FIB_SCI_SIZE          10 
 #define FOB_SCI_SIZE          10

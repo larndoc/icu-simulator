@@ -91,6 +91,7 @@ class packet_reciever(Thread):
 			f_hk.write("{}\n".format(" ".join(header))) 
 			while self.start_running: 
 					size = self.__serial.read(size = 2)
+					print(size)
 					decision_hk_sci = self.__serial.read(size = 1)
 					if len(decision_hk_sci) > 0:
 						if decision_hk_sci[0] == 0:  
@@ -113,11 +114,11 @@ class fee_science():
 			data_stream = b'\x01' + counter + n_fee
 			
 			for i in range(0, n_fee[0]): 
-				data_stream += self.port.read(size = 10) 			
+				data_stream += self.__port.read(size = 10) 			
 			for i in range(0, n_fee[1]): 
-				data_stream += self.port.read(size = 10)
+				data_stream += self.__port.read(size = 10)
 			for i in range(0, n_fee[2]):
-				data_stream += self.port.read(size = 11)
+				data_stream += self.__port.read(size = 11)
 			if size is not len(data_stream): 
 				logger.info('sci packet malformed!')
 				if len(counter) is not 4: 

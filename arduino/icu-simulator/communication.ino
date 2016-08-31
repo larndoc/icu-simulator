@@ -175,10 +175,9 @@ void init_sci_packet(unsigned long t) {
   // initialize the sci header...
   int i;
   /*the pkt_size is initialized to 8 which includes the status byte, the four counter bytes, and n_fib, n_fob and n_fsc*/
-  uint8_t total_size = 0x08;
+  uint16_t total_size = 0x08;
   sci_header.id = 0x01;  
-  byte* counter_ptr = sci_header.arr;
-  copy_timestamp(counter_ptr, t); 
+  copy_timestamp(sci_header.counter, t); 
   for(i=0;i<3;i++) {
     sci_header.n[i] = sci_data[i].n;
     // calculate bytes to send for each fee science data frame
@@ -211,8 +210,7 @@ void init_hk_packet(unsigned long t) {
      hk_packet.pcu[i] = p_loc[j]; 
     }
     hk_packet.id = 0x00;
-    byte* counter_ptr = hk_packet.arr;
-    copy_timestamp(counter_ptr, t); 
+    copy_timestamp(hk_packet.counter, t); 
 }
 
 /* send_sci_packet():
@@ -294,8 +292,8 @@ bool send_hk_packet() {
 }
 
 void copy_timestamp(byte* arr, unsigned long t){
-  int i = 5; 
-  while(i > 1){
+  int i = 3; 
+  while(i > -1){
     arr[i] = (0x000000FF & t); 
     t = t >> 8;
     i--; 
