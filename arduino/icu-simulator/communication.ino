@@ -174,7 +174,8 @@ uint8_t checksum(uint8_t * arr, int l) {
 void init_sci_packet(unsigned long t) {
   // initialize the sci header...
   int i;
-  uint8_t total_size = 0x00;
+  /*the pkt_size is initialized to 8 which includes the status byte, the four counter bytes, and n_fib, n_fob and n_fsc*/
+  uint8_t total_size = 0x08;
   sci_header.id = 0x01;  
   byte* counter_ptr = sci_header.arr;
   copy_timestamp(counter_ptr, t); 
@@ -197,23 +198,20 @@ void init_sci_packet(unsigned long t) {
 /* init_sci_packet(t):
  *  initializes the hk packet with timestamp t
  */
-void update_hk(){
-  byte p_loc[32];
-  adc_read_all(1, p_loc); 
-  adc_read_all(0, p_loc + 16); 
-  hk_packet.pkt_length[0] = HK_SIZE >> 8;
-  hk_packet.pkt_length[1] = HK_SIZE; 
-  int i, j; 
-  for(i = 0, j = 31; i < 32; i++, j--){
-    hk_packet.pcu[i] = p_loc[j]; 
-  }
-}
+
 void init_hk_packet(unsigned long t) {
-  update_hk();
-  hk_packet.id = 0x00;
- 
-  byte* counter_ptr = hk_packet.arr;
-  copy_timestamp(counter_ptr, t); 
+    byte p_loc[32];
+    adc_read_all(1, p_loc); 
+    adc_read_all(0, p_loc + 16); 
+    hk_packet.pkt_length[0] = (HK_SIZE - 2) >> 8;
+    hk_packet.pkt_length[1] = (HK_SIZE - 2); 
+    int i, j; 
+    for(i = 0, j = 31; i < 32; i++, j--){
+     hk_packet.pcu[i] = p_loc[j]; 
+    }
+    hk_packet.id = 0x00;
+    byte* counter_ptr = hk_packet.arr;
+    copy_timestamp(counter_ptr, t); 
 }
 
 /* send_sci_packet():

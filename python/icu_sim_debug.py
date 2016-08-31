@@ -35,16 +35,16 @@ class hk_data:
 	def __init__(self, port): 
 		self.__port = port
 	def update(self):
-		size = int(self.__port.read(size = 2)) - 2 #this is the true size of the packet excluding the first two bytes that represent the size of the packet 
+		size = int.from_bytes(self.__port.read(size = 2),byteorder = 'big', signed = False) #this is the true size of the packet excluding the first two bytes that represent the size of the packet 
 		counter = self.__port.read(size = 4)
 		data = self.__port.read(size = 129)
 		data_stream = b'\x00' + counter + data
 		if len(counter) + len(data_stream) is not size: 
-			print('house_keeping_packet malformed!')
+			logger.info('house_keeping_packet malformed!')
 			if len(counter) is not 4:
-				print('could not read counter')
+				logger.info('could not read counter')
 			elif len(data) is not 129: 
-				print('could not read data')
+				logger.info('could not read data')
 		else: 
 			logger.info('recieved house_keeping packet, status OK')
 		#we still want to se the contents of the malformed packet
@@ -83,7 +83,7 @@ class packet_reciever(Thread):
 			header = [] 
 			header.append("status time_3 time_2 time_1 time_0") 
 			header.append(" ".join(["pcu"+str(v) for v in range(31,-1,-1)]))
-      		header.append(" ".join(["fib"+str(v) for v in range(39,-1,-1)]))
+			header.append(" ".join(["fib"+str(v) for v in range(39,-1,-1)]))
 			header.append(" ".join(["fob"+str(v) for v in range(3,-1,-1)]))
 			header.append(" ".join(["fsc"+str(v) for v in range(51,-1,-1)]))
 			f_hk.write(" ".join(header) + "\n") 
@@ -123,19 +123,19 @@ if __name__ == '__main__':
 		parser = argparse.ArgumentParser();
 		parser.add_argument(dest = 'port', help = "serial port of the ICU Simulator unit", type = str)
 		parser.add_argument('--logdir', dest = 'logdir', help = "path to store data files", type = str)
-		parser.add_argument(help = sci.filename """'-first byte should always be 0x01"""
-		hk_filename """-first byte should always be 0x00""" 
-		sci_filename 'and' hk_filename """-the next four bytes represent the counter and should increment at a rate determined by SCIENCE CADENCE defined in icu_simulator.ino"""
-		sci_filename """-FIB SCI consists of 10 packets, and the third, sixth and ninth byte should increment by 1, other bytes should be constant,the last byte should be 0x00"""
-		sci_filename """-the next three bytes represent the number of fib, fob and fsc which are contained in the pc packet"""
-		sci_filename """-FOB_SCI consists of 10 packets, and all bytes should be set to zero"""
-		sci_filename """-FSC_SCI consists of 11 packets, every first three bytes increment by one, seventh byte increments by one and the tenth and eleventh byte increment by one - XXX 00 02 02 X 02 02 X X"""
-		sci_filename """-the next 32 bytes in hk.log represent pcu data""" 
-		sci_filename """-the next 40 bytes in hk.log represent fib_hk"""
-		sci_filename """-the next 4 bytes in hk.log represent fob_hk"""
-		sci_filename """-the next 52 bytes in hk.log represent fsc_hk""")
+		parser.add_argument('--overview', help =  """ %s -first byte should always be 0x01 %s-first byte should always be 0x00
+		%s 'and' %s-the next four bytes represent the counter and should increment at a rate determined by SCIENCE CADENCE defined in icu_simulator.ino
+		%s -FIB SCI consists of 10 packets, and the third, sixth and ninth byte should increment by 1, other bytes should be constant,the last byte should be 0x00
+		%s -the next three bytes represent the number of fib, fob and fsc which are contained in the pc packet
+		%s -FOB_SCI consists of 10 packets, and all bytes should be set to zero
+		%s -FSC_SCI consists of 11 packets, every first three bytes increment by one, seventh byte increments by one and the tenth and eleventh byte increment by one - XXX 00 02 02 X 02 02 X X
+		%s -the next 32 bytes in hk.log represent pcu data 
+		%s -the next 40 bytes in hk.log represent fib_hk
+		%s -the next 4 bytes in hk.log represent fob_hk %s -the next 52 bytes in hk.log represent fsc_hk"""
+		% (sci_filename, sci_filename, sci_filename, hk_filename, sci_filename, sci_filename, sci_filename, sci_filename, sci_filename, sci_filename, sci_filename, sci_filename)
+		)
 		args  = parser.parse_args()
-		pkt_reciever = packet_reciever(args.port, args.logdir, science_filename, hk_filename)
+		pkt_reciever = packet_reciever(args.port, args.logdir, sci_filename, hk_filename)
 		pkt_reciever.start() 
 		while not pkt_reciever.is_alive(): 
 			pass 
