@@ -3,7 +3,7 @@
 
 //************************ COMS SETTINGS *******************//
 #define HK_CADENCE            128
-#define SCI_CADENCE           128
+#define SCI_CADENCE           16
 
 #define CMD_PACKET_SIZE       6
 #define REC_PACKET_SIZE       64
@@ -79,5 +79,4 @@ void init_sci_packet(unsigned long t);
 void init_hk_packet(unsigned long t);
 bool send_sci_packet();
 bool send_hk_packet();
-void update_hk(); 
 #endif /* !defined _adc_h */
