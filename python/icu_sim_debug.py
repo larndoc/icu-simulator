@@ -69,7 +69,7 @@ class packet_reciever(Thread):
 			for key, value in self.__filename.items(): 
 				self.__files[key] = logdir + "/" + value
 		else: 
-			raise SystemExit 		
+			raise SystemExit('not a valid directory')	
 
 	def set_up_serial(self, serial_port):
 		return serial.Serial(serial_port,  115200 , timeout =  None)
