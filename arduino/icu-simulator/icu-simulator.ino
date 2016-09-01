@@ -199,7 +199,6 @@ void setup() {
   set_load(0, 0); 
   set_load(1, 0); 
   Timer.getAvailable().attachInterrupt(timer_isr).setFrequency(FREQUENCY).start();        /*attach the interrupt to the function timer_isr at 128 Hz (FREQUENCY)*/
-  // wait until we get one byte from the PC, so we sync the line 
 }
 
 void loop() {
@@ -213,6 +212,7 @@ void loop() {
     case 0x00: 
       mode = STANDBY_MODE;
       user_cmd = 0xFF;  
+      break;
     case 0x03:
       mode = SCIENCE_MODE; 
       user_cmd = 0xFF;
