@@ -152,8 +152,7 @@ if __name__ == '__main__':
 		%s -the next 32 bytes in hk.log represent pcu data 
 		%s -the next 40 bytes in hk.log represent fib_hk
 		%s -the next 4 bytes in hk.log represent fob_hk %s -the next 52 bytes in hk.log represent fsc_hk"""
-		% (sci_filename, sci_filename, sci_filename, hk_filename, sci_filename, sci_filename, sci_filename, sci_filename, sci_filename, sci_filename, sci_filename, sci_filename)
-		)
+		% (sci_filename, sci_filename, sci_filename, hk_filename, sci_filename, sci_filename, sci_filename, sci_filename, sci_filename, sci_filename, sci_filename, sci_filename))
 		args  = parser.parse_args()
 		pkt_reciever = packet_reciever(args.port, args.logdir, sci_filename, hk_filename)
 		pkt_reciever.start() 
@@ -163,19 +162,19 @@ if __name__ == '__main__':
 		## needed as arduino needs to come up, do not remove. 
 		## should update the global time here as it is more readable 
 		cmd_menu = ("1) Set Time Command \n"
-				   "2) Set Config Command \n"
-				   "3) Science Mode \n"
-				   "4) Config Mode \n"
-				   "5) Power on fee \n"
-				   "6) Power off fee \n"
-				   "7) End the script \n")
+				    "2) Set Config Command \n"
+				    "3) Science Mode \n"
+				    "4) Config Mode \n"
+				    "5) Power on fee \n"
+				    "6) Power off fee \n"
+				    "7) End the script \n")
 						
 		fee_number 	= ("0> FIB \n"
-				   "1> FOB \n"
-				   "2> FSC \n")
+				       "1> FOB \n"
+				       "2> FSC \n")
 		command = ''
 		pkt_reciever.write(b'\x00')
-		while pkt_reciever.start_running:  
+		while True:  
 			print(cmd_menu)
 			nb = input('please choose an option: ')
 			try: 
@@ -185,18 +184,18 @@ if __name__ == '__main__':
 				logging.debug(error_msg)
 				continue 
 			if choice == 2: 
-				command = ((int(nb, 16)).to_bytes(1, byteorder = 'big') + build_config_command_val(fee_number));
+				command = int(nb, 16).to_bytes(1, byteorder = 'big') + build_config_command_val(fee_number);
 			elif choice == 4:
-				command = ((int(nb, 16).to_bytes(1, byteorder = 'big'))); 
+				command = int(nb, 16).to_bytes(1, byteorder = 'big'); 
 			elif choice == 3:
 				pkt_reciever.begin_receiving = True
-				command = ((int(nb, 16)).to_bytes(1, byteorder = 'big'))
+				command = int(nb, 16).to_bytes(1, byteorder = 'big')
 			elif choice == 5 or choice == 6: 
-				command = ((int(nb, 16)).to_bytes(1, byteorder = 'big')) + build_fee_packet(fee_number) 
+				command = int(nb, 16).to_bytes(1, byteorder = 'big') + build_fee_packet(fee_number) 
 			elif choice == 7: 
 				pkt_reciever.start_running = False
-				switch_off = True
-			if choice != 7 and pkt_reciever.is_alive() == True:
+				break;
+			if pkt_reciever.is_alive() == True:
 				pkt_reciever.write(command)
 			print(command)	
 		pkt_reciever.join()
