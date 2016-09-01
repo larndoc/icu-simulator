@@ -76,11 +76,13 @@ class arduino_due():
 class packet_handler(Thread):
 	#recieves a packet and reads the first byte 
 	__filename   = dict()
-	start_running = True
+	__active = True
+	def close_connection(): 
+		self.__active = False; 
 	
-	def __init__(self, serial_port, logdir, sci_filename, hk_filename): 
+	def __init__(self, arduino_handler, logdir, sci_filename, hk_filename): 
 		super(packet_handler, self).__init__()
-		self.__serial = serial_port
+		self.__adruino = arduino_handler
 		self.__filename["hk"] = hk_filename
 		self.__filename["sci"] = sci_filename
 		if logdir is None: 
@@ -106,7 +108,7 @@ class packet_handler(Thread):
 			header.append(" ".join(["fob"+str(v) for v in range(3,-1,-1)]))
 			header.append(" ".join(["fsc"+str(v) for v in range(51,-1,-1)]))
 			f_hk.write("{}\n".format(" ".join(header))) 
-			while self.start_running: 
+			while self.__active: 
 					size = self.__serial.read(size = 2)
 					decision_hk_sci = self.__serial.read(size = 1)
 					if len(decision_hk_sci) > 0:
@@ -199,7 +201,7 @@ if __name__ == '__main__':
 			elif choice == b'\x05' or choice == b'\x06': 
 				choice += build_fee_packet() 
 			elif choice == b'\x07': 
-				pkt_handler.start_running = False
+				pkt_handler.close_connection() 
 				break;
 			arduino.write(choice)
 			print(choice)	
