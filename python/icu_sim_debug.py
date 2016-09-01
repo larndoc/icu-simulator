@@ -180,8 +180,6 @@ if __name__ == '__main__':
 				continue 
 			if choice == b'\x02': 
 				choice +=  build_config_command_val()
-			elif choice == b'\x03':
-				packet_handler.begin_receiving = True
 			elif choice == b'\x05' or choice == b'\x06': 
 				choice += build_fee_packet() 
 			elif choice == b'\x07': 
