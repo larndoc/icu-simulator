@@ -9,14 +9,12 @@ from threading import Thread
 def tokenize(string, length):
     return ' '.join(string[i:i+length] for i in range(2,len(string)-1,length)) + "\n"
 
-def build_config_command_val(fee_number): 
+def build_config_command_val(): 
+	fee_number 	= ("0> FIB \n" 	"1> FOB \n" "2> FSC \n")
 	print(fee_number)
-	cmd = input('> please choose an input: ')	
-	cmd_val = (int(cmd, 0)).to_bytes(1, byteorder = 'big')
-	read_write = (
-	"0) read \n" 
-	"1) write \n"
-	)
+	fee_interface = input('please choose an input: ')	
+	cmd_val = (int(fee_interface, 0)).to_bytes(1, byteorder = 'big')
+	read_write = ("0) read \n" 	"1) write \n")
 	print(read_write)
 	rm_wr = input('> please choose an input: ')
 	rm_wr_val = int(rm_wr, 0).to_bytes(1, byteorder = 'big')
@@ -26,7 +24,8 @@ def build_config_command_val(fee_number):
 	choice = int(config_val, 0).to_bytes(3, byteorder='big')
 	return cmd_val + rm_wr_val + config_id_val + choice
 	
-def build_fee_packet(fee_number): 						
+def build_fee_packet(): 						
+	fee_number 	= ("0> FIB \n" "1> FOB \n" "2> FSC \n")
 	print(fee_number)
 	fee_interface = input('please choose an input: ')
 	return int(fee_interface, 0).to_bytes(1, byteorder = 'big')
@@ -154,9 +153,9 @@ if __name__ == '__main__':
 		%s -the next 4 bytes in hk.log represent fob_hk %s -the next 52 bytes in hk.log represent fsc_hk"""
 		% (sci_filename, sci_filename, sci_filename, hk_filename, sci_filename, sci_filename, sci_filename, sci_filename, sci_filename, sci_filename, sci_filename, sci_filename))
 		args  = parser.parse_args()
-		pkt_reciever = packet_reciever(args.port, args.logdir, sci_filename, hk_filename)
-		pkt_reciever.start() 
-		while not pkt_reciever.is_alive(): 
+		packet_handler = packet_reciever(args.port, args.logdir, sci_filename, hk_filename)
+		packet_handler.start() 
+		while not packet_handler.is_alive(): 
 			pass 
 		time.sleep(1)
 		## needed as arduino needs to come up, do not remove. 
@@ -170,36 +169,26 @@ if __name__ == '__main__':
 				    "6) Power off fee \n"
 				    "7) End the script \n")
 						
-		fee_number 	= ("0> FIB \n"
-				       "1> FOB \n"
-				       "2> FSC \n")
-		command = ''
-		pkt_reciever.write(b'\x00')
 		while True:  
 			print(cmd_menu)
 			nb = input('please choose an option: ')
 			try: 
-				choice = int(nb)
+				choice = int.to_bytes(nb, byteorder = 'big')
 			except ValueError as error_msg: 
 				print('unable to parse choice as an integer %s' % error_msg)
 				logging.debug(error_msg)
 				continue 
-			if choice == 0: 
-				command = b'\x00'
-			elif choice == 2: 
-				command = b'\x02' + build_config_command_val(fee_number)
-			elif choice == 4:
-				command = b'\x04'
-			elif choice == 3:
-				pkt_reciever.begin_receiving = True
-				command = b'\x03'
-			elif choice == 5 or choice == 6: 
-				command = choice.to_bytes(1, byteorder = 'big') + build_fee_packet(fee_number) 
-			elif choice == 7: 
-				pkt_reciever.start_running = False
+			if choice == b'\x02': 
+				choice +=  build_config_command_val()
+			elif choice == b'\x03':
+				packet_handler.begin_receiving = True
+			elif choice == b'\x05' or choice == b'\x06': 
+				choice += build_fee_packet() 
+			elif choice == b'\x07': 
+				packet_handler.start_running = False
 				break;
-			if pkt_reciever.is_alive() == True:
-				pkt_reciever.write(command)
+			if packet_handler.is_alive() == True:
+				packet_handler.write(choice)
 			print(command)	
-		pkt_reciever.join()
+		packet_handler.join()
 		print("program end")
