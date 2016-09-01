@@ -1,3 +1,13 @@
+#a interface that allows the user 
+#to communicate with the icu-simulator 
+#a log file that keeps track of the total 
+#number of fib, fob and fsc in sci mode and any
+#debug messages 
+#hk file that stores the house keeping data 
+#in hexadecimal form and a sci file 
+#that stores science data in hexadecimal form 
+
+
 import serial
 import argparse
 import logging
@@ -314,6 +324,7 @@ if __name__ == '__main__':
 				pkt_handler.close_connection() 
 				break
 			arduino.write(choice)
-			print(choice)	
+			#the ICU - Simulator takes care of any invalid commands - we CAN write invalid commands such 9, 0x0A etc but the ICU - Simulator is just going to discard them
+			print("you have just sent the following command to the icu-simulator: " + str(choice))
 		pkt_handler.join()
 		print("program end")
