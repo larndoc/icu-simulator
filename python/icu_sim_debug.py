@@ -6,8 +6,7 @@
 #hk file that stores the house keeping data 
 #in hexadecimal form and a sci file 
 #that stores science data in hexadecimal form 
-
-
+#in order to log the status of each packet the user MUST enable verbosity.
 import serial
 import argparse
 import logging
@@ -101,13 +100,13 @@ class hk_interpreter:
 		data = self.__port.read(size = 129)
 		data_stream = b'\x00' + counter + data
 		if size_t != len(data_stream):
-			logging.info('house_keeping_packet malformed!')
+			logging.debug('house_keeping_packet malformed!')
 			if len(counter) is not 4:
-				logging.info('could not read counter')
+				logging.debug('could not read counter')
 			elif len(data) is not 129: 
-				logging.info('could not read data')
+				logging.debug('could not read data')
 		else: 
-			logging.info('recieved house_keeping packet, status OK')
+			logging.debug('recieved house_keeping packet, status OK')
 		#we still want to se the contents of the malformed packet
 		return str(binascii.hexlify(data_stream))
 		 	 
@@ -257,16 +256,15 @@ class sci_interpreter():
 			for i in range(0, n_fee[2]):
 				data_stream += self.__port.read(size = 11)
 			if size != len(data_stream): 
-				print('sci packet malformed!')
-				logging.info('sci packet malformed!')
+				logging.debug('sci packet malformed!')
 				if len(counter) is not 4: 
-					logging.info('could not read counter')
+					logging.debug('could not read counter')
 				if len(n_fee) is not 3: 
-					logging.info('could not read n_fee')
+					logging.debug('could not read n_fee')
 				else: 
-					logging.info('could not read data')
+					logging.debug('could not read data')
 			else: 
-					logging.info('recieved science_packet, status OK')
+					logging.debug('recieved science_packet, status OK')
 			return str(binascii.hexlify(data_stream)) 
 			
 if __name__ == '__main__':
