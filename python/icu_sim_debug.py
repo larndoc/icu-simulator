@@ -161,7 +161,8 @@ if __name__ == '__main__':
 		time.sleep(1)
 		## needed as arduino needs to come up, do not remove. 
 		## should update the global time here as it is more readable 
-		cmd_menu = ("1) Set Time Command \n"
+		cmd_menu = ("0) Go to Standby Mode \n"
+					"1) Set Time Command \n"
 				    "2) Set Config Command \n"
 				    "3) Science Mode \n"
 				    "4) Config Mode \n"
@@ -183,15 +184,17 @@ if __name__ == '__main__':
 				print('unable to parse choice as an integer %s' % error_msg)
 				logging.debug(error_msg)
 				continue 
-			if choice == 2: 
-				command = int(nb, 16).to_bytes(1, byteorder = 'big') + build_config_command_val(fee_number);
+			if choice == 0: 
+				command = b'\x00'
+			elif choice == 2: 
+				command = b'\x02' + build_config_command_val(fee_number)
 			elif choice == 4:
-				command = int(nb, 16).to_bytes(1, byteorder = 'big'); 
+				command = b'\x04'
 			elif choice == 3:
 				pkt_reciever.begin_receiving = True
-				command = int(nb, 16).to_bytes(1, byteorder = 'big')
+				command = b'\x03'
 			elif choice == 5 or choice == 6: 
-				command = int(nb, 16).to_bytes(1, byteorder = 'big') + build_fee_packet(fee_number) 
+				command = choice.to_bytes(1, byteorder = 'big') + build_fee_packet(fee_number) 
 			elif choice == 7: 
 				pkt_reciever.start_running = False
 				break;
