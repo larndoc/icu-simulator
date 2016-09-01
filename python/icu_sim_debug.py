@@ -1,6 +1,3 @@
-# TODO
-# put descriptions for functions and classes
-
 import serial
 import argparse
 import logging
@@ -88,6 +85,7 @@ class hk_interpreter:
 	def __init__(self, port): 
 		self.__port = port
 	def update(self, size):
+		"""extract data_stream in bytes and return its hexadecimal representation"""
 		size_t = int.from_bytes(size,byteorder = 'big', signed = False) #this is the true size of the packet excluding the first two bytes that represent the size of the packet 
 		counter = self.__port.read(size = 4)
 		data = self.__port.read(size = 129)
