@@ -58,11 +58,7 @@ class hk_data:
 			logger.info('recieved house_keeping packet, status OK')
 		#we still want to se the contents of the malformed packet
 		return str(binascii.hexlify(data_stream))
-		 
-def set_up_comm_channel(port):	
-		return 
-
-		 
+		 	 
 class arduino_due():
 	def __init__(self, port): 
 		self.__port = serial.Serial(port, 115200, timeout = None)
@@ -79,7 +75,6 @@ class arduino_due():
 		 
 class packet_handler(Thread):
 	#recieves a packet and reads the first byte 
-	logdir = ''
 	__filename   = dict()
 	start_running = True
 	
@@ -206,8 +201,7 @@ if __name__ == '__main__':
 			elif choice == b'\x07': 
 				pkt_handler.start_running = False
 				break;
-			if pkt_handler.is_alive() == True:
-				arduino.write(choice)
+			arduino.write(choice)
 			print(choice)	
 		pkt_handler.join()
 		print("program end")
