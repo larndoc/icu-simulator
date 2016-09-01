@@ -24,11 +24,12 @@
 //******************************************************************************GLOBAL VARIABLES***************************************************************//
 
 enum icu_modes {
-  SCIENCE_MODE=0,  
+  STANDBY_MODE=0,
+  SCIENCE_MODE,  
   CONFIG_MODE,  
 };
 
-enum icu_modes mode  = CONFIG_MODE;
+enum icu_modes mode  = STANDBY_MODE;
 bool fee_enabled[3]                  = {false, false, false};
 HardwareSerial* fee_ports[3]         = {UART_FIB_D, UART_FOB_D, UART_FSC_D};
 const uint8_t sync_pins[3]           = {FIB_SYNC, FOB_SYNC, FSC_SYNC};
@@ -43,7 +44,7 @@ bool send_sci = false;
 bool sending_hk = false; 
 bool sending_sci = false;
  
-byte user_cmd = 0;
+byte user_cmd = 0xFF;
 uint8_t user_fee_cmd[6] = {0};
 
 
@@ -104,6 +105,9 @@ void fee_deactivate(uint8_t fee) {
 }
 
 void timer_isr() {
+ if(mode == STANDBY_MODE){
+  time_counter = 0;
+ } else {
   uint16_t i;
   time_counter++;
   t_isr = micros(); 
@@ -157,8 +161,8 @@ void timer_isr() {
 
   // every other time read from other adc
   adc_read_all(time_counter%2);
-  
   digitalWrite(DEBUG_PIN, LOW);
+ }
 }
 
 
@@ -195,14 +199,7 @@ void setup() {
   set_load(0, 0); 
   set_load(1, 0); 
   Timer.getAvailable().attachInterrupt(timer_isr).setFrequency(FREQUENCY).start();        /*attach the interrupt to the function timer_isr at 128 Hz (FREQUENCY)*/
-  // wait until we get one byte from the PC, so we sync the link
-  while(true) {
-    if(Serial.available()) {
-      if(Serial.read() == 0x00) {
-        break;
-      }
-    }
-  }
+  // wait until we get one byte from the PC, so we sync the line 
 }
 
 void loop() {
@@ -212,10 +209,13 @@ void loop() {
   // 2) send HK data
   // 3)
    
-  switch(user_cmd) {  
+  switch(user_cmd) { 
+    case 0x00: 
+      mode = STANDBY_MODE;
+      user_cmd = 0xFF;  
     case 0x03:
       mode = SCIENCE_MODE; 
-      user_cmd = 0;
+      user_cmd = 0xFF;
       break; 
 
     case 0x02:
@@ -223,14 +223,14 @@ void loop() {
       if(Serial.available() >= 6) {
         Serial.readBytes(user_fee_cmd, 6);
         create_cmd_packet(user_fee_cmd); 
-        user_cmd = 0;
+        user_cmd = 0xFF;
       }
       //the input remains the same, if we are in science mode we stay in science mode and if we are in config mode, then we stay in config mode, hence it is not required to update the input  
       break; 
       
   case 0x04:
     mode = CONFIG_MODE;
-    user_cmd = 0;
+    user_cmd = 0xFF;
     break;
 
   
@@ -243,7 +243,7 @@ void loop() {
         // just read and throw away otherwise
         Serial.read();
       }
-      user_cmd = 0;
+      user_cmd = 0xFF;
     }
     break; 
 
@@ -256,7 +256,7 @@ void loop() {
         // just read and throw away otherwise
         Serial.read();
       }
-      user_cmd = 0;
+      user_cmd = 0xFF;
     }
     break; 
 
@@ -274,9 +274,18 @@ void loop() {
     // this will reset the send_hk flag once sending is done
     send_hk = sending_hk;
   }
+  // send Sci data, if not already sending HK data
+   if(send_sci && !sending_hk) {
+     sending_sci = send_sci_packet();
+     // this will reset the send_sci flag once sending is done
+     send_sci = sending_sci;
+   }
 
   // state machine of the ICU
   switch (mode) {   
+    case STANDBY_MODE:
+
+      break;
     case CONFIG_MODE: 
       // nothing to do in CONFIG MODE yet     
       break; 
@@ -289,14 +298,9 @@ void loop() {
           }
         }
       }
-      // send Sci data, if not already sending HK data
-      if(send_sci && !sending_hk) {
-        sending_sci = send_sci_packet();
-        // this will reset the send_sci flag once sending is done
-        send_sci = sending_sci;
-      }      
       break; 
   }
 } // loop ends
+
 
 
