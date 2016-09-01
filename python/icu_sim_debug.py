@@ -1,6 +1,5 @@
 # TODO
 # VERBOSITY input parameter which selects logging level
-# clean up description of argparse
 # put descriptions for functions and classes
 # think about better class / function names (e.g. hk_data, fee_science) - hk_interpreter, sci_interpreter
 
@@ -13,9 +12,30 @@ import os
 from threading import Thread
 
 def tokenize(string, length, delimter=" "):
-    return delimter.join(string[i:i+length] for i in range(2,len(string)-1,length)) + "\n"
+	"""add whitespace after 
+	every byte in the data-
+	stream - default delimiter
+	is set to ' ' - skip the 
+	first two characters which 
+	are " b' " and the last 
+	character which is  ' 
+    """
+	
+	return delimter.join(string[i:i+length] for i in range(2,len(string)-1,length)) + "\n"
 
 def build_config_command_val():
+	"""the function is triggered 
+	   only if the user chooses 
+	   set config command option
+	   in the main, the user is 
+	   given a set of options which
+	   specify: 
+       a)to which FEE does the user want to communicate with
+	   b)read or write command
+	   c)config id 
+	   d)config_param_val 
+	   the try catch block deals with bad data"""
+	
 	try:
 		fee_number 	= ("0> FIB \n" 	"1> FOB \n" "2> FSC \n")
 		print(fee_number)
@@ -34,7 +54,15 @@ def build_config_command_val():
 		print('could not build config command - you will not able to write the following command to the arduino %s' % error_msg)
 		logging.debug(error_msg)
 	
-def build_fee_packet(): 						
+def build_fee_packet(): 	
+	"""the function is only triggered 
+	only if the user enters '5' or '6' 
+	and wishes to activate/deactivate 
+	an fee. the user is given a set of
+	options to choose from which indicate 
+	which fee does he want to enable/disable, 
+	try catch block to deal with malformed input"""
+	
 	try:
 		fee_number 	= ("0> FIB \n" "1> FOB \n" "2> FSC \n")
 		print(fee_number)
@@ -46,6 +74,18 @@ def build_fee_packet():
 		logging.debug(error_msg)
 
 class hk_data: 	
+	"""the class deals with extracting 
+	the house keeping data_stream 
+	and depositing it in the hk.log 
+	file - we initialize the object 
+	with the serial port which we 
+	configure in the packet_handler class,
+	using this port we extract a total of 133 bytes 
+	and append b'\x00' at the start of the stream 
+	to indicate that it is a house keeping packet - 
+	we also check to see if we do recieve the 
+	number of packets indicated by the first two 
+	bytes in the stream"""
 	def __init__(self, port): 
 		self.__port = port
 	def update(self, size):
@@ -66,17 +106,22 @@ class hk_data:
 		 	 
 class arduino_due():
 	def __init__(self, port): 
+		#a baud rate of 115200 bits per second and timeout of None
 		self.__port = serial.Serial(port, 115200, timeout = None)
+		#arduino initialisation tme
 		time.sleep(1)
 		# any other initialisation
 		
 	def write(self, data): 
+		"""wrapper function for writing bytes to the arduino due"""
 		self.__port.write(bytes(data))
 		
 	def read(self):
+		"""wrapper function for reading bytes sent by the arduino due"""
 		return self.__port.read()
 
 	def get_port(self):
+		"""getter function to extract the arduino_due port"""
 		return self.__port
 		
 
@@ -86,6 +131,7 @@ class packet_handler(Thread):
 	__filename   = dict()
 	__active = True
 	def close_connection(self):
+		#indicates that we want the thread to terminate
 		self.__active = False; 
 	
 	def __init__(self, port, logdir, sci_filename, hk_filename):
@@ -175,25 +221,29 @@ class fee_science():
 			return str(binascii.hexlify(data_stream)) 
 			
 if __name__ == '__main__':
-		logging.basicConfig(filename='icu_sim_debug.log', format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', filemode = 'w', level=logging.DEBUG)
 		hk_filename = 'hk.txt' 
 		sci_filename = 'sci.txt'
-		desc = """
-		%s -first byte should always be 0x01 %s-first byte should always be 0x00
-		%s 'and' %s-the next four bytes represent the counter and should increment at a rate determined by SCIENCE CADENCE defined in icu_simulator.ino
-		%s -FIB SCI consists of 10 packets, and the third, sixth and ninth byte should increment by 1, other bytes should be constant,the last byte should be 0x00
-		%s -the next three bytes represent the number of fib, fob and fsc which are contained in the pc packet
-		%s -FOB_SCI consists of 10 packets, and all bytes should be set to zero
-		%s -FSC_SCI consists of 11 packets, every first three bytes increment by one, seventh byte increments by one and the tenth and eleventh byte increment by one - XXX 00 02 02 X 02 02 X X
-		%s -the next 32 bytes in hk.log represent pcu data
-		%s -the next 40 bytes in hk.log represent fib_hk
-		%s -the next 4 bytes in hk.log represent fob_hk %s -the next 52 bytes in hk.log represent fsc_hk""" % (sci_filename, sci_filename, sci_filename, hk_filename, sci_filename, sci_filename, sci_filename, sci_filename, sci_filename, sci_filename, sci_filename, sci_filename)
+		desc = ( "%s - first byte should always be 0x01\n"
+		"%s - first byte should always be 0x00\n"
+		"%s & %s - the next four bytes represent the counter and should increment at a rate determined by SCIENCE CADENCE defined in icu_simulator.ino\n"
+		"%s - FIB SCI consists of 10 packets, and the third, sixth and ninth byte should increment by 1, other bytes should be constant,the last byte should be 0x00\n"
+		"%s - the next three bytes represent the number of fib, fob and fsc which are contained in the pc packet\n"
+		"%s - FOB_SCI consists of 10 packets, and all bytes should be set to zero\n"
+		"%s - FSC_SCI consists of 11 packets, every first three bytes increment by one, seventh byte increments by one and the tenth and eleventh byte increment by one - XXX 00 02 02 X 02 02 X X\n"
+		"%s - the next 32 bytes in hk.log represent pcu data\n"
+		"%s - the next 40 bytes in hk.log represent fib_hk\n"
+		"%s - the next 4 bytes in hk.log represent fob_hk\n"
+		"%s - the next 52 bytes in hk.log represent fsc_hk\n") % (sci_filename, hk_filename, sci_filename, hk_filename, sci_filename, sci_filename, sci_filename, sci_filename, sci_filename, sci_filename, sci_filename, sci_filename)
 
-		parser = argparse.ArgumentParser(description=desc)
+		parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description=desc)
 		parser.add_argument(dest = 'port', help = "serial port of the ICU Simulator unit", type = str)
 		parser.add_argument('--logdir', dest = 'logdir', help = "path to store data files", type = str)
-
+		parser.add_argument('--verbose', help = "toggle logging level between debug and info respectively")
 		args  = parser.parse_args()
+		if args.verbose: 
+			logging.basicConfig(filename='icu_sim_debug.log', format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', filemode = 'w', level=logging.DEBUG)
+		else: 
+			logging.basicConfig(filename='icu_sim_debug.log', format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', filemode = 'w', level=logging.INFO)
 		arduino = arduino_due(args.port)
 		pkt_handler = packet_handler(arduino.get_port(), args.logdir, sci_filename, hk_filename)
 		pkt_handler.start() 
