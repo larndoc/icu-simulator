@@ -5,7 +5,7 @@
 #define ADC_VSENSE 0
 #define ADC_ISENSE 1
 
-#define ADC_VSENSE_CS 41
+#define ADC_VSENSE_CS 40
 #define ADC_ISENSE_CS 38
 
 uint16_t adc_readings[NUM_ADCS][8];

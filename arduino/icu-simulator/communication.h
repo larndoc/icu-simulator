@@ -3,7 +3,7 @@
 
 //************************ COMS SETTINGS *******************//
 #define HK_CADENCE            128
-#define SCI_CADENCE           16
+#define SCI_CADENCE           64
 
 #define CMD_PACKET_SIZE       6
 #define REC_PACKET_SIZE       64

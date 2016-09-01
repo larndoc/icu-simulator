@@ -4,6 +4,8 @@
  * 
  * 
  */
+
+#include "icu-simulator-pins.h"
  
 #include <DueTimer.h>
 #include <time.h>
@@ -12,7 +14,6 @@
 #include "adc.h"
 #include "communication.h"
 #include "variable-load.h"
-#include "test-pins.h"
 
 
 //********************************************************************************SYNC SETTINGS****************************************************************//
@@ -31,6 +32,7 @@ enum icu_modes mode  = CONFIG_MODE;
 bool fee_enabled[3]                  = {false, false, false};
 HardwareSerial* fee_ports[3]         = {UART_FIB, UART_FOB, UART_FSC};
 const uint8_t sync_pins[3]           = {FIB_SYNC, FOB_SYNC, FSC_SYNC};
+const uint8_t enable_pins[3]         = {EN_FIB, EN_FOB, EN_FSC};
 
 uint32_t time_counter = 0;
 unsigned long t_isr;
@@ -55,6 +57,7 @@ void wait_us(unsigned long delta_us, unsigned long t) {
 void fee_activate(uint8_t fee) {  
   if (fee < 3) {
     if(!fee_enabled[fee]) {
+      digitalWrite(enable_pins[fee], HIGH);
       fee_ports[fee]->begin(BAUD_RATE);
       fee_enabled[fee] = true; 
     }
@@ -65,6 +68,7 @@ void fee_deactivate(uint8_t fee) {
   if (fee < 3) {
     if(fee_enabled[fee]) {
       fee_ports[fee]->end();
+      digitalWrite(enable_pins[fee], LOW);
       fee_enabled[fee] = false; 
     }
   }
@@ -144,13 +148,19 @@ void setup() {
   for(i=0; i<3; i++) {
     pinMode(sync_pins[i], OUTPUT);
     digitalWrite(sync_pins[i], LOW);
+    pinMode(enable_pins[i], OUTPUT);
+    digitalWrite(enable_pins[i], LOW);    
   }
-  pinMode(SPI_PIN, OUTPUT);
+  pinMode(CS0_PIN, OUTPUT);
+  digitalWrite(CS0_PIN, HIGH);
+  pinMode(CS1_PIN, OUTPUT);
+  digitalWrite(CS1_PIN, HIGH);
+  
   pinMode(DEBUG_PIN, OUTPUT);
-  pinMode(SUB_IO_ALIVE, OUTPUT); 
+  pinMode(ALIVE_PIN, OUTPUT); 
   Serial.begin(BAUD_RATE);
   SPI.begin();
-  digitalWrite(SUB_IO_ALIVE, HIGH);  
+  digitalWrite(ALIVE_PIN, HIGH);  
   set_load(0, 0); 
   set_load(1, 0); 
   Timer.getAvailable().attachInterrupt(timer_isr).setFrequency(FREQUENCY).start();        /*attach the interrupt to the function timer_isr at 128 Hz (FREQUENCY)*/

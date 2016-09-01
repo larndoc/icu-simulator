@@ -8,18 +8,17 @@
 #define UART_FIB			&Serial1 
 #define UART_FOB			&Serial2 
 #define UART_FSC 			&Serial3 
-#define SUB_IO_CS1		38 
-#define SUB_IO_CS0 		41 
-#define SUB_IO_EN_FIB	40 
-#define SUB_IO_EN_FOB	43
-#define SUB_IO_EN_FSC	42 
-#define SUB_IO_CG_FIB	30 
-#define SUB_IO_CG_FOB	33 
-#define SUB_IO_CG_FSC	32 
-#define SUB_IO_CG_ICU	35 
-#define SUB_IO_ALIVE 	39 
-#define DAC0 				  5 
-#define DAC1 				  6
+#define CS1_PIN		        38 
+#define CS0_PIN 		      40 
+#define EN_FIB	41 
+#define EN_FOB	43
+#define EN_FSC	42
+#define CG_FIB	30 
+#define CG_FOB	33 
+#define CG_FSC	32 
+#define CG_ICU	35 
+#define ALIVE_PIN 	39
+#define DEBUG_PIN     10
 
 
 
