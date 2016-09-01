@@ -10,25 +10,34 @@ def tokenize(string, length):
     return ' '.join(string[i:i+length] for i in range(2,len(string)-1,length)) + "\n"
 
 def build_config_command_val(): 
-	fee_number 	= ("0> FIB \n" 	"1> FOB \n" "2> FSC \n")
-	print(fee_number)
-	fee_interface = input('please choose an input: ')	
-	cmd_val = (int(fee_interface, 0)).to_bytes(1, byteorder = 'big')
-	read_write = ("0) read \n" 	"1) write \n")
-	print(read_write)
-	rm_wr = input('> please choose an input: ')
-	rm_wr_val = int(rm_wr, 0).to_bytes(1, byteorder = 'big')
-	config_id = input('>please enter config id: ')		
-	config_id_val = int(config_id, 0).to_bytes(1, byteorder = 'big')
-	config_val = input('>please enter config val: ')
-	choice = int(config_val, 0).to_bytes(3, byteorder='big')
-	return cmd_val + rm_wr_val + config_id_val + choice
+	try: 
+		fee_number 	= ("0> FIB \n" 	"1> FOB \n" "2> FSC \n")
+		print(fee_number)
+		fee_interface = input('please choose an input: ')	
+		cmd_val = int(fee_interface, 0).to_bytes(1, byteorder = 'big')
+		read_write = ("0) read \n" 	"1) write \n")
+		print(read_write)
+		rm_wr = input('> please choose an input: ')
+		rm_wr_val = int(rm_wr, 0).to_bytes(1, byteorder = 'big')
+		config_id = input('>please enter config id: ')		
+		config_id_val = int(config_id, 0).to_bytes(1, byteorder = 'big')
+		config_val = input('>please enter config val: ')
+		choice = int(config_val, 0).to_bytes(3, byteorder='big')
+		return cmd_val + rm_wr_val + config_id_val + choice
+	except: 
+		print('could not build config command - you will not able to write the following command to the arduino %s' % error_msg)
+		logging.debug(error_msg)
 	
 def build_fee_packet(): 						
-	fee_number 	= ("0> FIB \n" "1> FOB \n" "2> FSC \n")
-	print(fee_number)
-	fee_interface = input('please choose an input: ')
-	return int(fee_interface, 0).to_bytes(1, byteorder = 'big')
+	try:
+		fee_number 	= ("0> FIB \n" "1> FOB \n" "2> FSC \n")
+		print(fee_number)
+		fee_interface = input('please choose an input: ')
+		fee_interface_val = int(fee_interface, 0).to_bytes(1, byteorder = 'big')
+		return fee_interface_val 
+	except: 
+		print('could not build fee packet - you will not able to write the following command to the arduino %s' % error_msg)
+		logging.debug(error_msg)
 
 class hk_data: 	
 	def __init__(self, port): 
@@ -51,15 +60,20 @@ class hk_data:
 		return str(binascii.hexlify(data_stream))
 		 
 def set_up_comm_channel(port):	
-		return serial.Serial(port, 115200, timeout = None)
+		return 
 
 		 
 class arduino_due():
-	def __init__(self, serial_port): 
-		self.__port = serial_port 
+	def __init__(self, port): 
+		self.__port = serial.Serial(port, 115200, timeout = None)
+		time.sleep(1)
+		# any other initialisation
 		
 	def write(self, data): 
 		self.__port.write(bytes(data))
+		
+	def read(self):
+		return self.__port.read()
 		
 
 		 
@@ -89,7 +103,7 @@ class packet_handler(Thread):
 		s = fee_science(self.__serial) 
 		h = hk_data(self.__serial)
 		with open(self.__filename['hk'], 'w') as f_hk, open(self.__filename['sci'], 'w') as f_sci:
-			f_sci.write("{}\n".format('status time_3 time_2 time_1 time_0 n_fib n_fob n_fsc'))
+			f_sci.write('status time_3 time_2 time_1 time_0 n_fib n_fob n_fsc' + "\n")
 			header = [] 
 			header.append("status time_3 time_2 time_1 time_0") 
 			header.append(" ".join(["pcu"+str(v) for v in range(31,-1,-1)]))
@@ -161,13 +175,11 @@ if __name__ == '__main__':
 		%s -the next 4 bytes in hk.log represent fob_hk %s -the next 52 bytes in hk.log represent fsc_hk"""
 		% (sci_filename, sci_filename, sci_filename, hk_filename, sci_filename, sci_filename, sci_filename, sci_filename, sci_filename, sci_filename, sci_filename, sci_filename))
 		args  = parser.parse_args()
-		comm_channel = set_up_comm_channel(args.port)
-		pkt_handler = packet_handler(comm_channel, args.logdir, sci_filename, hk_filename)
-		arduino = arduino_due(comm_channel)
+		arduino = arduino_due(args.port)
+		pkt_handler = packet_handler(arduino, args.logdir, sci_filename, hk_filename)		
 		pkt_handler.start() 
 		while not pkt_handler.is_alive(): 
 			pass 
-		time.sleep(1)
 		cmd_menu = ("0) Go to Standby Mode \n"
 					"1) Set Time Command \n"
 				    "2) Set Config Command \n"
@@ -187,13 +199,11 @@ if __name__ == '__main__':
 				logging.debug(error_msg)
 				continue 
 			choice = choice.to_bytes(1, byteorder = 'big')
-			print (choice)
 			if choice == b'\x02': 
 				choice +=  build_config_command_val()
 			elif choice == b'\x05' or choice == b'\x06': 
 				choice += build_fee_packet() 
 			elif choice == b'\x07': 
-				print ('hello')
 				pkt_handler.start_running = False
 				break;
 			if pkt_handler.is_alive() == True:
