@@ -30,7 +30,7 @@ enum icu_modes {
 
 enum icu_modes mode  = CONFIG_MODE;
 bool fee_enabled[3]                  = {false, false, false};
-HardwareSerial* fee_ports[3]         = {UART_FIB, UART_FOB, UART_FSC};
+HardwareSerial* fee_ports[3]         = {UART_FIB_D, UART_FOB_D, UART_FSC_D};
 const uint8_t sync_pins[3]           = {FIB_SYNC, FOB_SYNC, FSC_SYNC};
 const uint8_t enable_pins[3]         = {EN_FIB, EN_FOB, EN_FSC};
 
@@ -46,10 +46,39 @@ bool sending_sci = false;
 byte user_cmd = 0;
 uint8_t user_fee_cmd[6] = {0};
 
+
 void wait_us(unsigned long delta_us, unsigned long t) {
   while ( (micros()  - t ) < delta_us ) {
     if (micros() - t < 0) {      
       delta_us = delta_us - (0xFFFFFFFF - t);
+    }
+  }
+}
+
+bool init_uarts() {
+
+  pinMode(UART_D, INPUT);
+  pinMode(UART_S, INPUT);
+
+  if(digitalRead(UART_D)) {
+    // differential is enabled (positive enable)
+    if(digitalRead(UART_S)) {
+      // single-ended is not enabled (negative enable)
+      fee_ports[0] = UART_FIB_D;
+      fee_ports[1] = UART_FOB_D;
+      fee_ports[2] = UART_FSC_D;
+    } else {
+      return false;
+    }
+  } else {
+    // differential is not enabled (positive enable)
+    if(digitalRead(UART_S)) {
+      // single-ended is not enabled (negative enable)
+      return false;
+    } else {
+      fee_ports[0] = UART_FIB_S;
+      fee_ports[1] = UART_FOB_S;
+      fee_ports[2] = UART_FSC_S;      
     }
   }
 }
@@ -144,6 +173,8 @@ void setup() {
 
   // in order to initialize the data ring buffers for sci data
   init_sci_data();
+
+  init_uarts();
 
   for(i=0; i<3; i++) {
     pinMode(sync_pins[i], OUTPUT);
