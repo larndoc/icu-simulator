@@ -84,6 +84,7 @@ class hk_interpreter:
 	we also check to see if we do recieve the 
 	number of packets indicated by the first two 
 	bytes in the stream"""
+	
 	def __init__(self, port): 
 		self.__port = port
 	def update(self, size):
@@ -109,6 +110,7 @@ class arduino_due():
 	write and read which is there to indicate 
 	write commands to the arduino due 
 	and read commands recieved from the arduino due"""
+	
 	def __init__(self, port): 
 		#a baud rate of 115200 bits per second and timeout of None
 		self.__port = serial.Serial(port, 115200, timeout = None)
@@ -141,11 +143,12 @@ class packet_handler(Thread):
 	data stream and return this to the 
 	packet_handler
 	"""
+	
 	#recieves a packet and reads the first byte 
 	__filename   = dict()
 	__active = True
 	def close_connection(self):
-		#indicates that we want the thread to terminate
+		"""indicates that we want the thread to terminate"""
 		self.__active = False; 
 	
 	def __init__(self, port, logdir, sci_filename, hk_filename):
@@ -212,6 +215,20 @@ class packet_handler(Thread):
 							f_sci.flush()
 							
 class sci_interpreter():
+		"""the class primarily
+		deals with extracting 
+		the science data and depositing 
+		it in the sci.txt file - we initialize the object 
+		with the serial port and total_count which 
+		is used to keep track of the total number of fib 
+		fob and fsc packets recieved by the icu - simulator. 
+		depending on the number of fib, fob and fsc we 
+		pull out relevant data and append b'\x01' 
+		at the start of the stream 
+		to indicate that it is a science packet - 
+		we also check to see if we do recieve the 
+		number of packets indicated by the first two 
+		bytes in the stream"""	
 		def __init__(self, port): 
 			self.__port = port
 			self.total_count = 0
