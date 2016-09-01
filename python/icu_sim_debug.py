@@ -1,7 +1,5 @@
 # TODO
-# VERBOSITY input parameter which selects logging level
 # put descriptions for functions and classes
-# think about better class / function names (e.g. hk_data, fee_science) - hk_interpreter, sci_interpreter
 
 import serial
 import argparse
@@ -25,16 +23,16 @@ def tokenize(string, length, delimter=" "):
 
 def build_config_command_val():
 	"""the function is triggered 
-	   only if the user chooses 
-	   set config command option
-	   in the main, the user is 
-	   given a set of options which
-	   specify: 
-       a)to which FEE does the user want to communicate with
-	   b)read or write command
-	   c)config id 
-	   d)config_param_val 
-	   the try catch block deals with bad data"""
+	only if the user chooses 
+	set config command option
+	in the main, the user is 
+	given a set of options which
+	specify: 
+    a)to which FEE does the user want to communicate with
+	b)read or write command
+	c)config id 
+	d)config_param_val 
+	the try catch block deals with bad data"""
 	
 	try:
 		fee_number 	= ("0> FIB \n" 	"1> FOB \n" "2> FSC \n")
@@ -73,7 +71,7 @@ def build_fee_packet():
 		print('could not build fee packet - you will not able to write the following command to the arduino %s' % error_msg)
 		logging.debug(error_msg)
 
-class hk_data: 	
+class hk_interpreter: 	
 	"""the class deals with extracting 
 	the house keeping data_stream 
 	and depositing it in the hk.log 
@@ -105,6 +103,12 @@ class hk_data:
 		return str(binascii.hexlify(data_stream))
 		 	 
 class arduino_due():
+	"""the class is used to initialize the
+	port which is used by the rest of the 
+	classes respectively - includes methods 
+	write and read which is there to indicate 
+	write commands to the arduino due 
+	and read commands recieved from the arduino due"""
 	def __init__(self, port): 
 		#a baud rate of 115200 bits per second and timeout of None
 		self.__port = serial.Serial(port, 115200, timeout = None)
@@ -127,6 +131,16 @@ class arduino_due():
 
 		 
 class packet_handler(Thread):
+	"""the class primarily serves 
+	to multiplex the data into 
+	the files hk.txt and sci.txt with 
+	the appropiate labels, 
+	depending on the first byte 
+	recieved the classes sci_interpreter
+	and hk_interpreter derive the remaining 
+	data stream and return this to the 
+	packet_handler
+	"""
 	#recieves a packet and reads the first byte 
 	__filename   = dict()
 	__active = True
@@ -147,6 +161,7 @@ class packet_handler(Thread):
 			for key, value in self.__filename.items(): 
 				self.__filename[key] = logdir + "/" + value
 		else: 
+			#the directory doesn't exist! 
 			raise SystemExit('not a valid directory')
 
 		self._pyserial_hack = False
@@ -156,6 +171,7 @@ class packet_handler(Thread):
 			self._pyserial_hack = True
 
 	def __in_waiting(self):
+		"""ensures that that the in_waiting function works for versions of python 3.0 or greater"""
 		if(self._pyserial_hack):
 			return self.__port.inWaiting()
 		else:
@@ -164,8 +180,9 @@ class packet_handler(Thread):
 		
 	def run(self):
 		self.__port.flushInput()
-		s = fee_science(self.__port)
-		h = hk_data(self.__port)
+		s = sci_interpreter(self.__port)
+		h = hk_interpreter(self.__port)
+		##everytime we execute the script we overwrite the files if they already exist
 		with open(self.__filename['hk'], 'w') as f_hk, open(self.__filename['sci'], 'w') as f_sci:
 			f_sci.write('status time_3 time_2 time_1 time_0 n_fib n_fob n_fsc' + "\n")
 			header = [] 
@@ -179,15 +196,22 @@ class packet_handler(Thread):
 				if (self.__in_waiting() > 2):
 					size = self.__port.read(size = 2)
 					decision_hk_sci = self.__port.read(size = 1)
+					#we have recieved a byte that indicates whether it is a science or a house keeping packet 
 					if len(decision_hk_sci) > 0:
 						if decision_hk_sci[0] == 0:  
+							#2 indicates that we want the delimiter after every 2 HEX characters in our data stream
 							f_hk.write(tokenize(h.update(size), 2))
+							
+							#empty the contents of the f_hk buffer
 							f_hk.flush()
 						elif decision_hk_sci[0] == 1: 
+							#2 indicates that we want the delimiter after every 2 HEX characters in our data stream
 							f_sci.write(tokenize(s.update(size), 2))
+							
+							#empty the contents of the f_sci buffer 
 							f_sci.flush()
 							
-class fee_science():
+class sci_interpreter():
 		def __init__(self, port): 
 			self.__port = port
 			self.total_count = 0
@@ -247,8 +271,7 @@ if __name__ == '__main__':
 		arduino = arduino_due(args.port)
 		pkt_handler = packet_handler(arduino.get_port(), args.logdir, sci_filename, hk_filename)
 		pkt_handler.start() 
-		#while not pkt_handler.is_alive():
-		#	pass
+		
 		cmd_menu = ("0) Go to Standby Mode \n"
 					"1) Set Time Command \n"
 				    "2) Set Config Command \n"
