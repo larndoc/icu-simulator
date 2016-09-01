@@ -50,17 +50,28 @@ class hk_data:
 		#we still want to se the contents of the malformed packet
 		return str(binascii.hexlify(data_stream))
 		 
-class packet_reciever(Thread):
+def set_up_comm_channel(port):	
+		return serial.Serial(port, 115200, timeout = None)
+
+		 
+class arduino_due():
+	def __init__(self, serial_port): 
+		self.__port = serial_port 
+		
+	def write(self, data): 
+		self.__port.write(bytes(data))
+		
+
+		 
+class packet_handler(Thread):
 	#recieves a packet and reads the first byte 
 	logdir = ''
 	__filename   = dict()
 	start_running = True
-	def write(self, data):
-		self.__serial.write(bytes(data))
 	
 	def __init__(self, serial_port, logdir, sci_filename, hk_filename): 
-		super(packet_reciever, self).__init__()
-		self.__serial = self.set_up_serial(serial_port)
+		super(packet_handler, self).__init__()
+		self.__serial = serial_port
 		self.__filename["hk"] = hk_filename
 		self.__filename["sci"] = sci_filename
 		if logdir is None: 
@@ -72,9 +83,6 @@ class packet_reciever(Thread):
 				self.__filename[key] = logdir + "/" + value
 		else: 
 			raise SystemExit('not a valid directory')	
-
-	def set_up_serial(self, serial_port):
-		return serial.Serial(serial_port,  115200 , timeout =  None)
 		
 	def run(self):
 		self.__serial.flushInput()
@@ -153,13 +161,13 @@ if __name__ == '__main__':
 		%s -the next 4 bytes in hk.log represent fob_hk %s -the next 52 bytes in hk.log represent fsc_hk"""
 		% (sci_filename, sci_filename, sci_filename, hk_filename, sci_filename, sci_filename, sci_filename, sci_filename, sci_filename, sci_filename, sci_filename, sci_filename))
 		args  = parser.parse_args()
-		packet_handler = packet_reciever(args.port, args.logdir, sci_filename, hk_filename)
-		packet_handler.start() 
-		while not packet_handler.is_alive(): 
+		comm_channel = set_up_comm_channel(args.port)
+		pkt_handler = packet_handler(comm_channel, args.logdir, sci_filename, hk_filename)
+		arduino = arduino_due(comm_channel)
+		pkt_handler.start() 
+		while not pkt_handler.is_alive(): 
 			pass 
 		time.sleep(1)
-		## needed as arduino needs to come up, do not remove. 
-		## should update the global time here as it is more readable 
 		cmd_menu = ("0) Go to Standby Mode \n"
 					"1) Set Time Command \n"
 				    "2) Set Config Command \n"
@@ -173,20 +181,23 @@ if __name__ == '__main__':
 			print(cmd_menu)
 			nb = input('please choose an option: ')
 			try: 
-				choice = int.to_bytes(nb, byteorder = 'big')
+				choice = int(nb)
 			except ValueError as error_msg: 
 				print('unable to parse choice as an integer %s' % error_msg)
 				logging.debug(error_msg)
 				continue 
+			choice = choice.to_bytes(1, byteorder = 'big')
+			print (choice)
 			if choice == b'\x02': 
 				choice +=  build_config_command_val()
 			elif choice == b'\x05' or choice == b'\x06': 
 				choice += build_fee_packet() 
 			elif choice == b'\x07': 
-				packet_handler.start_running = False
+				print ('hello')
+				pkt_handler.start_running = False
 				break;
-			if packet_handler.is_alive() == True:
-				packet_handler.write(choice)
-			print(command)	
-		packet_handler.join()
+			if pkt_handler.is_alive() == True:
+				arduino.write(choice)
+			print(choice)	
+		pkt_handler.join()
 		print("program end")
