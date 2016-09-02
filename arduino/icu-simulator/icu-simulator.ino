@@ -114,11 +114,16 @@ void init_uarts() {
 void pcu_activate() {
   digitalWrite(CS0_PIN, HIGH);
   digitalWrite(CS1_PIN, HIGH);
+  SPI.begin();
+  SPI.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE3));
+
 }
 
 void pcu_deactivate() {
   digitalWrite(CS0_PIN, LOW);
   digitalWrite(CS1_PIN, LOW);
+  SPI.endTransaction();
+  SPI.end();
 }
 
 void fee_activate(uint8_t fee) {  
@@ -268,7 +273,6 @@ void setup() {
   pinMode(DEBUG_PIN, OUTPUT);
   pinMode(ALIVE_PIN, OUTPUT); 
   Serial.begin(BAUD_RATE);
-  SPI.begin();
   set_load(0, 0); 
   set_load(1, 0); 
   digitalWrite(ALIVE_PIN, HIGH);    
@@ -357,9 +361,11 @@ void loop() {
   }
   // send Sci data, if not already sending HK data
    if(send_sci && !sending_hk) {
+     if(send_sci) digitalWrite(DEBUG_PIN, HIGH);
      sending_sci = send_sci_packet();
      // this will reset the send_sci flag once sending is done
      send_sci = sending_sci;
+     if(!send_sci) digitalWrite(DEBUG_PIN, LOW);
    }
 
   // receive fee responses, if we sent a command
