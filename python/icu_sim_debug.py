@@ -155,7 +155,8 @@ class packet_handler(Thread):
 	__filename   = dict()
 	__active = True
 	def close_connection(self):
-		"""indicates that we want the thread to terminate"""
+		"""indicates that we want the thread to terminate, go back to standby mode"""
+		self.__port.write(b'\x00')
 		self.__active = False; 
 	
 	def __init__(self, port, logdir, sci_filename, hk_filename):
@@ -164,7 +165,7 @@ class packet_handler(Thread):
 		self.__filename["hk"] = hk_filename
 		self.__filename["sci"] = sci_filename
 		if logdir is None: 
-			logdir = "data"
+			logdir = ""
 		else: 
 			logdir = logdir.rstrip("/")
 		if os.path.exists(logdir): 
