@@ -32,6 +32,8 @@ enum icu_modes {
 enum icu_modes mode  = STANDBY_MODE;
 bool fee_enabled[3]                  = {false, false, false};
 HardwareSerial* fee_ports[3]         = {UART_FIB_D, UART_FOB_D, UART_FSC_D};
+uint8_t tx_pins[3]                   = {FIB_TX_D, FOB_TX_D, FSC_TX_D};
+uint8_t rx_pins[3]                   = {FIB_RX_D, FOB_RX_D, FSC_RX_D};
 const uint8_t sync_pins[3]           = {FIB_SYNC, FOB_SYNC, FSC_SYNC};
 const uint8_t enable_pins[3]         = {EN_FIB, EN_FOB, EN_FSC};
 
@@ -56,38 +58,111 @@ void wait_us(unsigned long delta_us, unsigned long t) {
   }
 }
 
-bool init_uarts() {
+void init_uarts() {
+  int i;
+  bool old_en[3];
 
   pinMode(UART_D, INPUT);
   pinMode(UART_S, INPUT);
 
-  if(digitalRead(UART_D)) {
-    // differential is enabled (positive enable)
-    if(digitalRead(UART_S)) {
-      // single-ended is not enabled (negative enable)
-      fee_ports[0] = UART_FIB_D;
-      fee_ports[1] = UART_FOB_D;
-      fee_ports[2] = UART_FSC_D;
-    } else {
-      return false;
-    }
+  // deactivate all fees
+  for(i=0; i<3; i++) {
+    old_en[i] = fee_enabled[i];
+    fee_deactivate(i);
+  }
+
+  if(digitalRead(UART_S)) {
+    // single-ended is not enabled (negative enable)
+    // activate ports for differential comms
+    fee_ports[0] = UART_FIB_D;
+    fee_ports[1] = UART_FOB_D;
+    fee_ports[2] = UART_FSC_D;
+    tx_pins[0] = FIB_TX_D;
+    tx_pins[1] = FOB_TX_D;
+    tx_pins[2] = FSC_TX_D;
+    rx_pins[0] = FIB_RX_D;
+    rx_pins[1] = FOB_RX_D;
+    rx_pins[2] = FSC_RX_D;    
   } else {
-    // differential is not enabled (positive enable)
-    if(digitalRead(UART_S)) {
-      // single-ended is not enabled (negative enable)
-      return false;
+    // single-ended is enabled
+    if(digitalRead(UART_D)) {
+      // differential is enabled (positive enable)
+      // don't do anyting - kind of an error condition
     } else {
+      // differential is disabled
       fee_ports[0] = UART_FIB_S;
       fee_ports[1] = UART_FOB_S;
       fee_ports[2] = UART_FSC_S;      
+      tx_pins[0] = FIB_TX_S;
+      tx_pins[1] = FOB_TX_S;
+      tx_pins[2] = FSC_TX_S;      
+      rx_pins[0] = FIB_RX_S;
+      rx_pins[1] = FOB_RX_S;
+      rx_pins[2] = FSC_RX_S;            
     }
   }
+
+  // re-activate all fees
+  for(i=0; i<3; i++) {
+    if(old_en[i]) {
+      fee_activate(i);
+    }
+  }
+  
+}
+
+void pcu_activate() {
+  digitalWrite(CS0_PIN, HIGH);
+  digitalWrite(CS1_PIN, HIGH);
+}
+
+void pcu_deactivate() {
+  digitalWrite(CS0_PIN, LOW);
+  digitalWrite(CS1_PIN, LOW);
 }
 
 void fee_activate(uint8_t fee) {  
+  uint8_t usart=fee;
   if (fee < 3) {
-    if(!fee_enabled[fee]) {
+    if(fee_enabled[fee] == false) {
+      digitalWrite(DEBUG_PIN, HIGH);
       digitalWrite(enable_pins[fee], HIGH);
+      // here comes a big hack to sort out usart configuration after pinMode has been used... 
+      if(!digitalRead(UART_D) && !digitalRead(UART_S)) {
+        // single ended enabled and not differential enabled
+        switch(fee) {
+          case 0: usart = 2; break;
+          case 1: usart = 0; break;
+          case 2: usart = 1; break;
+        }
+      }
+      // uses stuff from variant.cpp from arduino SAM boards library, as 
+      // the pinMode seems to have a bug, where it is not possible to use
+      // a pin as output and afterwards configure it for USART
+      // ---
+      switch(usart) {
+        case 0:
+        PIO_Configure(
+          g_APinDescription[PINS_USART0].pPort,
+          g_APinDescription[PINS_USART0].ulPinType,
+          g_APinDescription[PINS_USART0].ulPin,
+          g_APinDescription[PINS_USART0].ulPinConfiguration);        
+        break;
+        case 1:
+        PIO_Configure(
+          g_APinDescription[PINS_USART1].pPort,
+          g_APinDescription[PINS_USART1].ulPinType,
+          g_APinDescription[PINS_USART1].ulPin,
+          g_APinDescription[PINS_USART1].ulPinConfiguration);        
+        break;
+        case 2:
+        PIO_Configure(
+          g_APinDescription[PINS_USART3].pPort,
+          g_APinDescription[PINS_USART3].ulPinType,
+          g_APinDescription[PINS_USART3].ulPin,
+          g_APinDescription[PINS_USART3].ulPinConfiguration);        
+        break;        
+      }
       fee_ports[fee]->begin(BAUD_RATE);
       fee_enabled[fee] = true; 
     }
@@ -97,7 +172,10 @@ void fee_activate(uint8_t fee) {
 void fee_deactivate(uint8_t fee) {
   if (fee < 3) {
     if(fee_enabled[fee]) {
+      digitalWrite(DEBUG_PIN, LOW);
       fee_ports[fee]->end();
+      pinMode(tx_pins[fee], OUTPUT);
+      digitalWrite(sync_pins[fee], LOW);
       digitalWrite(enable_pins[fee], LOW);
       fee_enabled[fee] = false; 
     }
@@ -111,7 +189,6 @@ void timer_isr() {
   uint16_t i;
   time_counter++;
   t_isr = micros(); 
-  digitalWrite(DEBUG_PIN, HIGH);
 
   // create trigger flags
   if((time_counter % HK_CADENCE)==0) {
@@ -161,7 +238,6 @@ void timer_isr() {
 
   // every other time read from other adc
   adc_read_all(time_counter%2);
-  digitalWrite(DEBUG_PIN, LOW);
  }
 }
 
@@ -178,27 +254,26 @@ void setup() {
   // in order to initialize the data ring buffers for sci data
   init_sci_data();
 
-  init_uarts();
-
   for(i=0; i<3; i++) {
     pinMode(sync_pins[i], OUTPUT);
-    digitalWrite(sync_pins[i], LOW);
     pinMode(enable_pins[i], OUTPUT);
-    digitalWrite(enable_pins[i], LOW);    
+    pinMode(tx_pins[i], OUTPUT);
   }
+
+  init_uarts();
+    
   pinMode(CS0_PIN, OUTPUT);
-  digitalWrite(CS0_PIN, HIGH);
   pinMode(CS1_PIN, OUTPUT);
-  digitalWrite(CS1_PIN, HIGH);
   
   pinMode(DEBUG_PIN, OUTPUT);
   pinMode(ALIVE_PIN, OUTPUT); 
   Serial.begin(BAUD_RATE);
   SPI.begin();
-  digitalWrite(ALIVE_PIN, HIGH);  
   set_load(0, 0); 
   set_load(1, 0); 
+  digitalWrite(ALIVE_PIN, HIGH);    
   Timer.getAvailable().attachInterrupt(timer_isr).setFrequency(FREQUENCY).start();        /*attach the interrupt to the function timer_isr at 128 Hz (FREQUENCY)*/
+  attachInterrupt(digitalPinToInterrupt(UART_S), init_uarts, CHANGE); // trigger init_uarts function whenever UART_S pin changes
 }
 
 void loop() {
@@ -209,11 +284,15 @@ void loop() {
   // 3)
    
   switch(user_cmd) { 
-    case 0x00: 
+    case 0x00:
+      // make sure pcu is deactivated
+      pcu_deactivate();
       mode = STANDBY_MODE;
       user_cmd = 0xFF;  
       break;
     case 0x03:
+      // make sure pcu is active
+      pcu_activate();
       mode = SCIENCE_MODE; 
       user_cmd = 0xFF;
       break; 
@@ -229,6 +308,8 @@ void loop() {
       break; 
       
   case 0x04:
+    // make sure pcu is active
+    pcu_activate();
     mode = CONFIG_MODE;
     user_cmd = 0xFF;
     break;
@@ -281,6 +362,15 @@ void loop() {
      send_sci = sending_sci;
    }
 
+  // receive fee responses, if we sent a command
+  if(cmd_packet_sent){
+    for (int i = 0; i < 3; i++) {
+      if(fee_enabled[i]){
+        receive_fee_response(fee_ports[i], i);
+      }
+    }
+  }   
+
   // state machine of the ICU
   switch (mode) {   
     case STANDBY_MODE:
@@ -290,14 +380,7 @@ void loop() {
       // nothing to do in CONFIG MODE yet     
       break; 
     case SCIENCE_MODE:
-      // receive fee responses, if we sent a command
-      if(cmd_packet_sent){
-        for (int i = 0; i < 3; i++) {
-          if(fee_enabled[i]){
-            receive_fee_response(fee_ports[i], i);
-          }
-        }
-      }
+
       break; 
   }
 } // loop ends
