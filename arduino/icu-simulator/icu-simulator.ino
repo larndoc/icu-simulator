@@ -1,5 +1,32 @@
 /*
- * Program description here
+ * the program allows the ICU - Simulator to conduct 
+ * a sequence of tasks including transmission of 
+ * command packets to the UART interfaces and 
+ * reception and processing of any previous FEE responses.
+ * It also allows the user to command the FEE such as 
+ * switching the heater on/off. The variable time_counter 
+ * is a measure of the number of pulses that were genereted since 
+ * we entered the science or config mode. 
+ * We initiate our timer interrupt 
+ * service routine, in the setup with a frequency of 
+ * 128 Hz(defined by FREQUENCY). 
+ * Here we will:  
+ * a)generate our synchronisation signals for the three UART interaces(FIB, FOB and FSC) 
+ * b) if we are in science mode and an ICU command packet was sent, process any previous fee responses 
+ * c) set the flag to recieve fee response and house keeping response only if SCI_CADENCE and HK_CADENCE % time that has elapsed since the 
+ *    we entered CONFIG or SCIENCE MODE has a numeric value of zero.
+ * d) send fee command if we are in science mode. 
+ * e) call the adc_read_all function if we are not in standby mode for every other ADC. 
+ * f) reset time_counter to zero if we are in standby mode, only start counting total number of pulses generated if we go to either SCIENCE or CONFIG MODE.  
+ * This means that the science packet is recieved with a cadence of 
+ * SCI_CADENCE and house keeping packet is recieved
+ * with a cadence of HK_CADENCE, both of which are defined in communication.h
+ * There are a total of three modes, the user does not recieve any data in STANDY MODE, 
+ * the user recieves both science and house keeping data in SCIENCE_MODE, and the user 
+ * only recieves house keeping data in CONFIG_MODE. 
+ * The default mode is set to standby mode and we do not begin recieving any data unless we 
+ * go to either SCIENCE or CONFIG mode. 
+ * 
  * 
  * 
  * 
@@ -23,19 +50,23 @@
 #define BAUD_RATE             115200
 //******************************************************************************GLOBAL VARIABLES***************************************************************//
 
+/*modes for the state machine that is implemented by inside the loop function, the inputs for the state machine are external*/ 
 enum icu_modes {
   STANDBY_MODE=0,
   SCIENCE_MODE,  
   CONFIG_MODE,  
 };
 
+/*set the default mode to the standby mode, the user will not being recieving any data unless he goes to either config or science mode*/ 
 enum icu_modes mode  = STANDBY_MODE;
-bool fee_enabled[3]                  = {false, false, false};
-HardwareSerial* fee_ports[3]         = {UART_FIB_D, UART_FOB_D, UART_FSC_D};
+bool fee_enabled[3]                  = {false, false, false}; 
+HardwareSerial* fee_ports[3]         = {UART_FIB_D, UART_FOB_D, UART_FSC_D}; //UART interfaces in differential mode 
+
+/*tx and rx pins for the interfaces, these will be used inside the activate function, i.e set high, can not use fee_ports->begin() and fee_ports->end() because if a fee_port is deactivated, we can not set the tx/rx pins high again */
 uint8_t tx_pins[3]                   = {FIB_TX_D, FOB_TX_D, FSC_TX_D};
 uint8_t rx_pins[3]                   = {FIB_RX_D, FOB_RX_D, FSC_RX_D};
-const uint8_t sync_pins[3]           = {FIB_SYNC, FOB_SYNC, FSC_SYNC};
-const uint8_t enable_pins[3]         = {EN_FIB, EN_FOB, EN_FSC};
+const uint8_t sync_pins[3]           = {FIB_SYNC, FOB_SYNC, FSC_SYNC}; //sync signals for FIB, FOB and FSC interface
+const uint8_t enable_pins[3]         = {EN_FIB, EN_FOB, EN_FSC}; //flags used to activate or de-activate an interface
 
 uint32_t time_counter = 0;
 unsigned long t_isr;
@@ -46,10 +77,18 @@ bool send_sci = false;
 bool sending_hk = false; 
 bool sending_sci = false;
  
-byte user_cmd = 0xFF;
-uint8_t user_fee_cmd[6] = {0};
+byte user_cmd = 0xFF; //the default user_cmd is 0xFF, we will use this value if as default
+uint8_t user_fee_cmd[6] = {0}; //arry for storing the commnd that the user can give to a FEE
 
-
+/*
+ * the way that the wait function works, 
+ * is we stay in the loop until the time 
+ * that has elapsed in micro seconds since 
+ * we have set the sync signal high is 
+ * greater than delta_us which is the desired 
+ * waiting time, and is defined by the variable 
+ * PULSE_WIDTH_US 
+ */
 void wait_us(unsigned long delta_us, unsigned long t) {
   while ( (micros()  - t ) < delta_us ) {
     if (micros() - t < 0) {      
