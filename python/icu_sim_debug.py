@@ -55,8 +55,7 @@ def build_config_command_val():
 		choice = int(config_val, 0).to_bytes(3, byteorder='big')
 		return cmd_val + rm_wr_val + config_id_val + choice
 	except: 
-		print('could not build config command - you will not able to write the following command to the arduino %s' % error_msg)
-		logging.debug(error_msg)
+		logging.debug('could not build config command - you will not able to write the following command to the arduino')
 	
 def build_fee_packet(): 	
 	"""the function is only triggered 
@@ -74,8 +73,7 @@ def build_fee_packet():
 		fee_interface_val = int(fee_interface, 0).to_bytes(1, byteorder = 'big')
 		return fee_interface_val 
 	except: 
-		print('could not build fee packet - you will not able to write the following command to the arduino %s' % error_msg)
-		logging.debug(error_msg)
+		logging.debug('could not build fee packet - you will not able to write the following command to the arduino')
 
 class hk_interpreter: 	
 	"""the class deals with extracting 
@@ -101,6 +99,7 @@ class hk_interpreter:
 		data_stream = b'\x00' + counter + data
 		if size_t != len(data_stream):
 			logging.warning('house_keeping_packet malformed!')
+			logging.debug('expected HK: ' + str(size_t) + ' recieved: ' + str(len(data_stream))) 
 			if len(counter) is not 4:
 				logging.debug('could not read counter')
 			elif len(data) is not 129: 
@@ -259,6 +258,7 @@ class sci_interpreter():
 				data_stream += self.__port.read(size = 11)
 			if size != len(data_stream): 
 				logging.warning('sci packet malformed!')
+				logging.debug('expected SCI: ' + str(size_t) + ' recieved: ' + str(len(data_stream)))
 				if len(counter) is not 4: 
 					logging.debug('could not read counter')
 				if len(n_fee) is not 3: 
