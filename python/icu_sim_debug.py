@@ -41,7 +41,7 @@ def build_config_command_val():
 	the try catch block deals with bad data"""
 	
 	try:
-		fee_number 	= ("0> FIB \n" 	"1> FOB \n" "2> FSC \n")
+		fee_number = ("0> FIB \n" "1> FOB \n" "2> FSC \n")
 		print(fee_number)
 		fee_interface = input('please choose an input: ')	
 		cmd_val = int(fee_interface, 0).to_bytes(1, byteorder = 'big')
@@ -55,7 +55,7 @@ def build_config_command_val():
 		choice = int(config_val, 0).to_bytes(3, byteorder='big')
 		return cmd_val + rm_wr_val + config_id_val + choice
 	except: 
-		logging.debug('could not build config command - you will not able to write the following command to the arduino')
+		logging.warning('could not build config command - you will not able to write the following command to the arduino')
 	
 def build_fee_packet(): 	
 	"""the function is only triggered 
@@ -67,13 +67,13 @@ def build_fee_packet():
 	try catch block to deal with malformed input"""
 	
 	try:
-		fee_number 	= ("0> FIB \n" "1> FOB \n" "2> FSC \n")
+		fee_number = ("0> FIB \n" "1> FOB \n" "2> FSC \n")
 		print(fee_number)
 		fee_interface = input('please choose an input: ')
 		fee_interface_val = int(fee_interface, 0).to_bytes(1, byteorder = 'big')
 		return fee_interface_val 
 	except: 
-		logging.debug('could not build fee packet - you will not able to write the following command to the arduino')
+		logging.warning('could not build fee packet - you will not able to write the following command to the arduino')
 
 class hk_interpreter: 	
 	"""the class deals with extracting 
