@@ -275,15 +275,11 @@ if __name__ == '__main__':
 		desc = ( "%s - first byte should always be 0x01\n"
 		"%s - first byte should always be 0x00\n"
 		"%s & %s - the next four bytes represent the counter and should increment at a rate determined by SCIENCE CADENCE defined in icu_simulator.ino\n"
-		"%s - FIB SCI consists of 10 packets, and the third, sixth and ninth byte should increment by 1, other bytes should be constant,the last byte should be 0x00\n"
-		"%s - the next three bytes represent the number of fib, fob and fsc which are contained in the pc packet\n"
-		"%s - FOB_SCI consists of 10 packets, and all bytes should be set to zero\n"
-		"%s - FSC_SCI consists of 11 packets, every first three bytes increment by one, seventh byte increments by one and the tenth and eleventh byte increment by one - XXX 00 02 02 X 02 02 X X\n"
+		"%s - the next three bytes x, y and z determine the number of fib, fob and fsc packets in the PC packet, the size of the data is given by s = 10(x + y) + 11z \n"
 		"%s - the next 32 bytes in hk.log represent pcu data\n"
 		"%s - the next 40 bytes in hk.log represent fib_hk\n"
 		"%s - the next 4 bytes in hk.log represent fob_hk\n"
-		"%s - the next 52 bytes in hk.log represent fsc_hk\n") % (sci_filename, hk_filename, sci_filename, hk_filename, sci_filename, sci_filename, sci_filename, sci_filename, sci_filename, sci_filename, sci_filename, sci_filename)
-
+		"%s - the next 52 bytes in hk.log represent fsc_hk\n") % (sci_filename, hk_filename, sci_filename, hk_filename, sci_filename, hk_filename, hk_filename, hk_filename, hk_filename)
 		parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description=desc)
 		parser.add_argument(dest = 'port', help = "serial port of the ICU Simulator unit", type = str)
 		parser.add_argument('--logdir', dest = 'logdir', help = "path to store data files", type = str)
