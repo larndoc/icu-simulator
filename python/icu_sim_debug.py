@@ -100,13 +100,13 @@ class hk_interpreter:
 		data = self.__port.read(size = 129)
 		data_stream = b'\x00' + counter + data
 		if size_t != len(data_stream):
-			logging.debug('house_keeping_packet malformed!')
+			logging.warning('house_keeping_packet malformed!')
 			if len(counter) is not 4:
 				logging.debug('could not read counter')
 			elif len(data) is not 129: 
 				logging.debug('could not read data')
 		else: 
-			logging.debug('recieved house_keeping packet, status OK')
+			logging.warning('recieved house_keeping packet, status OK')
 		#we still want to se the contents of the malformed packet
 		return str(binascii.hexlify(data_stream))
 		 	 
@@ -172,8 +172,9 @@ class packet_handler(Thread):
 			for key, value in self.__filename.items(): 
 				self.__filename[key] = logdir + "/" + value
 		else: 
-			#the directory doesn't exist! 
-			raise SystemExit('not a valid directory')
+			#the directory doesn't exist!
+			logging.error('the user tried to logon to an invalid directory')
+			raise SystemExit()
 
 		self._pyserial_hack = False
 		try:
@@ -257,7 +258,7 @@ class sci_interpreter():
 			for i in range(0, n_fee[2]):
 				data_stream += self.__port.read(size = 11)
 			if size != len(data_stream): 
-				logging.debug('sci packet malformed!')
+				logging.warning('sci packet malformed!')
 				if len(counter) is not 4: 
 					logging.debug('could not read counter')
 				if len(n_fee) is not 3: 
@@ -265,7 +266,7 @@ class sci_interpreter():
 				else: 
 					logging.debug('could not read data')
 			else: 
-					logging.debug('recieved science_packet, status OK')
+					logging.warning('recieved science_packet, status OK')
 			return str(binascii.hexlify(data_stream)) 
 			
 if __name__ == '__main__':
@@ -286,12 +287,14 @@ if __name__ == '__main__':
 		parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description=desc)
 		parser.add_argument(dest = 'port', help = "serial port of the ICU Simulator unit", type = str)
 		parser.add_argument('--logdir', dest = 'logdir', help = "path to store data files", type = str)
-		parser.add_argument('--verbose', help = "toggle logging level between debug and info respectively")
+		parser.add_argument('-v', '--verbose',  help = "varying output verbosity")
 		args  = parser.parse_args()
-		if args.verbose: 
-			logging.basicConfig(filename='icu_sim_debug.log', format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', filemode = 'w', level=logging.DEBUG)
-		else: 
-			logging.basicConfig(filename='icu_sim_debug.log', format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', filemode = 'w', level=logging.INFO)
+		if args.verbosity == 3: 
+			logging.basicConfig(filename = 'icu_sim_debug.log', format = '%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', filemode = 'w', level=logging.DEBUG)		
+		elif args.verbosity == 2: 
+			logging.basicConfig(filename = 'icu_sim_debug.log', format = '%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', filemode = 'w', level=logging.INFO)
+		if args.verbosity == 1: 
+			logging.basicConfig(filename = 'icu_sim_debug.log', format = '%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', filemode = 'w', level=logging.WARNING)
 		arduino = arduino_due(args.port)
 		pkt_handler = packet_handler(arduino.get_port(), args.logdir, sci_filename, hk_filename)
 		pkt_handler.start() 
