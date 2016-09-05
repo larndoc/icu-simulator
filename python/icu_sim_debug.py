@@ -165,7 +165,7 @@ class packet_handler(Thread):
 		self.__filename["hk"] = hk_filename
 		self.__filename["sci"] = sci_filename
 		if logdir is None: 
-			logdir = ""
+			logdir = '.'
 		else: 
 			logdir = logdir.rstrip("/")
 		if os.path.exists(logdir): 
