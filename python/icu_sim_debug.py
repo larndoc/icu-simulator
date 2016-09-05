@@ -101,11 +101,11 @@ class hk_interpreter:
 			logging.warning('house_keeping_packet malformed!')
 			logging.debug('expected HK: ' + str(size_t) + ' recieved: ' + str(len(data_stream))) 
 			if len(counter) is not 4:
-				logging.debug('could not read counter')
+				logging.warning('could not read counter')
 			elif len(data) is not 129: 
-				logging.debug('could not read data')
+				logging.warning('could not read data')
 		else: 
-			logging.warning('recieved house_keeping packet, status OK')
+			logging.info('recieved house_keeping packet')
 		#we still want to se the contents of the malformed packet
 		return str(binascii.hexlify(data_stream))
 		 	 
@@ -119,7 +119,12 @@ class arduino_due():
 	
 	def __init__(self, port): 
 		#a baud rate of 115200 bits per second and timeout of None
-		self.__port = serial.Serial(port, 115200, timeout = None)
+		try: 
+			self.__port = serial.Serial(port, 115200, timeout = None)
+		except: 
+			error_msg = ''
+			logging.error('unable to connect to port')
+			raise SystemExit('unable to connect to port')
 		#arduino initialisation tme
 		time.sleep(1)
 		# any other initialisation
@@ -246,7 +251,7 @@ class sci_interpreter():
 			n_fee = self.__port.read(size = 3)
 			
 			self.total_count += n_fee[0] + n_fee[1] + n_fee[2] 
-			logging.info('n_total %s n_fib %s, n_fob %s, n_fsc %s', self.total_count, n_fee[0], n_fee[1], n_fee[2])
+			logging.info('recieved SCI packet: n_total %s n_fib %s, n_fob %s, n_fsc %s', self.total_count, n_fee[0], n_fee[1], n_fee[2])
 			
 			data_stream = b'\x01' + counter + n_fee
 			
@@ -260,13 +265,11 @@ class sci_interpreter():
 				logging.warning('sci packet malformed!')
 				logging.debug('expected SCI: ' + str(size_t) + ' recieved: ' + str(len(data_stream)))
 				if len(counter) is not 4: 
-					logging.debug('could not read counter')
+					logging.warning('could not read counter')
 				if len(n_fee) is not 3: 
-					logging.debug('could not read n_fee')
+					logging.warning('could not read n_fee')
 				else: 
-					logging.debug('could not read data')
-			else: 
-					logging.warning('recieved science_packet, status OK')
+					logging.warning('could not read data')
 			return str(binascii.hexlify(data_stream)) 
 			
 if __name__ == '__main__':
@@ -283,15 +286,15 @@ if __name__ == '__main__':
 		parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description=desc)
 		parser.add_argument(dest = 'port', help = "serial port of the ICU Simulator unit", type = str)
 		parser.add_argument('--logdir', dest = 'logdir', help = "path to store data files", type = str)
-		parser.add_argument('-v', '--verbose',  help = "varying output verbosity")
+		parser.add_argument('-v', '--verbose', help = "varying output verbosity", action='count')
 		args  = parser.parse_args()
-		if args.verbose != None:
-			if args.verbose == 'v': 
-				logging.basicConfig(filename = 'icu_sim_debug.log', format = '%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', filemode = 'w', level=logging.DEBUG)		
-			elif args.verbose == 'vv': 
-				logging.basicConfig(filename = 'icu_sim_debug.log', format = '%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', filemode = 'w', level=logging.INFO)
-		else: 
-			logging.basicConfig(filename = 'icu_sim_debug.log', format = '%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', filemode = 'w', level=logging.WARNING)
+		if args.verbose == 0:
+			loglevel = logging.WARNING
+		elif args.verbose == 1:
+			loglevel = logging.INFO
+		else:
+			loglevel = logging.DEBUG		
+		logging.basicConfig(filename = 'icu_sim_debug.log', format = '%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', filemode = 'w', level=loglevel)
 		arduino = arduino_due(args.port)
 		pkt_handler = packet_handler(arduino.get_port(), args.logdir, sci_filename, hk_filename)
 		pkt_handler.start() 
