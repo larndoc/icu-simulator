@@ -15,27 +15,11 @@ import binascii
 import os
 import glob
 import sys
+from serial.tools import list_ports
 from threading import Thread
 
-def serial_ports():
-	"""list all the available serial ports"""
-	if sys.platform.startswith('win'):
-		ports = ['COM%s' % (i + 1) for i in range(256)]
-	elif sys.platform.startswith('linux'):
-        # this excludes your current terminal "/dev/tty"
-		ports = glob.glob('/dev/tty[A-Za-z]*')
-	else:
-		raise EnvironmentError('Unsupported platform')
 
-	result = []
-	for port in ports:
-		try:
-			s = serial.Serial(port)
-			s.close()
-			result.append(port)
-		except (OSError, serial.SerialException):
-			pass
-	return result
+
 
 def tokenize(string, length, delimter=" "):
 	"""add whitespace after 
@@ -146,8 +130,11 @@ class arduino_due():
 		except: 
 			error_msg = ''
 			logging.error('unable to connect to port')
-			print(' unable to connect to port ' + port + ',list of available ports:')
-			print(serial_ports())
+			print('unable to connect to port ' + port + ',list of available ports:')
+			serial_ports = list_ports.comports()
+			for p in serial_ports: 
+				if "COM" or "ttyACM" in p: 
+					print(p)		
 			raise SystemExit()
 		#arduino initialisation tme
 		time.sleep(1)
