@@ -13,7 +13,29 @@ import logging
 import time
 import binascii
 import os
+import glob
+import sys
 from threading import Thread
+
+def serial_ports():
+    """list all the available serial ports"""
+	if sys.platform.startswith('win'):
+        ports = ['COM%s' % (i + 1) for i in range(256)]
+    elif sys.platform.startswith('linux'):
+        # this excludes your current terminal "/dev/tty"
+        ports = glob.glob('/dev/tty[A-Za-z]*')
+    else:
+        raise EnvironmentError('Unsupported platform')
+
+    result = []
+    for port in ports:
+        try:
+            s = serial.Serial(port)
+            s.close()
+            result.append(port)
+        except (OSError, serial.SerialException):
+            pass
+    return result
 
 def tokenize(string, length, delimter=" "):
 	"""add whitespace after 
@@ -124,7 +146,9 @@ class arduino_due():
 		except: 
 			error_msg = ''
 			logging.error('unable to connect to port')
-			raise SystemExit('unable to connect to port')
+			print(' unable to connect to port ' + port + ',list of available ports:')
+			print(serial_ports())
+			raise SystemExit()
 		#arduino initialisation tme
 		time.sleep(1)
 		# any other initialisation
@@ -286,9 +310,9 @@ if __name__ == '__main__':
 		parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description=desc)
 		parser.add_argument(dest = 'port', help = "serial port of the ICU Simulator unit", type = str)
 		parser.add_argument('--logdir', dest = 'logdir', help = "path to store data files", type = str)
-		parser.add_argument('-v', '--verbose', help = "varying output verbosity", action='count')
+		parser.add_argument('-v', '--verbose', action='count', help = "varying output verbosity")
 		args  = parser.parse_args()
-		if args.verbose == 0:
+		if args.verbose == None:
 			loglevel = logging.WARNING
 		elif args.verbose == 1:
 			loglevel = logging.INFO
@@ -314,8 +338,7 @@ if __name__ == '__main__':
 			try: 
 				choice = int(nb)
 			except ValueError as error_msg: 
-				print('unable to parse choice as an integer %s' % error_msg)
-				logging.debug(error_msg)
+				logging.debug('unable to parse choice as an integer')
 				continue 
 			choice = choice.to_bytes(1, byteorder = 'big')
 			if choice == b'\x02': 
