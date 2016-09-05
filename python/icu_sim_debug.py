@@ -285,11 +285,12 @@ if __name__ == '__main__':
 		parser.add_argument('--logdir', dest = 'logdir', help = "path to store data files", type = str)
 		parser.add_argument('-v', '--verbose',  help = "varying output verbosity")
 		args  = parser.parse_args()
-		if args.verbosity == 3: 
-			logging.basicConfig(filename = 'icu_sim_debug.log', format = '%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', filemode = 'w', level=logging.DEBUG)		
-		elif args.verbosity == 2: 
-			logging.basicConfig(filename = 'icu_sim_debug.log', format = '%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', filemode = 'w', level=logging.INFO)
-		if args.verbosity == 1: 
+		if args.verbose != None:
+			if args.verbose == 'v': 
+				logging.basicConfig(filename = 'icu_sim_debug.log', format = '%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', filemode = 'w', level=logging.DEBUG)		
+			elif args.verbose == 'vv': 
+				logging.basicConfig(filename = 'icu_sim_debug.log', format = '%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', filemode = 'w', level=logging.INFO)
+		else: 
 			logging.basicConfig(filename = 'icu_sim_debug.log', format = '%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', filemode = 'w', level=logging.WARNING)
 		arduino = arduino_due(args.port)
 		pkt_handler = packet_handler(arduino.get_port(), args.logdir, sci_filename, hk_filename)
