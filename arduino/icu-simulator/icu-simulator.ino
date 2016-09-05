@@ -252,7 +252,10 @@ void timer_isr() {
       }
     }
   }
-
+  
+  // every other time read from other adc
+  adc_read_all(time_counter%2);
+  
   // process old data if a packet was sent
   if(cmd_packet_sent) { 
     cmd_packet_sent = false;   
@@ -261,7 +264,7 @@ void timer_isr() {
         process_fee_response(i);
       }        
     }
-    // emulate real ICU processing time here
+   // emulate real ICU processing time here
    wait_us(PULSE_WIDTH_US, t_isr); 
   }
 
@@ -279,9 +282,6 @@ void timer_isr() {
       }
     } 
   }
-
-  // every other time read from other adc
-  adc_read_all(time_counter%2);
  }
 }
 
@@ -311,7 +311,7 @@ void setup() {
   
   pinMode(DEBUG_PIN, OUTPUT);
   pinMode(ALIVE_PIN, OUTPUT); 
-  Serial.begin(BAUD_RATE);
+  SerialUSB.begin(BAUD_RATE);
   set_load(0, 0); 
   set_load(1, 0); 
   digitalWrite(ALIVE_PIN, HIGH);    
@@ -342,14 +342,13 @@ void loop() {
 
     case 0x02:
       // serial input buffer should be bigger than 6
-      if(Serial.available() >= 6) {
-        Serial.readBytes(user_fee_cmd, 6);
+      if(SerialUSB.available() >= 6) {
+        SerialUSB.readBytes(user_fee_cmd, 6);
         create_cmd_packet(user_fee_cmd); 
         user_cmd = 0xFF;
       }
       //the input remains the same, if we are in science mode we stay in science mode and if we are in config mode, then we stay in config mode, hence it is not required to update the input  
       break; 
-      
   case 0x04:
     // make sure pcu is active
     pcu_activate();
@@ -359,13 +358,13 @@ void loop() {
 
   
   case 0x05:
-    if(Serial.available()) {
+    if(SerialUSB.available()) {
       if(mode == CONFIG_MODE) {
         // only in config mode activate an fee
-        fee_activate(Serial.read());
+        fee_activate(SerialUSB.read());
       } else {
         // just read and throw away otherwise
-        Serial.read();
+        SerialUSB.read();
       }
       user_cmd = 0xFF;
     }
@@ -373,12 +372,12 @@ void loop() {
 
   
   case 0x06: 
-    if(Serial.available()) {
+    if(SerialUSB.available()) {
       if(mode == CONFIG_MODE) {
-        fee_deactivate(Serial.read());   
+        fee_deactivate(SerialUSB.read());   
       } else {
         // just read and throw away otherwise
-        Serial.read();
+        SerialUSB.read();
       }
       user_cmd = 0xFF;
     }
@@ -386,18 +385,11 @@ void loop() {
 
   default:
     // if no user command was set, check for a new one
-    if(Serial.available()) {
-      user_cmd = Serial.read();
+    if(SerialUSB.available()) {
+      user_cmd = SerialUSB.read();
     }
   }
 
-
-  // only HK send if Sci is not sending already
-  if(send_hk && !sending_sci){
-    sending_hk = send_hk_packet();
-    // this will reset the send_hk flag once sending is done
-    send_hk = sending_hk;
-  }
   // send Sci data, if not already sending HK data
    if(send_sci && !sending_hk) {
      if(send_sci) digitalWrite(DEBUG_PIN, HIGH);
@@ -405,6 +397,13 @@ void loop() {
      // this will reset the send_sci flag once sending is done
      send_sci = sending_sci;
      if(!send_sci) digitalWrite(DEBUG_PIN, LOW);
+   } else {
+    // only HK send if Sci is not sending already
+    if(send_hk && !sending_sci){
+      sending_hk = send_hk_packet();
+      // this will reset the send_hk flag once sending is done
+      send_hk = sending_hk;
+    }    
    }
 
   // receive fee responses, if we sent a command

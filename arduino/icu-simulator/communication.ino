@@ -221,22 +221,29 @@ void init_hk_packet(unsigned long t) {
  *  once sending is complete, the function returns false
  */
 bool send_sci_packet() {
+  int space = SerialUSB.availableForWrite();
+  int to_send;
+  
   // start a sending queue, first header, then body
   switch(sci_queue) {
     case HEADER:
-      if(Serial.availableForWrite()) {
-        Serial.write(sci_header.arr[sci_send_counter]);
-        sci_send_counter++;
+      if(space > 0) {
+        to_send  = SCI_HEADER_SIZE - sci_send_counter;
+        if(space < to_send) to_send = space;
+        SerialUSB.write(&sci_header.arr[sci_send_counter], to_send);
+        sci_send_counter += to_send;
       }
       break;
     case FIB_DATA:
     case FOB_DATA:
     case FSC_DATA:
       // make sure we can write to the port and the buffer has values to write
-      if(Serial.availableForWrite() && (sci_send_counter < fee_sci_to_send[sci_queue])) {
-        Serial.write(sci_data[sci_queue].data[sci_data[sci_queue].tail]);
-        sci_data[sci_queue].tail = (sci_data[sci_queue].tail + 1) % SCI_DATA_SIZE;
-        sci_send_counter++;
+      to_send = fee_sci_to_send[sci_queue] - sci_send_counter;
+      if((space > 0) && (to_send > 0)) {
+        if(space < to_send) to_send = space;
+        SerialUSB.write(&sci_data[sci_queue].data[sci_data[sci_queue].tail], to_send);
+        sci_data[sci_queue].tail = (sci_data[sci_queue].tail + to_send) % SCI_DATA_SIZE;
+        sci_send_counter += to_send;
       }
       break;
   }
@@ -280,10 +287,14 @@ bool send_sci_packet() {
  *  once sending is complete, the function returns false
  */
 bool send_hk_packet() {
-  if(hk_send_counter < HK_SIZE) {
-    if(Serial.availableForWrite()) {        
-      Serial.write(hk_packet.arr[hk_send_counter]);
-      hk_send_counter++;
+  int space = SerialUSB.availableForWrite();
+  int to_send = HK_SIZE - hk_send_counter;
+  
+  if(to_send>0) {
+    if(space > 0) {
+      if( space < to_send ) to_send = space;
+      SerialUSB.write(&hk_packet.arr[hk_send_counter], to_send);
+      hk_send_counter += to_send;
     }
     return true;
   } else {
