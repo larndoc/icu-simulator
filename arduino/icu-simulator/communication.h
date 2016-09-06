@@ -2,8 +2,8 @@
 #define _communication_h
 
 //************************ COMS SETTINGS *******************//
-uint8_t HK_CADENCE = 128;
-uint8_t SCI_CADENCE = 128;
+#define HK_CADENCE = 128;
+#define SCI_CADENCE = 128;
 
 #define CMD_PACKET_SIZE       6
 #define REC_PACKET_SIZE       64
