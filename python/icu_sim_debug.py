@@ -79,17 +79,16 @@ def build_fee_packet():
 	options to choose from which indicate 
 	which fee does he want to enable/disable, 
 	try catch block to deal with malformed input"""
-
-		fee_number = ("0> FIB \n" "1> FOB \n" "2> FSC \n")
-		print(fee_number)
-		fee_interface = input('please choose an input: ')
-		fee_interface_val = int(fee_interface, 0).to_bytes(1, byteorder = 'big')
-		if fee_interface_val == b'\x00' or fee_interface_val == b'\x01' or fee_interface_val == b'\x02':
-			pass 
-		else:
-			print('UART interface not in range')
-			raise Exception() 
-		return fee_interface_val 
+	fee_number = ("0> FIB \n" "1> FOB \n" "2> FSC \n")
+	print(fee_number)
+	fee_interface = input('please choose an input: ')
+	fee_interface_val = int(fee_interface, 0).to_bytes(1, byteorder = 'big')
+	if fee_interface_val == b'\x00' or fee_interface_val == b'\x01' or fee_interface_val == b'\x02':
+		pass 
+	else:
+		print('UART interface not in range')
+		raise Exception
+	return fee_interface_val 
 
 class hk_interpreter: 	
 	"""the class deals with extracting 
