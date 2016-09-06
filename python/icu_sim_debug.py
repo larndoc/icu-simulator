@@ -1,4 +1,5 @@
 #a interface that allows the user 
+#a interface that allows the user 
 #to communicate with the icu-simulator 
 #a log file that keeps track of the total 
 #number of fib, fob and fsc in sci mode and any
@@ -50,23 +51,27 @@ def build_config_command_val():
 	fee_interface = input('please choose an input: ')	
 	try: 
 		cmd_val = int(fee_interface, 0).to_bytes(1, byteorder = 'big') 
+		print (cmd_val)
+		if cmd_val == b'\x00' or cmd_val == b'\x01' or cmd_val == b'\x02':
+			pass
+		else: 
+			print('UART interface not in range')
+			raise Exception 
 		read_write = ("0) read \n" 	"1) write \n")
 		print(read_write)
 		rm_wr = input('> please choose an input: ')
 		rm_wr_val = int(rm_wr, 0).to_bytes(1, byteorder = 'big')
+		if rm_var_val == b'\x00' or rm_war_val == b'\x01':  
+			pass 
+		else: 
+			print('read write value no in range')
+			raise Exception 
 		config_id = input('>please enter config id: ')		
 		config_id_val = int(config_id, 0).to_bytes(1, byteorder = 'big')
 		config_val = input('>please enter config val: ')
-		choice = int(config_val, 0).to_bytes(3, byteorder='big')
-		if(cmd_val == 0x00 or cmd_val == 0x01 or cmd_val == 0x02):
-			if(rm_war_val == 0x00 or rm_war_val == 0x01):
-				return cmd_val + rm_wr_val + config_id_val + choice
-			else: 
-				raise Exception('read/write not in range') 
-		else:
-			raise Exception('UART interface not in range')
+		choice = int(config_val, 0).to_bytes(3, byteorder='big')		
 	except Exception: 
-		print('you will not be able to write command out to the icu-simulator, entering science mode')
+		print('you will not be able to write command out to the icu-simulator')
 		logging.warning('could not build config command - you will not able to write the following command to the arduino')
 	
 def build_fee_packet(): 	
@@ -82,13 +87,14 @@ def build_fee_packet():
 		fee_number = ("0> FIB \n" "1> FOB \n" "2> FSC \n")
 		fee_interface = input('please choose an input: ')
 		fee_interface_val = int(fee_interface, 0).to_bytes(1, byteorder = 'big')
-		if (fee_interface_val == 0x00 or fee_interface_val == 0x01 or fee_interface_val == 0x02):
+		if fee_interface_val == b'\x00' or fee_interface_val == b'\x01' or fee_interface_val == b'\x02':
 			print(fee_number)
 		else:
-			raise Exception('UART interface not in range') 
+			print('UART interface not in range')
+			raise Exception() 
 		return fee_interface_val 
 	except: 
-		print('you will not be able to write command out to the icu-simulator, entering config mode')
+		print('you will not be able to write command out to the icu-simulator')
 		logging.warning('could not build fee packet - you will not able to write the following command to the arduino')
 
 class hk_interpreter: 	
@@ -328,33 +334,33 @@ if __name__ == '__main__':
 				    "5) Power on fee \n"
 				    "6) Power off fee \n"
 				    "7) End the script \n")
-						
+		error_msg = ''				
 		while True:  
 			print(cmd_menu)
 			nb = input('please choose an option: ')
 			try: 
-				choice = int(nb)
-			except ValueError as error_msg: 
-				logging.debug('unable to parse choice as an integer')
-				continue 
-			choice = choice.to_bytes(1, byteorder = 'big')
-			if choice == b'\x02': 
-				config_val = build_config_command_val()
-				if config_val != None:
-					choice +=  config_val
-				else:
-					choice = b'\x03'
-			elif choice == b'\x05' or choice == b'\x06': 
-				fee_interface = build_fee_packet()
-				if fee_interface != None:
-					choice += fee_interface
-				else: 
-					choice = b'\x04'
-			elif choice == b'\x07': 
-				pkt_handler.close_connection() 
-				break
-			arduino.write(choice)
+				try:
+					choice = int(nb, 0).to_bytes(1, byteorder = 'big')
+				except:
+					raise ValueError
+				if choice == b'\x02': 
+					try: 
+						choice +=  build_config_command_val()
+					except:  
+						raise ValueError 
+				elif choice == b'\x05' or choice == b'\x06':  
+					try:
+						choice += build_fee_packet()
+					except: 
+						raise ValueError
+				elif choice == b'\x07': 
+					pkt_handler.close_connection() 
+					break
+				arduino.write(choice)
+				print("you have just sent the following command to the icu-simulator: " + str(choice))
+			except ValueError: 
+				logging.debug(error_msg)
 			#the ICU - Simulator takes care of any invalid commands - we CAN write invalid commands such 9, 0x0A etc but the ICU - Simulator is just going to discard them
-			print("you have just sent the following command to the icu-simulator: " + str(choice))
+				
 		pkt_handler.join()
 		print("program end")
