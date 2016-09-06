@@ -60,7 +60,7 @@ def build_config_command_val():
 		print(read_write)
 		rm_wr = input('> please choose an input: ')
 		rm_wr_val = int(rm_wr, 0).to_bytes(1, byteorder = 'big')
-		if rm_var_val == b'\x00' or rm_war_val == b'\x01':  
+		if rm_wr_val == b'\x00' or rm_wr_val == b'\x01':  
 			pass 
 		else: 
 			print('read write value no in range')
@@ -84,10 +84,11 @@ def build_fee_packet():
 	
 	try:
 		fee_number = ("0> FIB \n" "1> FOB \n" "2> FSC \n")
+		print(fee_number)
 		fee_interface = input('please choose an input: ')
 		fee_interface_val = int(fee_interface, 0).to_bytes(1, byteorder = 'big')
 		if fee_interface_val == b'\x00' or fee_interface_val == b'\x01' or fee_interface_val == b'\x02':
-			print(fee_number)
+			pass 
 		else:
 			print('UART interface not in range')
 			raise Exception() 
