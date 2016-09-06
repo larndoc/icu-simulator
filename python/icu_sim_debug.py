@@ -340,7 +340,7 @@ if __name__ == '__main__':
 				except:
 					print("incorrect data type")
 					raise ValueError
-				if choice > b'\x00'and choice < b'\x08'
+				if choice > b'\x00'and choice < b'\x08':
 					continue
 				else: 
 					print("out of bound instruction, your instruction will be discarded")
