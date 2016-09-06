@@ -229,11 +229,16 @@ class packet_handler(Thread):
 			header.append(" ".join(["fsc"+str(v) for v in range(51,-1,-1)]))
 			f_hk.write("{}\n".format(" ".join(header))) 
 			while self.__active:
-				if (self.__in_waiting() > 2):
+				a = self.__in_waiting() 
+				if(a > 0):
+					print(a)
+				if (a > 2):
+					print('L')
 					size = self.__port.read(size = 2)
 					decision_hk_sci = self.__port.read(size = 1)
 					#we have recieved a byte that indicates whether it is a science or a house keeping packet 
 					if len(decision_hk_sci) > 0:
+				
 						if decision_hk_sci[0] == 0:  
 							#2 indicates that we want the delimiter after every 2 HEX characters in our data stream
 							f_hk.write(tokenize(h.update(size), 2))
