@@ -13,13 +13,8 @@ import logging
 import time
 import binascii
 import os
-import glob
-import sys
 from serial.tools import list_ports
 from threading import Thread
-
-
-
 
 def tokenize(string, length, delimter=" "):
 	"""add whitespace after 
@@ -68,7 +63,8 @@ def build_config_command_val():
 		config_id = input('>please enter config id: ')		
 		config_id_val = int(config_id, 0).to_bytes(1, byteorder = 'big')
 		config_val = input('>please enter config val: ')
-		choice = int(config_val, 0).to_bytes(3, byteorder='big')		
+		choice = int(config_val, 0).to_bytes(3, byteorder='big')
+		return cmd_val + rm_wr_val + config_id_val + choice
 	except Exception: 
 		print('you will not be able to write command out to the icu-simulator')
 		logging.warning('could not build config command - you will not able to write the following command to the arduino')
@@ -342,7 +338,13 @@ if __name__ == '__main__':
 				try:
 					choice = int(nb, 0).to_bytes(1, byteorder = 'big')
 				except:
+					print("incorrect data type")
 					raise ValueError
+				if choice > b'\x00'and choice < b'\x08'
+					continue
+				else: 
+					print("out of bound instruction, your instruction will be discarded")
+					raise ValueError	
 				if choice == b'\x02': 
 					try: 
 						choice +=  build_config_command_val()
