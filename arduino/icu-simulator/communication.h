@@ -18,7 +18,7 @@
 // Ring buffer should be slightly larger anyways
 // SCI CADENCE defines how many packets we need to store
 // Be AWARE of using MACROS - brackets are your friend!
-const unsigned int SCI_DATA_SIZE = (16*200);
+const unsigned int SCI_DATA_SIZE = (16*SCI_CADENCE);
 
 //************* HK STRUCTURE **********//
 #define HK_HEADER_SIZE      5
