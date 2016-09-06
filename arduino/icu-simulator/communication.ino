@@ -171,7 +171,7 @@ uint8_t checksum(uint8_t * arr, int l) {
  *  at this point whatever is in the ring buffer for science data
  *  will be taken for sending
  */
-void init_sci_packet(unsigned long t) {
+void init_sci_packet(uint32_t t) {
   // initialize the sci header...
   int i;
   /*the pkt_size is initialized to 8 which includes the status byte, the four counter bytes, and n_fib, n_fob and n_fsc*/
