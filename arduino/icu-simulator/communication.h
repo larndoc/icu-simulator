@@ -2,8 +2,8 @@
 #define _communication_h
 
 //************************ COMS SETTINGS *******************//
-#define HK_CADENCE            128
-#define SCI_CADENCE           1
+uint8_t HK_CADENCE = 128;
+uint8_t SCI_CADENCE = 128;
 
 #define CMD_PACKET_SIZE       6
 #define REC_PACKET_SIZE       64
@@ -18,7 +18,7 @@
 // Ring buffer should be slightly larger anyways
 // SCI CADENCE defines how many packets we need to store
 // Be AWARE of using MACROS - brackets are your friend!
-const unsigned int SCI_DATA_SIZE = (16*SCI_CADENCE);
+const unsigned int SCI_DATA_SIZE = (16*200);
 
 //************* HK STRUCTURE **********//
 #define HK_HEADER_SIZE      5

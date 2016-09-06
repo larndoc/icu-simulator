@@ -45,23 +45,31 @@ def build_config_command_val():
 	c)config id 
 	d)config_param_val 
 	the try catch block deals with bad data"""
-	
-	try:
-		fee_number = ("0> FIB \n" "1> FOB \n" "2> FSC \n")
-		print(fee_number)
-		fee_interface = input('please choose an input: ')	
-		cmd_val = int(fee_interface, 0).to_bytes(1, byteorder = 'big')
-		read_write = ("0) read \n" 	"1) write \n")
-		print(read_write)
-		rm_wr = input('> please choose an input: ')
-		rm_wr_val = int(rm_wr, 0).to_bytes(1, byteorder = 'big')
-		config_id = input('>please enter config id: ')		
-		config_id_val = int(config_id, 0).to_bytes(1, byteorder = 'big')
-		config_val = input('>please enter config val: ')
-		choice = int(config_val, 0).to_bytes(3, byteorder='big')
-		return cmd_val + rm_wr_val + config_id_val + choice
-	except: 
-		logging.warning('could not build config command - you will not able to write the following command to the arduino')
+	fee_number = ("0> FIB \n" "1> FOB \n" "2> FSC \n")
+	print(fee_number)
+	fee_interface = input('please choose an input: ')	
+	cmd_val = int(fee_interface, 0).to_bytes(1, byteorder = 'big') 
+	print (cmd_val)
+	if cmd_val == b'\x00' or cmd_val == b'\x01' or cmd_val == b'\x02':
+		pass
+	else: 
+		print('UART interface not in range')
+		raise Exception 
+	read_write = ("0) read \n" 	"1) write \n")
+	print(read_write)
+	rm_wr = input('> please choose an input: ')
+	rm_wr_val = int(rm_wr, 0).to_bytes(1, byteorder = 'big')
+	if rm_wr_val == b'\x00' or rm_wr_val == b'\x01':  
+		pass 
+	else: 
+		print('read write value no in range')
+		raise Exception 
+	config_id = input('>please enter config id: ')		
+	config_id_val = int(config_id, 0).to_bytes(1, byteorder = 'big')
+	config_val = input('>please enter config val: ')
+	choice = int(config_val, 0).to_bytes(3, byteorder='big')
+	return cmd_val + rm_wr_val + config_id_val + choice
+
 	
 def build_fee_packet(): 	
 	"""the function is only triggered 
@@ -71,15 +79,16 @@ def build_fee_packet():
 	options to choose from which indicate 
 	which fee does he want to enable/disable, 
 	try catch block to deal with malformed input"""
-	
-	try:
-		fee_number = ("0> FIB \n" "1> FOB \n" "2> FSC \n")
-		print(fee_number)
-		fee_interface = input('please choose an input: ')
-		fee_interface_val = int(fee_interface, 0).to_bytes(1, byteorder = 'big')
-		return fee_interface_val 
-	except: 
-		logging.warning('could not build fee packet - you will not able to write the following command to the arduino')
+	fee_number = ("0> FIB \n" "1> FOB \n" "2> FSC \n")
+	print(fee_number)
+	fee_interface = input('please choose an input: ')
+	fee_interface_val = int(fee_interface, 0).to_bytes(1, byteorder = 'big')
+	if fee_interface_val == b'\x00' or fee_interface_val == b'\x01' or fee_interface_val == b'\x02':
+		pass 
+	else:
+		print('UART interface not in range')
+		raise Exception
+	return fee_interface_val 
 
 class hk_interpreter: 	
 	"""the class deals with extracting 
@@ -318,25 +327,47 @@ if __name__ == '__main__':
 				    "5) Power on fee \n"
 				    "6) Power off fee \n"
 				    "7) End the script \n")
-						
+		error_msg = ''				
 		while True:  
 			print(cmd_menu)
 			nb = input('please choose an option: ')
+			error_msg = ''
 			try: 
-				choice = int(nb)
-			except ValueError as error_msg: 
-				logging.debug('unable to parse choice as an integer')
-				continue 
-			choice = choice.to_bytes(1, byteorder = 'big')
-			if choice == b'\x02': 
-				choice +=  build_config_command_val()
-			elif choice == b'\x05' or choice == b'\x06': 
-				choice += build_fee_packet() 
-			elif choice == b'\x07': 
-				pkt_handler.close_connection() 
-				break
-			arduino.write(choice)
+				try:
+					choice = int(nb, 0).to_bytes(1, byteorder = 'big')
+					print (choice)
+				except:
+					error_msg = "incorrect data type"
+					print(error_msg)
+					raise ValueError
+				if (choice >= b'\x00')and (choice < b'\x08'):
+					pass
+				else: 
+					error_msg = "out of bound instruction, your instruction will be thrown away"
+					print(error_msg)
+					raise ValueError 
+				if choice == b'\x02': 
+					try: 
+						choice +=  build_config_command_val()
+					except:  
+						error_msg = "you will not be able to write command out to the icu-simulator"
+						print(error_msg)
+						raise ValueError
+				elif choice == b'\x05' or choice == b'\x06':  
+					try:
+						choice += build_fee_packet()
+					except: 
+						error_msg = 'you will not be able to write command out to the icu-simulator'
+						print(error_msg)
+						raise ValueError
+				elif choice == b'\x07':
+					pkt_handler.close_connection() 
+					break
+				arduino.write(choice)
+				print("you have just sent the following command to the icu-simulator: " + str(choice))
+			except ValueError: 
+				logging.warning(error_msg)
 			#the ICU - Simulator takes care of any invalid commands - we CAN write invalid commands such 9, 0x0A etc but the ICU - Simulator is just going to discard them
-			print("you have just sent the following command to the icu-simulator: " + str(choice))
+				
 		pkt_handler.join()
 		print("program end")

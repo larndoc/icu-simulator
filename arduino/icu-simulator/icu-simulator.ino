@@ -428,6 +428,3 @@ void loop() {
       break; 
   }
 } // loop ends
-
-
-
