@@ -1,5 +1,4 @@
 #a interface that allows the user 
-#a interface that allows the user 
 #to communicate with the icu-simulator 
 #a log file that keeps track of the total 
 #number of fib, fob and fsc in sci mode and any
