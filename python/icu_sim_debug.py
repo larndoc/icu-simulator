@@ -336,7 +336,6 @@ if __name__ == '__main__':
 		while True:  
 			print(cmd_menu)
 			nb = input('please choose an option: ')
-			error_msg = ''
 			try: 
 				try:
 					choice = int(nb, 0).to_bytes(1, byteorder = 'big')
