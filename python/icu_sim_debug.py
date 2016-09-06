@@ -364,7 +364,7 @@ if __name__ == '__main__':
 					pkt_handler.close_connection() 
 					break
 				arduino.write(choice)
-				print("you have just sent the following command to the icu-simulator: " + str(choice))
+				print("you have just sent the following command to the icu-simulator: " + str(binascii.hexlify(choice)))
 			except ValueError: 
 				logging.warning(error_msg)
 			#the ICU - Simulator takes care of any invalid commands - we CAN write invalid commands such 9, 0x0A etc but the ICU - Simulator is just going to discard them
