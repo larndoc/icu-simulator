@@ -45,12 +45,11 @@ def build_config_command_val():
 	c)config id 
 	d)config_param_val 
 	the try catch block deals with bad data"""
-	
-	try:
-		fee_number = ("0> FIB \n" "1> FOB \n" "2> FSC \n")
-		print(fee_number)
-		fee_interface = input('please choose an input: ')	
-		cmd_val = int(fee_interface, 0).to_bytes(1, byteorder = 'big')
+	fee_number = ("0> FIB \n" "1> FOB \n" "2> FSC \n")
+	print(fee_number)
+	fee_interface = input('please choose an input: ')	
+	try: 
+		cmd_val = int(fee_interface, 0).to_bytes(1, byteorder = 'big') 
 		read_write = ("0) read \n" 	"1) write \n")
 		print(read_write)
 		rm_wr = input('> please choose an input: ')
@@ -59,8 +58,15 @@ def build_config_command_val():
 		config_id_val = int(config_id, 0).to_bytes(1, byteorder = 'big')
 		config_val = input('>please enter config val: ')
 		choice = int(config_val, 0).to_bytes(3, byteorder='big')
-		return cmd_val + rm_wr_val + config_id_val + choice
-	except: 
+		if(cmd_val == 0x00 or cmd_val == 0x01 or cmd_val == 0x02):
+			if(rm_war_val == 0x00 or rm_war_val == 0x01):
+				return cmd_val + rm_wr_val + config_id_val + choice
+			else: 
+				raise Exception('read/write not in range') 
+		else:
+			raise Exception('UART interface not in range')
+	except Exception: 
+		print('you will not be able to write command out to the icu-simulator, entering science mode')
 		logging.warning('could not build config command - you will not able to write the following command to the arduino')
 	
 def build_fee_packet(): 	
@@ -74,11 +80,15 @@ def build_fee_packet():
 	
 	try:
 		fee_number = ("0> FIB \n" "1> FOB \n" "2> FSC \n")
-		print(fee_number)
 		fee_interface = input('please choose an input: ')
 		fee_interface_val = int(fee_interface, 0).to_bytes(1, byteorder = 'big')
+		if (fee_interface_val == 0x00 or fee_interface_val == 0x01 or fee_interface_val == 0x02):
+			print(fee_number)
+		else:
+			raise Exception('UART interface not in range') 
 		return fee_interface_val 
 	except: 
+		print('you will not be able to write command out to the icu-simulator, entering config mode')
 		logging.warning('could not build fee packet - you will not able to write the following command to the arduino')
 
 class hk_interpreter: 	
@@ -329,9 +339,17 @@ if __name__ == '__main__':
 				continue 
 			choice = choice.to_bytes(1, byteorder = 'big')
 			if choice == b'\x02': 
-				choice +=  build_config_command_val()
+				config_val = build_config_command_val()
+				if config_val != None:
+					choice +=  config_val
+				else:
+					choice = b'\x03'
 			elif choice == b'\x05' or choice == b'\x06': 
-				choice += build_fee_packet() 
+				fee_interface = build_fee_packet()
+				if fee_interface != None:
+					choice += fee_interface
+				else: 
+					choice = b'\x04'
 			elif choice == b'\x07': 
 				pkt_handler.close_connection() 
 				break
