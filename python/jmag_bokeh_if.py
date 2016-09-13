@@ -13,12 +13,13 @@ import pandas
 from datetime import datetime
 from io import StringIO
 from bokeh.plotting import figure
+from bokeh.models.tools import WheelZoomTool
 from glob import glob
-from numpy.fft import fft, fftfreq, fftshift
+from numpy.fft import rfft, rfftfreq
 from math import sqrt
 from functools import reduce
 from collections import deque
-import multiprocessing as mp
+#import multiprocessing as mp
 
 def dt_parse(s):
     return datetime.strptime(s, "%Y-%m-%dT%H:%M:%S.%f")
@@ -27,7 +28,7 @@ def mp_concat(x, y):
 def mp_magn(x):
     return sqrt(x.real**2 + x.imag**2)
 
-p = mp.Pool(processes=8)
+#p = mp.Pool(processes=1)
 
 colors = ["#008080", "#8B0000", "#006400", "#2F4F4F",
           "#800000", "#FF00FF", "#4B0082", "#191970",
@@ -47,10 +48,12 @@ def default_figure(kwargs):
         print("default_figure(): kwargs is not dict!")
     kwargs['plot_height'] = kwargs.get('plot_height', 600)
     kwargs['plot_width']  = kwargs.get('plot_width', 600)
-    kwargs['tools']       = kwargs.get('tools', 'pan,wheel_zoom,box_zoom,reset')
+    kwargs['tools']       = kwargs.get('tools', 'box_zoom,pan,save,reset')
     kwargs['x_axis_type'] = kwargs.get('x_axis_type', 'datetime')
-    kwargs['webgl']       = kwargs.get('webgl', False)
-    return figure(**kwargs)
+    #kwargs['webgl']       = kwargs.get('webgl', False)
+    p = figure(**kwargs)
+    p.add_tools(WheelZoomTool(dimensions=['height']))
+    return p
 
 # Data_Cooker objects can be injected
 # into Grapher or CSV_Reader objects
@@ -102,24 +105,26 @@ class FFT_Cooker(Data_Cooker):
         if df is not None:
             self.df = df
         new_df = {}
-        a, b = self.df[indep_var][0], self.df[indep_var][len(self.df[indep_var])-1]
+        n = len(self.df[indep_var])
+        a, b = self.df[indep_var][0], self.df[indep_var][n-1]
         for key in self.df:
             if key == indep_var:
                 continue
-            new_df[key] = fft(self.df[key])
-            new_df[key] = p.map(mp_magn, new_df[key])
+            new_df[key] = rfft(self.df[key])
+            new_df[key] = list(map(mp_magn, new_df[key]))
+            new_df[key] = list(map(lambda x: 2*x/n, new_df[key]))
 
         # avg time between samples
         # assumes uniform sampling
         dt = (b-a).total_seconds()
-        dt /= len(self.df[indep_var])
+        dt /= n
 
         # get list of frequencies from the fft
         # new_df['Freq'] = fftfreq(len(self.df[key]), dt)
-        new_df['Freq'] = fftshift(fftfreq(len(self.df[key]), dt))
+        new_df['Freq'] = rfftfreq(n, dt)
 
         #
-        new_df = pandas.DataFrame.from_dict(new_df).sort_values('Freq')
+        new_df = pandas.DataFrame.from_dict(new_df)#.sort_values('Freq')
         #new_df = new_df[abs(new_df.Freq) > 0.4]
 
         self.df = new_df
@@ -150,7 +155,7 @@ class Magnitude_Cooker(Data_Cooker):
                          + self.df['By'][i]**2
                          + self.df['Bz'][i]**2))
             i += 1
-        new_df = pandas.DataFrame.from_dict(new_df).sort_values(indep_var)
+        new_df = pandas.DataFrame.from_dict(new_df)#.sort_values(indep_var)
         self.df = new_df
         return new_df
 
@@ -175,13 +180,13 @@ class Natural_Unit_Cooker(Data_Cooker):
             if key not in self.factors:
                 new_df[key] = self.df[key]
                 continue
-            new_df[key] = map(lambda x: x*self.factors[key], self.df[key])
-        new_df = pandas.DataFrame.from_dict(new_df).sort_values(indep_var)
+            new_df[key] = list(map(lambda x: self.factors[key][0]+x*self.factors[key][1], self.df[key]))
+        new_df = pandas.DataFrame.from_dict(new_df)#.sort_values(indep_var)
         self.df = new_df
         return new_df
 
 class CSV_Reader:
-    def __init__(self, fname, num_dp=500, data_cooker=None, indep_var='Time'):
+    def __init__(self, fname, num_dp=1024, data_cooker=None, indep_var='Time'):
         """
         Constructor method.
             fname       : file name to read
@@ -255,28 +260,36 @@ class CSV_Reader:
         """
         with open(self.fname, 'r') as f:
             q = deque(f, self.num_dp)
-        return reduce(mp_concat, q)
+        return "".join(q)
 
     def get_dataframe(self):
         """
         Returns the tail of the file as a parsed Pandas dataframe object
         """
         csv = self.get_header() + self.tail()
-        df = pandas.read_csv(StringIO(str(csv)))
+        if len(csv) > 0:
+            df = pandas.read_csv(StringIO(str(csv)))
+        else:
+            df = pandas.DataFrame()
         try:
             # ISO 8601 datetime string -> Python datetime object
-            df['Time'] = p.map(dt_parse, df['Time'])
+            df['Time'] = list(map(dt_parse, df['Time']))
         except KeyError:
             pass
+        except TypeError:
+            print(df['Time'])
 
         # optionally cook data
         if self.data_cooker is not None and self.cook_data:
             df = self.data_cooker.apply(df)
 
-        return df.sort_values(self.indep_var)
+        return df#.sort_values(self.indep_var)
 
-    def on_change(self, attr, old, new):
-        self.cook_data = not self.cook_data
+    def datafmt(self, fmt):
+        if(fmt=="raw"):
+            self.cook_data = False 
+        else:
+            self.cook_data = True
 
 class Grapher:
     def __init__(self, csv_reader=None, pattern=None, figure_opts=None, key_groups=None, indep_var='Time', cooker=None):
@@ -366,11 +379,12 @@ class Grapher:
                 # lines without triggering a page redraw
                 self.active_lines[x] = figures[-1].line(df[self.indep_var], df[x], legend=x,
                                                         color=colors[i], line_width=1.5)
+
                 i += 1
             j += 1
         return figures
 
-    def update_graphs(self):
+    def update_graphs(self, datafmt=None, highlight=None, samples=None):
         """
         Tail the watched file and redraw graphs
         without triggering a page redraw.
@@ -378,7 +392,28 @@ class Grapher:
         if self.pattern is not None:
             self.csv_reader.set_fname(get_latest_file(self.pattern))
 
+        if datafmt:
+            self.csv_reader.datafmt(datafmt)
+
+        if samples:
+            try:
+                self.csv_reader.set_num_dp(int(samples))
+            except:
+                pass
+
         df = self.csv_reader.get_dataframe()
+
+        if highlight:
+            if highlight == "All":
+                for l, c in zip(self.active_lines.values(), colors):
+                    l.glyph.line_color = c
+            else:
+                for key, l in self.active_lines.items():
+                    if highlight in key:
+                        l.glyph.line_color = colors[1]
+                    else:
+                        l.glyph.line_color = colors[0]
+
         for key in self.active_lines:
             if key == self.indep_var:
                 continue
