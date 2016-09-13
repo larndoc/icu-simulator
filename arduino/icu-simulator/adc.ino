@@ -37,9 +37,10 @@ void adc_read_all(uint8_t chip)
 {
 	int16_t result, chip_select = adc_get_chip_select(chip);
 	if (chip_select < 0) return;
-	//digitalWrite(chip_select, LOW);
+	digitalWrite(chip_select, LOW);
 	SPI.transfer16(0); /* ignore the last result */
-	for (int i = 0; i < 8; i++) 
-	  	 adc_readings[chip][i] = SPI.transfer16(((i+1)& 0x07) << 11) ;
-        //digitalWrite(chip_select, HIGH);
+	for (int i = 0; i < 8; i++) {
+	  	 adc_readings[chip][i] = SPI.transfer16(((i+1)& 0x07) << 11);
+	}
+  digitalWrite(chip_select, HIGH);
 }
