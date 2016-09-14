@@ -305,7 +305,7 @@ class CSV_Reader:
 class Grapher:
     def __init__(self, csv_reader=None, pattern=None, figure_opts=None,
                  key_groups=None, indep_var='Time', cooker=None,
-                 dfmap = None, cook_data = False):
+                 dfmap = None, cook_data = None):
         """
         Constructor.
             csv_reader      : an object of class CSV_Reader,
@@ -324,7 +324,8 @@ class Grapher:
                               a list of graphs corresponding
                               to the list of lists is returned
                               by method make_new_graphs()
-            indep_var       : variable to use on the x-axis.
+            indep_var       : variable to use on the x-axis. Can
+                              be a single value or per-keygroup.
             cooker          : ask the CSV_Reader to do post-processing
                               on Pandas DataFrames according to the
                               .apply() method in the instance
@@ -364,6 +365,12 @@ class Grapher:
         else:
             self.key_groups = key_groups
         self.dfmap = dfmap
+        # we don't want to have to set cook_data
+        if cook_data is None:
+            if dfmap is not None:
+                self.cook_data = True
+            else:
+                self.cook_data = False
         self.indep_var = indep_var
         self.cooker = cooker
 
@@ -395,21 +402,24 @@ class Grapher:
         print("make_new_graphs()")
         self.active_lines = {}
         figures = []
-        j = 0
         raw_df = self.csv_reader.get_dataframe()
-        dfs = self.cook(raw_df)
+        dfs, indep_vars = self.cook(raw_df)
         print("Have dataframe for key groups {}".format(self.key_groups))
-        for key_group, df in zip(self.key_groups, dfs):
-            i = 0
+        print("len(self.key_groups)={}".format(len(self.key_groups)))
+        print("len(dfs)={}".format(len(dfs)))
+        print("len(indep_vars)={}".format(len(dfs)))
+        j=0
+        for key_group, df, x_var in zip(self.key_groups, dfs, indep_vars):
+            i=0
             figures.append(default_figure(self.get_figure_opts(j)))
             for x in key_group:
-                if x == self.indep_var:
+                if x == x_var:
                     continue
                 # storing the line renderer objects will allow us to update the
                 # lines without triggering a page redraw
-                self.active_lines[x] = figures[-1].line(df[self.indep_var], df[x], legend=x,
+                self.active_lines[x + x_var + str(j) + str(i)] = figures[-1].line(df[x_var], df[x], legend=x,
                                                         color=colors[i], line_width=1.5)
-
+                print("Made key: {}".format(x+x_var+str(j)+str(i)))
                 i += 1
             j += 1
         return figures
@@ -432,7 +442,7 @@ class Grapher:
                 pass
 
         raw_df = self.csv_reader.get_dataframe()
-        dfs = self.cook(raw_df)
+        dfs, indep_vars = self.cook(raw_df)
 
         if highlight:
             if highlight == "All":
@@ -444,47 +454,67 @@ class Grapher:
                         l.glyph.line_color = colors[1]
                     else:
                         l.glyph.line_color = colors[0]
-
-        for key, df in zip(self.active_lines, dfs):
-            if key == self.indep_var:
-                continue
-            self.active_lines[key].data_source.data['x'] = df[self.indep_var]
-            self.active_lines[key].data_source.data['y'] = df[key]
+        j = 0
+        for key_group, df, x_var in zip(self.key_groups, dfs, indep_vars):
+            i = 0
+            for key in key_group:
+                try:
+                    self.active_lines[key + x_var + str(j) + str(i)].data_source.data['x'] = df[x_var]
+                    self.active_lines[key + x_var + str(j) + str(i)].data_source.data['y'] = df[key]
+                except KeyError:
+                    print("Invalid key: {}".format(key+x_var+str(j)+str(i)))
+                i += 1
+            j += 1
 
     def cook(self, df):
         # --- don't cook data if we're not asked to
+        if type(self.indep_var) == list:
+            new_indeps = self.indep_var
+        else:
+            new_indeps = [self.indep_var for i in self.key_groups]
         if not self.cook_data:
-            return [df for i in self.key_groups]
+            return [df for i in self.key_groups], new_indeps
 
         # --- dfmap is one function; apply it
         if callable(self.dfmap):
             df = self.dfmap(df)
-            return [df for i in self.key_groups]
+            return [df for i in self.key_groups], new_indeps
 
         # --- dfmap is a list of functions; each function
         #     is associated with one key group
         if type(self.dfmap) == list:
             ret = []
-            for fn in filter(callable, self.dfmap):
+            for fn in self.dfmap:
                 if callable(fn):
                     ret.append(fn(df))
                 else:
                     ret.append(df)
-            return ret
-        # --- dfmap is a list of lists of functions; len(dfmap) = 2.
+            print("cook(): len(ret)={}".format(len(ret)))
+            print("cook(): len(new_indeps)={}".format(len(new_indeps)))
+            return ret, new_indeps
+        # --- dfmap is a TUPLE of lists of functions; len(dfmap) = 2.
         #     The first list contains functions to apply in sequence.
         #     The second list contains functions that are applied on a
         #     per-keygroup basis.
-        if type(self.dfmap) == list and type(self.dfmap[0]) == list:
-            if len(self.dfmap != 2):
+        if type(self.dfmap) == tuple:
+            if len(self.dfmap) != 2:
                 raise TypeError("if dfmap is a list of lists, it must have len 2")
-            for fn in filter(callable, self.dfmap[0]):
-                df = fn(df)
+            if callable(self.dfmap[0]):
+                df = self.dfmap[0](df)
+            else:
+                for fn in filter(callable, self.dfmap[0]):
+                    df = fn(df)
             ret = []
-            for fn in filter(callable, self.dfmap[1]):
-                ret.append(df)
-            return ret
+            for fn in self.dfmap[1]:
+                if callable(fn):
+                    ret.append(fn(df))
+                else:
+                    ret.append(df.copy())
+            return ret, new_indeps
         raise TypeError("dfmap is incorrectly structured")
+
+    def cook_data(self, x):
+        self.cook_data = x
 
 
 # find most-recently-produced

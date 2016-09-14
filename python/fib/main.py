@@ -14,28 +14,27 @@ hselect = Select(title="Highlight", value="All", options=["All"]+vectors+status)
 rselect = Select(title="Units", value="converted", options=["raw", "converted"])
 nslider = TextInput(title="Samples", value="1024")
 
-nuc_dc = jbif.Natural_Unit_Cooker({  'Bx' : [0, 0.002026557922],
-                                     'By' : [0, 0.002026557922],
-                                     'Bz' : [0, 0.002026557922],
-                                     'Status' : [0, 1]})
+nat_unit = jbif.dfmap_genmap({'Bx': lambda x: x * 0.002026557922,
+                              'By': lambda x: x * 0.002026557922,
+                              'Bz': lambda x: x * 0.002026557922})
 
-#mag_dc = jbif.Magnitude_Cooker()
-fft_dc = jbif.FFT_Cooker()
-ts = jbif.Grapher(pattern="FIB_Sci*.csv", key_groups=[vectors, status], cooker=nuc_dc, figure_opts = [None, {'plot_height': 200}])
-sp = jbif.Grapher(pattern="FIB_Sci*.csv", cooker=fft_dc, indep_var='Freq', key_groups=[vectors], figure_opts={'x_axis_type':'linear'})
-#mg = jbif.Grapher(pattern="FIB_Sci*.csv", cooker=mag_dc, key_groups=[['mag']])
-tg = ts.make_new_graphs()
-fg = sp.make_new_graphs()
+g = jbif.Grapher(pattern = "FIB_Sci*.csv",
+             key_groups  = [vectors, vectors, status],
+             dfmap       = ([nat_unit.apply], [None, jbif.dfmap_fft, None]),
+             indep_var   = ['Time', 'Freq', 'Time'],
+             figure_opts = [None, {'x_axis_type':'linear'}, {'plot_height':200}])
 
-rselect.on_change('value', lambda attr, old, new: ts.update_graphs(datafmt=new))
-hselect.on_change('value', lambda attr, old, new: ts.update_graphs(highlight=new))
-nslider.on_change('value', lambda attr, old, new: ts.update_graphs(samples=new))
+graphs = g.make_new_graphs()
+print("len(graphs)={}".format(len(graphs)))
+
+rselect.on_change('value', lambda attr, old, new: g.update_graphs(datafmt=new))
+hselect.on_change('value', lambda attr, old, new: g.update_graphs(highlight=new))
+nslider.on_change('value', lambda attr, old, new: g.update_graphs(samples=new))
 
 box = widgetbox(hselect, rselect, nslider,  sizing_mode='fixed')
-grid = gridplot([[tg[0], fg[0]], [tg[1], None]])
+grid = gridplot([[graphs[0], graphs[1]], [graphs[2], None]])
 
 l = layout([desc], [box, grid])
 
 curdoc().add_root(l)
-curdoc().add_periodic_callback(ts.update_graphs, 250)
-curdoc().add_periodic_callback(sp.update_graphs, 500)
+curdoc().add_periodic_callback(g.update_graphs, 250)
