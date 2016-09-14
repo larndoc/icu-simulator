@@ -105,64 +105,70 @@ class Data_Cooker:
 # into a Grapher object, specifying
 # 'Freq' as the independent variable,
 # to display spectra of incoming data.
-class FFT_Cooker(Data_Cooker):
-    def apply(self, df=None, indep_var='Time'):
-        if df is not None:
-            self.df = df
-        new_df = {}
-        n = len(self.df[indep_var])
-        a, b = self.df[indep_var][0], self.df[indep_var][n-1]
-        for key in self.df:
-            if key == indep_var:
-                continue
-            new_df[key] = rfft(self.df[key])
-            new_df[key] = list(map(mp_magn, new_df[key]))
-            new_df[key] = list(map(lambda x: 2*x/n, new_df[key]))
+def dfmap_fft(df, indep_var='Time'):
+    if df is not None:
+        df = df
+    new_df = {}
+    n = len(df[indep_var])
+    a, b = df[indep_var][0], df[indep_var][n-1]
+    for key in df:
+        if key == indep_var:
+            continue
+        new_df[key] = rfft(df[key])
+        new_df[key] = list(map(mp_magn, new_df[key]))
+        new_df[key] = list(map(lambda x: 2*x/n, new_df[key]))
 
-        # avg time between samples
-        # assumes uniform sampling
-        dt = (b-a).total_seconds()
-        dt /= n
+    # avg time between samples
+    # assumes uniform sampling
+    dt = (b-a).total_seconds()
+    dt /= n
 
-        # get list of frequencies from the fft
-        # new_df['Freq'] = fftfreq(len(self.df[key]), dt)
-        new_df['Freq'] = rfftfreq(n, dt)
+    # get list of frequencies from the fft
+    # new_df['Freq'] = fftfreq(len(self.df[key]), dt)
+    new_df['Freq'] = rfftfreq(n, dt)
 
-        #
-        new_df = pandas.DataFrame.from_dict(new_df)#.sort_values('Freq')
-        #new_df = new_df[abs(new_df.Freq) > 0.4]
+    #
+    new_df = pandas.DataFrame.from_dict(new_df)#.sort_values('Freq')
+    #new_df = new_df[abs(new_df.Freq) > 0.4]
 
-        self.df = new_df
-        return new_df
+    return new_df
 
 # magnitudes for fib/fob
 # expect 'mag' as dep variable,
 # and 'Time' as indep. Expects keys
 # Bx, By, and Bz to be existent in raw
 # DataFrame.
-class Magnitude_Cooker(Data_Cooker):
-    def apply(self, df=None, indep_var='Time'):
+def dfmap_magnitude(df, indep_var='Time'):
         """
         Take the magnitude of the magnetic field
         vector; (x,y,z)-components given by
         B(x,y,z) keys into the dataframe.
         """
-        if df is not None:
-            self.df = df
         new_df = {}
-        new_df[indep_var] = self.df[indep_var]
+        new_df[indep_var] = df[indep_var]
         new_df['mag'] = []
         i = 0
-        while i < len(self.df['Bx']):
+        while i < len(df['Bx']):
             # |v| = sqrt(vx^2 + vy^2 + vz^2)
             new_df['mag'].append(
-                     sqrt( self.df['Bx'][i]**2
-                         + self.df['By'][i]**2
-                         + self.df['Bz'][i]**2))
+                     sqrt( df['Bx'][i]**2
+                         + df['By'][i]**2
+                         + df['Bz'][i]**2))
             i += 1
         new_df = pandas.DataFrame.from_dict(new_df)#.sort_values(indep_var)
-        self.df = new_df
         return new_df
+
+class dfmap_genmap:
+    def __init__(self, mappings):
+        self.mappings = mappings
+    def apply(self, df):
+        new_df = {}
+        for key in df:
+            if key not in self.mappings:
+                new_df[key] = df[key]
+                continue
+            new_df[key] = list(map(self.mappings[key], df[key]))
+        return pandas.DataFrame.from_dict(new_df)
 
 class Natural_Unit_Cooker(Data_Cooker):
     def __init__(self, factors, df=None):
