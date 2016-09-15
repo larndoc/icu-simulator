@@ -25,7 +25,7 @@
 #define IF_NOT_ARG(x) if (strcasecmp(argv[ARGV_COUNTER], x))
 #define IF_ARG_EXISTS if (ARGV_COUNTER < argc)
 #define IF_ARG_NOT_EXISTS if (ARGV_COUNTER >= argc)
-#define CHECK_ARGV if (ARGV_COUNTER >= argc) usage(argv[0])
+#define CHECK_ARGV if (ARGV_COUNTER >= argc) usage(argv[0], "CHECK_ARGV")
 #define PARSE_WAVE(wf,f) do{debug(D_INFO,				      \
 				  "Incrementing argument counter...\n");      \
 			    ARGV_COUNTER++; CHECK_ARGV;			      \
@@ -40,7 +40,7 @@
 			    else IF_ARG("random"){debug(D_BUG_RESOLVED,       \
 			    				"Got random\n");      \
 					      wf = _random;}	              \
-			    else usage(argv[0]);			      \
+			    else usage(argv[0], "PARSE_WAVE");		      \
 			IF_NOT_ARG("random") {			              \
 			ARGV_COUNTER++; CHECK_ARGV;		              \
 			f=atof(argv[ARGV_COUNTER]);		              \
@@ -111,10 +111,6 @@ const char *log_tags[ ] = { FG_BLUE   "[+] " COLOR_END,  /* INFO */
 #define _unused
 #endif
 
-struct timeval _tv, _tv_orig;
-#define init_clk() (gettimeofday(&_tv_orig, NULL))
-#define clk() (gettimeofday(&_tv, NULL), (double)(_tv.tv_sec - _tv_orig.tv_sec)\
-		+ 1e-6*(_tv.tv_usec - _tv_orig.tv_usec))
 bool parse_long(char *str, long *ret)
 {
 	char *check;
@@ -190,11 +186,70 @@ typedef int (*data_generator_func_t)(int, double);
 struct {
 	bool enabled[N_DEV];
 	data_generator_func_t wf[N_DEV];
-	double freq[N_DEV], T;
+	double freq[N_DEV],
+	       T; /* time between samples in seconds */
 	bool verbose;
 	char min_priority, *dir_out;
 	long n, noise_ampl;
+	long dp_per_output; /* number of samples to buffer */
 } opts;
+
+struct timestamp {
+	long y,
+	     mo,
+	     d,
+	     h,
+	     mi, /* minute      */
+	     s,  /* second      */
+	     us; /* microsecond */
+} tzero, now;
+
+#define is_leap_year(x) ((x%400) || (!(x%4) && (x%100)))
+#define wrap(var, lim, of) if (var < lim); else { var = fmod(var, lim); of++; }
+void tick()
+{
+	now.us += 1e6 * opts.T;
+	wrap(now.us, 1000000, now.s);
+	wrap(now.s, 60, now.mi);
+	wrap(now.mi, 60, now.h);
+	wrap(now.h, 24, now.d);
+	switch (now.mo) {
+		case 1:
+		case 3:
+		case 5:
+		case 7:
+		case 8:
+		case 10:
+		case 12:
+			wrap(now.d, 31, now.mo);
+			break;
+		case 2:
+			if (is_leap_year(now.y)) {
+				wrap(now.d, 29, now.mo);
+			} else {
+				wrap(now.d, 28, now.mo);
+			}
+			break;
+		default:
+			wrap(now.d, 30, now.mo);
+	}
+	wrap(now.mo, 12, now.y);
+}
+
+void timestamp(FILE *f)
+{
+	fprintf(f, "%04ld-%02ld-%02ldT%02ld:%02ld:%02ld.%06ld,",
+		now.y, now.mo, now.d, now.h, now.mi,
+		now.s, now.us);
+}
+
+#define clk() _ts_to_s(now)
+double _ts_to_s(struct timestamp ts) {
+	return ts.h  / 3600.0
+	     + ts.mi /   60.0
+	     + (double) ts.s
+	     + ts.us * 1e6;
+}
 
 int sine(int A, double f)
 {
@@ -254,8 +309,8 @@ char *prepare_path(char *path, char *fname)
 	return ret;
 }
 
-#define usage(name) _usage(__FILE__, __LINE__, __func__, name)
-void _usage(char *file, int line, const char *func, const char *name)
+#define usage(name, reason) _usage(__FILE__, __LINE__, __func__, name, reason)
+void _usage(char *file, int line, const char *func, const char *name, const char *reason)
 {
 	printf( "%s: fake data streams for all your testing needs.\n"
 		"Problems? Contact me: <he915@ic.ac.uk>.\n"
@@ -299,16 +354,23 @@ void _usage(char *file, int line, const char *func, const char *name)
 		"\tnumber       Number of data points to print.\n"
 		"\t             Usage: number [nr]\n"
 		"\t             Where [nr] is an integer\n"
+		"\tnper\n"
+		"\tnbuf\n"
+		"\tbuf\n"
+		"\tbuffer       Number of data points to buffer before output\n"
+		"\t             (i.e. will output nper * f points per second)\n"
 		"Example usage:\n"
 		"\t%s fib fob pcu wave fib square 10 wave fob sine 25 t 250ms\n"
 		"\t%s fib_hk fsc_sci wave fib_hk random\n"
 		"\t%s fob_hk freq 128 Hz wf fob_hk sine 0.5 noise\n"
 		"--------------------------------------------------------\n"
 		"If you're seeing this, something probably went wrong.\n"
-		"If so, the error was here: %s:%d, in a call to %s().\n",
-		name, name, name, name, file, line, func);
+		"If so, the error was here: %s:%d, in a call to %s().\n"
+		"Here's the reason we were called: %s\n",
+		name, name, name, name, file, line, func, reason);
 	exit(1);
 }
+
 
 int main(int argc, char *argv[])
 {
@@ -317,8 +379,24 @@ int main(int argc, char *argv[])
 	char fnames[N_DEV][64];
 
 	srandom(time(NULL));
+	
+	struct tm tm_zero = *localtime(_local_time());
+	tm_zero.tm_year += 1900;
+	tm_zero.tm_mon++;
 
-	init_clk();
+	tzero.y  = tm_zero.tm_year;
+	tzero.mo = tm_zero.tm_mon;
+	tzero.d  = tm_zero.tm_mday;
+	tzero.h  = tm_zero.tm_hour;
+	tzero.mi = tm_zero.tm_min;
+	tzero.s  = tm_zero.tm_sec;
+	tzero.us = 0;
+	now = tzero;
+
+	debug(D_BUG_UNRESOLVED, "timestamping stdout...");
+	timestamp(stdout); printf("\n");
+	debug(D_BUG_UNRESOLVED, "wtf?");
+
 
 	debug(D_INFO, "This is\ntesting the\nlogging facility.");
 
@@ -326,6 +404,7 @@ int main(int argc, char *argv[])
 	opts.T = 0.1f;
 	opts.dir_out = "/data/";
 	opts.n = 0;
+	opts.dp_per_output = 1;
 	opts.noise_ampl = 0;
 	for (int j = 0; j < N_DEV; j++) {
 		opts.enabled[j] = false;
@@ -419,11 +498,11 @@ int main(int argc, char *argv[])
 							  opts.freq[FSC_HK]);
 			else IF_ARG("pcu")     PARSE_WAVE(opts.wf[PCU_HK],
 							  opts.freq[PCU_HK]);
-			else usage(argv[0]);   /* error */
+			else usage(argv[0], "invalid waveform specified");
 		}
 
 		/* inject noise into the signal optionally */
-		else IF_ARG("no")  goto noise;
+		else IF_ARG("no")   goto noise;
 		else IF_ARG("noi")  goto noise;
 		else IF_ARG("nois") goto noise;
 		else IF_ARG("noise") {
@@ -525,12 +604,24 @@ int main(int argc, char *argv[])
 						debug(D_INFO, "kHz\n");
 						opts.T *= 1e-3;
 						break;
-					default:
+					default: /* not here, rewind */
 						PREV_ARG;
 						break;
 				}
 			}
-		} else usage(argv[0]);
+		}
+		
+		else IF_ARG("nper") goto buffer;
+		else IF_ARG("nbuf") goto buffer;
+		else IF_ARG("buf")  goto buffer;
+		else IF_ARG("buffer") {
+			buffer:
+			NEXT_ARG_MUST_EXIST;
+			if (!parse_long(THIS_ARG, &opts.dp_per_output))
+				usage(argv[0], "couldn't parse long for nbuf");
+		}
+		
+		else usage(argv[0], "unrecognized parameter on command line");
 	}
 
 	debug(D_INFO, "ENSURE_WF_EXISTS\n");
@@ -574,55 +665,52 @@ int main(int argc, char *argv[])
 	 * we expect to be killed by a signal otherwise.              */
 	int count = 0;
 	while (1) {
-		if (opts.n && count >= opts.n) break;
+
+		if (opts.n && count >= opts.n)
+			break;
+
 		for (int i = 0; i < N_DEV; i++) {
-			if (!opts.enabled[i]) continue;
+			
+			if (!opts.enabled[i])
+				continue;
+
 			debug(D_INFO, "Device %d is about to go live\n", i);
-
-			/* Get local data */
-			struct timeval tv;
-			gettimeofday(&tv, NULL);
-			struct tm tm = *localtime(_local_time());
-
-			/* fix dates -> counts from epoch in 1900 */
-			tm.tm_year += 1900;
-			tm.tm_mon++;
-
-			debug(D_BUG_RESOLVED, "Have timestamp "
-			      "%04d-%02d-%02dT%02d:%02d:%02d.%06ld",
-					tm.tm_year, tm.tm_mon, tm.tm_mday,
-					tm.tm_hour, tm.tm_min, tm.tm_sec,
-					tv.tv_usec);
-
-			fprintf(out[i], "%04d-%02d-%02dT%02d:%02d:%02d.%06ld,",
-					tm.tm_year, tm.tm_mon, tm.tm_mday,
-					tm.tm_hour, tm.tm_min, tm.tm_sec,
-					tv.tv_usec);
-
+			
 			/* Compute output and print */
-			for (int j = 0; j < num_dp[i]-1; j++) {
-				debug(D_BUG_RESOLVED,
-				      "Calling <0x%llx> (dev id=%d)\n",
-				      (unsigned long long)opts.wf[i],
-				      i);
-				int _out = opts.wf[i](DEFAULT_AMPLITUDE,
-						     opts.freq[i]);
-				debug(D_BUG_RESOLVED, "out=%d\n", _out);
-				fprintf(out[i], "%d,", _out);
-					//opts.wf[i](DEFAULT_AMPLITUDE,
-				//		   opts.freq[i]));
-			}
+			for (int k = 0; k < opts.dp_per_output; k++) {	
 
-			fprintf(out[i], "%d\n", opts.wf[i](DEFAULT_AMPLITUDE,
-							   opts.freq[i]));
+				timestamp(out[i]);
+
+				for (int j = 0; j < num_dp[i]-1; j++) {
+
+					debug(D_BUG_RESOLVED,
+					      "Calling <0x%llx> (dev id=%d)\n",
+					      (unsigned long long)opts.wf[i],
+					      i);
+
+					int _out = opts.wf[i](DEFAULT_AMPLITUDE,
+							     opts.freq[i]);
+
+					fprintf(out[i], "%d,", _out);
+						//opts.wf[i](DEFAULT_AMPLITUDE,
+					//		   opts.freq[i]));
+				}
+
+				fprintf(out[i], "%d\n",
+					opts.wf[i](DEFAULT_AMPLITUDE,
+						   opts.freq[i]));
+
+				tick();
+				count++;
+			}
 
 			/* if we don't call fflush(), client programs won't *
 			 * see our updates, and our buffers will be dumped  *
 			 * when we get killed                               */
 			fflush(out[i]);
 		}
-		count++;
-		usleep((int)(opts.T * 1e6));
+
+		usleep((int)(opts.T * 1e6 * opts.dp_per_output));
 	}
 }
 
