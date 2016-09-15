@@ -4,7 +4,7 @@ import sys
 sys.path.append("..")
 import jmag_bokeh_if as jbif
 from bokeh.models import Div
-from bokeh.models.widgets import Select, Slider
+from bokeh.models.widgets import Select, Slider, CheckboxButtonGroup, TextInput
 
 desc = Div(text="<h1>J-MAG PCU HK monitor</h1><p>Shows the HK information from the PCU, which are voltages, currents and temperature(s). <br/>Values are shown in raw ADC counts.</p>", width=800)
 
@@ -13,38 +13,46 @@ currents = ['I_P1V8', 'I_P3V3', 'I_FIB', 'I_FIBH', 'I_FOB', 'I_FOBH', 'I_FSC', '
 temps = ['Temp']
 
 hselect = Select(title="Highlight", value="All", options=["All"]+voltages+currents+temps)
-rselect = Select(title="Units", value="converted", options=["raw", "converted"])
-nslider = Slider(title="Samples", start=256, end=16384, value=1024, step=128)
+rselect = CheckboxButtonGroup(labels=["convert", "0-mean"])
+nslider = TextInput(title="Samples", value="1024")
 
-nuc_dc = jbif.Natural_Unit_Cooker({  'Temp' : [-273.15, 0.118480],
-                                     'V_P2V4' : [0 ,0.805664e-3],
-                                     'V_P3V3' : [0 ,1.067505e-3],
-                                     'V_N8V' : [0 ,2.607327e-3],
-                                     'V_P5V' : [0 ,1.611328e-3],
-                                     'V_N5V' : [0, 1.614557e-3],
-                                     'V_P12V' : [0, 3.886665e-3],
-                                     'V_P8V' : [0, 2.584172e-3],
-                                     'I_FIB' : [0, 0.1611328e-3],
-                                     'I_FOB' : [0, 0.1611328e-3],
-                                     'I_P3V3' : [0, 0.1611328e-3], 
-                                     'I_FIBH' : [0, 0.1611328e-3],
-                                     'I_FOBH' : [0, 0.1611328e-3],
-                                     'I_P1V8' : [0, 0.1611328e-3],
-                                     'I_FSCH' : [0, 0.1611328e-3],
-                                     'I_FSC' : [0, 0.1611328e-3]})
+nat_unit = jbif.dfmap_genmap({'Temp': lambda x: x * 0.118480 - 273.15,
+                              'V_P2V4' : lambda x: x * 0.805664e-3,
+                              'V_P3V3' : lambda x: x * 1.067505e-3,
+                              'V_N8V' : lambda x: x * 2.607327e-3,
+                              'V_P5V' : lambda x: x * 1.611328e-3,
+                              'V_N5V' : lambda x: x * 1.614557e-3,
+                              'V_P12V' : lambda x: x * 3.886665e-3,
+                              'V_P8V' : lambda x: x * 2.584172e-3,
+                              'I_FIB' : lambda x: x * 0.1611328e-3,
+                              'I_FOB' : lambda x: x * 0.1611328e-3,
+                              'I_P3V3' : lambda x: x * 0.1611328e-3,
+                              'I_FIBH' : lambda x: x * 0.1611328e-3,
+                              'I_FOBH' : lambda x: x * 0.1611328e-3,
+                              'I_P1V8' : lambda x: x * 0.1611328e-3,
+                              'I_FSCH' : lambda x: x * 0.1611328e-3,
+                              'I_FSC' : lambda x: x * 0.1611328e-3})
 
 g = jbif.Grapher(pattern="PCU_HK*.csv",
             indep_var='Time',
             figure_opts=[None, None, {'plot_height': 200}],
             key_groups = [voltages, currents, temps],
-            cooker = nuc_dc
+            dfmap=nat_unit.apply,
+            cook_data=False
     )
 
 #to_cook_or_not_to_cook.on_change('value', lambda attr, old, new: g.get_csv_reader().on_change)
 
+def data_processing_checker(new):
+    print("changing cooking", new)
+    if 0 in new:
+        g.cook_data(True)
+    else:
+        g.cook_data(False)
+
 elems = g.make_new_graphs()
 
-rselect.on_change('value', lambda attr, old, new: g.update_graphs(datafmt=new))
+rselect.on_click(data_processing_checker)
 hselect.on_change('value', lambda attr, old, new: g.update_graphs(highlight=new))
 nslider.on_change('value', lambda attr, old, new: g.update_graphs(samples=new))
 
