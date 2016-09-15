@@ -14,6 +14,7 @@ from datetime import datetime
 from io import StringIO
 from bokeh.plotting import figure
 from bokeh.models.tools import WheelZoomTool
+from bokeh.models import Legend
 from glob import glob
 from numpy.fft import rfft, rfftfreq
 from math import sqrt
@@ -366,11 +367,12 @@ class Grapher:
             self.key_groups = key_groups
         self.dfmap = dfmap
         # we don't want to have to set cook_data
-        if cook_data is None:
+        self._cook_data = cook_data
+        if self._cook_data is None:
             if dfmap is not None:
-                self.cook_data = True
+                self._cook_data = True
             else:
-                self.cook_data = False
+                self._cook_data = False
         self.indep_var = indep_var
         self.cooker = cooker
 
@@ -411,16 +413,20 @@ class Grapher:
         j=0
         for key_group, df, x_var in zip(self.key_groups, dfs, indep_vars):
             i=0
+            legend_strings = []
             figures.append(default_figure(self.get_figure_opts(j)))
             for x in key_group:
                 if x == x_var:
                     continue
                 # storing the line renderer objects will allow us to update the
                 # lines without triggering a page redraw
-                self.active_lines[x + x_var + str(j) + str(i)] = figures[-1].line(df[x_var], df[x], legend=x,
-                                                        color=colors[i], line_width=1.5)
+                line = figures[-1].line(df[x_var], df[x], color=colors[i], line_width=1.5)
                 print("Made key: {}".format(x+x_var+str(j)+str(i)))
+                self.active_lines[x + x_var + str(j) + str(i)] = line
+                legend_strings.append((x, [line]))
                 i += 1
+            l = Legend(legends=legend_strings, location=(0, 0))
+            figures[-1].add_layout(l, 'right')
             j += 1
         return figures
 
@@ -431,9 +437,6 @@ class Grapher:
         """
         if self.pattern is not None:
             self.csv_reader.set_fname(get_latest_file(self.pattern))
-
-        if datafmt:
-            self.csv_reader.datafmt(datafmt)
 
         if samples:
             try:
@@ -472,8 +475,9 @@ class Grapher:
             new_indeps = self.indep_var
         else:
             new_indeps = [self.indep_var for i in self.key_groups]
-        if not self.cook_data:
+        if not self._cook_data:
             return [df for i in self.key_groups], new_indeps
+
 
         # --- dfmap is one function; apply it
         if callable(self.dfmap):
@@ -514,7 +518,7 @@ class Grapher:
         raise TypeError("dfmap is incorrectly structured")
 
     def cook_data(self, x):
-        self.cook_data = x
+        self._cook_data = x
 
 
 # find most-recently-produced
