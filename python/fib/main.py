@@ -1,5 +1,5 @@
 from bokeh.plotting import curdoc
-from bokeh.layouts import column, layout, widgetbox, gridplot
+from bokeh.layouts import layout, widgetbox, gridplot
 import sys
 sys.path.append("..")
 import jmag_bokeh_if as jbif
@@ -20,12 +20,11 @@ nat_unit = jbif.dfmap_genmap({'Bx': lambda x: x * 0.002026557922,
 
 g = jbif.Grapher(pattern = "FIB_Sci*.csv",
              key_groups  = [vectors, vectors, status],
-             dfmap       = ([nat_unit.apply], [None, jbif.dfmap_fft, None]),
+             dfmap       = (nat_unit.apply, [None, jbif.dfmap_fft, None]),
              indep_var   = ['Time', 'Freq', 'Time'],
              figure_opts = [None, {'x_axis_type':'linear'}, {'plot_height':200}])
 
 graphs = g.make_new_graphs()
-print("len(graphs)={}".format(len(graphs)))
 
 rselect.on_change('value', lambda attr, old, new: g.update_graphs(datafmt=new))
 hselect.on_change('value', lambda attr, old, new: g.update_graphs(highlight=new))
