@@ -47,7 +47,7 @@ def default_figure(kwargs):
     print("default_figure(): kwargs={}".format(kwargs))
     if type(kwargs) != dict:
         print("default_figure(): kwargs is not dict!")
-    kwargs['plot_height'] = kwargs.get('plot_height', 600)
+    kwargs['plot_height'] = kwargs.get('plot_height', 500)
     kwargs['plot_width']  = kwargs.get('plot_width', 600)
     kwargs['tools']       = kwargs.get('tools', 'box_zoom,pan,save,reset')
     kwargs['x_axis_type'] = kwargs.get('x_axis_type', 'datetime')
@@ -158,6 +158,16 @@ def dfmap_magnitude(df, indep_var='Time'):
             i += 1
         new_df = pandas.DataFrame.from_dict(new_df)#.sort_values(indep_var)
         return new_df
+
+
+def dfmap_zeromean(df, indep_var='Time'):
+    """
+    Remove mean value of df.
+    """
+    new_df = df.drop(indep_var, 1)
+    new_df = new_df - new_df.mean()
+    new_df[indep_var] = df[indep_var]
+    return new_df
 
 class dfmap_genmap:
     def __init__(self, mappings):
