@@ -10,20 +10,20 @@
 # factory. This reduces the client program to
 # a GUI and figuring out what to plot.
 import pandas
-from datetime import datetime
 from io import StringIO
 from bokeh.plotting import figure
 from bokeh.models.tools import WheelZoomTool
 from bokeh.models import Legend
 from glob import glob
+import numpy as np
 from numpy.fft import rfft, rfftfreq
 from math import sqrt
 #from functools import reduce
 from collections import deque
 #import multiprocessing as mp
+#from profilehooks import profile
+import ciso8601
 
-def dt_parse(s):
-    return datetime.strptime(s, "%Y-%m-%dT%H:%M:%S.%f")
 def mp_concat(x, y):
     return '\n'.join([x, y])
 def mp_magn(x):
@@ -58,6 +58,7 @@ def default_figure(kwargs):
 
 
 # dfmap -> fft incoming data
+#@profile
 def dfmap_fft(df, indep_var='Time'):
     if df is not None:
         df = df
@@ -68,7 +69,7 @@ def dfmap_fft(df, indep_var='Time'):
         if key == indep_var:
             continue
         new_df[key] = rfft(df[key])
-        new_df[key] = list(map(mp_magn, new_df[key]))
+        new_df[key] = list(map(np.absolute, new_df[key]))
         new_df[key] = list(map(lambda x: 2*x/n, new_df[key]))
 
     # avg time between samples
@@ -111,7 +112,7 @@ def dfmap_magnitude(df, indep_var='Time'):
         new_df = pandas.DataFrame.from_dict(new_df)#.sort_values(indep_var)
         return new_df
 
-
+#@profile
 def dfmap_zeromean(df, indep_var='Time'):
     """
     Remove mean value of df.
@@ -122,8 +123,11 @@ def dfmap_zeromean(df, indep_var='Time'):
     return new_df
 
 class dfmap_genmap:
+
     def __init__(self, mappings):
         self.mappings = mappings
+
+    #@profile
     def apply(self, df, indep_var='Time'):
         new_df = {}
         for key in df:
@@ -178,6 +182,7 @@ class CSV_Reader:
     def _count_lines_blockwise(self, f):
         return sum(bl.count('\n') for bl in self._blocks(f))
 
+    #@profile
     def get_header(self):
         """
         Get the active header from the CSV.
@@ -201,6 +206,7 @@ class CSV_Reader:
             return self.header
         return ''
 
+    #@profile
     def tail(self):
         """
         Tail the file; takes num_dp lines from the bottom.
@@ -209,18 +215,21 @@ class CSV_Reader:
             q = deque(f, self.num_dp)
         return "".join(q)
 
+    #@profile
     def get_dataframe(self):
         """
         Returns the tail of the file as a parsed Pandas dataframe object
         """
-        csv = self.get_header() + self.tail()
-        if len(csv) > 0:
-            df = pandas.read_csv(StringIO(str(csv)))
+        head = self.get_header()
+        tail = self.tail()
+
+        if len(head) > 0 and tail.count('\n') > 1:
+            df = pandas.read_csv(StringIO(str(head+tail)))
         else:
             df = pandas.DataFrame()
         try:
             # ISO 8601 datetime string -> Python datetime object
-            df['Time'] = list(map(dt_parse, df['Time']))
+            df['Time'] = list(map(ciso8601.parse_datetime, df['Time']))
         except KeyError:
             pass
         except TypeError:
@@ -229,16 +238,11 @@ class CSV_Reader:
         return df#.sort_values(self.indep_var)
 
 class Grapher:
+
     def __init__(self, figure_opts=None, key_group=None, indep_var='Time',
                  df=None):
         """
         Constructor.
-            pattern         : Grapher can check for a new file according
-                              to a glob pattern specified here every
-                              time update_graphs() is called. This specifies
-                              that glob pattern.
-            figure_cb       : callback to generate a figure;
-                              there is a sane default here.
             key_group       : a list of lists of strings;
                               each string should be from the
                               CSV header / a working dataframe
@@ -249,11 +253,9 @@ class Grapher:
                               by method make_new_graphs()
             indep_var       : variable to use on the x-axis. Can
                               be a single value or per-keygroup.
-            cook_data       : Boolean to enable/disable data cooking.
         """
         self.active_lines = {}
         self.figure_opts  = figure_opts
-        print("Have figure opts: {}".format(figure_opts))
         self.key_group = key_group
         self.indep_var = indep_var
         self.df = df
@@ -268,36 +270,36 @@ class Grapher:
             return dict()
         return self.figure_opts
 
+    #@profile
     def make_new_graph(self):
         """
         Creates a new set of graphs.
         """
-        # the old lines don't matter and get tossed out
-        # hope the GC is feeling performant today
-        print("make_new_graph(): plotting against indep {}".format(self.indep_var))
         self.active_lines = {}
-        print("Have dataframe for key group {}".format(self.key_group))
-        print("len(self.key_groups)={}".format(len(self.key_group)))
-
         legend_strings = []
         figure = default_figure(self.get_figure_opts())
+
         for y, i in zip(self.key_group, range(len(self.key_group))):
             print("make_new_graph(): plotting {}".format(y))
+
             if y == self.indep_var:
                 print("make_new_graph(): y={} is the indep var".format(y))
                 continue
+
             print("make_new_graph(): y={} is a dep var".format(y))
+
             # storing the line renderer objects will allow us to update the
             # lines without triggering a page redraw
             line = figure.line(self.df[self.indep_var], self.df[y],
                     color=colors[i], line_width=1.5)
-            print("Made key: {}".format(y))
             self.active_lines[y] = line
             legend_strings.append((y, [line]))
+
         l = Legend(legends=legend_strings, location=(0, 0))
         figure.add_layout(l, 'right')
         return figure
 
+    #@profile
     def update_graph(self, df, highlight=None):
         """
         Tail the watched file and redraw graphs

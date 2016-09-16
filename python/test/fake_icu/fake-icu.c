@@ -99,7 +99,9 @@ const char *log_tags[ ] = { FG_BLUE   "[+] " COLOR_END,  /* INFO */
 /* default noise amplitude: can enable without specifying */
 #define DEFAULT_NOISE_AMPL 512
 /* amplitude for sine(), square(), random(), etc */
-#define DEFAULT_AMPLITUDE 4096
+#define DEFAULT_AMPLITUDE 2048 
+
+#define US_JITTER 1 
 
 /* makes calling localtime() prettier */
 #define _local_time() (&(time_t){time(NULL)})
@@ -240,15 +242,16 @@ void timestamp(FILE *f)
 {
 	fprintf(f, "%04ld-%02ld-%02ldT%02ld:%02ld:%02ld.%06ld,",
 		now.y, now.mo, now.d, now.h, now.mi,
-		now.s, now.us);
+		now.s, now.us + random() % US_JITTER);
 }
 
 #define clk() _ts_to_s(now)
-double _ts_to_s(struct timestamp ts) {
-	return ts.h  / 3600.0
-	     + ts.mi /   60.0
+double _ts_to_s(struct timestamp ts)
+{
+	return ts.h * 3600.0
+	     + ts.mi *  60.0
 	     + (double) ts.s
-	     + ts.us * 1e6;
+	     + ts.us / 1e6;
 }
 
 int sine(int A, double f)
@@ -265,10 +268,16 @@ int sine(int A, double f)
 int square(int A, double f)
 {
 	// I ASSURE YOU THIS SOMETIMES WORKS
-	double y = sine(1, f);
-	int ret = y > 0 ? A
-			: (fabs(y) < 1.0f ? A/2
-					  : 0);
+	double t = clk(),
+	       T = 1/f;
+	int ret;
+	
+	t = fmod(t, T);
+
+	if (t < 0.5*T) ret = A/2;
+	else if (t > 0.5 * T) ret = -A/2;
+	else ret = 0;
+
 	if (opts.noise_ampl)
 		ret += random() % opts.noise_ampl;
 
@@ -392,11 +401,6 @@ int main(int argc, char *argv[])
 	tzero.s  = tm_zero.tm_sec;
 	tzero.us = 0;
 	now = tzero;
-
-	debug(D_BUG_UNRESOLVED, "timestamping stdout...");
-	timestamp(stdout); printf("\n");
-	debug(D_BUG_UNRESOLVED, "wtf?");
-
 
 	debug(D_INFO, "This is\ntesting the\nlogging facility.");
 
