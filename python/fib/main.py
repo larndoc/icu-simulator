@@ -18,31 +18,34 @@ nat_unit = jbif.dfmap_genmap({'Bx': lambda x: x * 0.002026557922,
                               'By': lambda x: x * 0.002026557922,
                               'Bz': lambda x: x * 0.002026557922})
 
-g = jbif.Grapher(pattern = "FIB_Sci*.csv",
-             key_groups  = [vectors, vectors, status],
-             dfmap       = (nat_unit.apply, [None, jbif.dfmap_fft, None]),
-             indep_var   = ['Time', 'Freq', 'Time'],
-             figure_opts = [None, {'x_axis_type':'linear'}, {'plot_height':200}])
+ds = jbif.CSV_Reader(pattern='FIB_Sci*.csv')
+df = ds.get_dataframe()
+dF = jbif.dfmap_fft(df)
 
-graphs = g.make_new_graphs()
+gt = jbif.Grapher(df=df, indep_var = 'Time', key_group = ['Bx', 'By', 'Bz'])
+gf = jbif.Grapher(df=dF, indep_var = 'Freq', key_group = ['Bx', 'By', 'Bz'])
+gs = jbif.Grapher(df=df, indep_var = 'Time', key_group = ['Status'])
 
-def data_processing_checker(new):
-    print("changing cooking", new)
-    if 0 in new:
-        g.cook_data(True)
-    else:
-        g.cook_data(False)
 
-elems = g.make_new_graphs()
+def update():
+    df = ds.get_dataframe()
+    if 0 in rselect.active:
+        df = nat_unit.apply(df)
+    if 1 in rselect.active:
+        df = jbif.dfmap_zeromean(df)
+    gt.update_graph(df)
+    gf.update_graph(jbif.dfmap_fft(df))
+    gs.update_graph(df)
 
-rselect.on_click(data_processing_checker)
-hselect.on_change('value', lambda attr, old, new: g.update_graphs(highlight=new))
-nslider.on_change('value', lambda attr, old, new: g.update_graphs(samples=new))
+hselect.on_change('value', lambda attr, old, new: map(lambda x: x.update_graph(x.ds, highlight=new),
+                                                      [gt, gf, gs]))
+nslider.on_change('value', lambda attr, old, new: ds.set_num_dp(int(new)))
 
 box = widgetbox(hselect, rselect, nslider,  sizing_mode='fixed')
-grid = gridplot([[graphs[0], graphs[1]], [graphs[2], None]])
+grid = gridplot([[gt.make_new_graph(), gf.make_new_graph()],
+                 [gs.make_new_graph(), None]])
 
 l = layout([desc], [box, grid])
 
 curdoc().add_root(l)
-curdoc().add_periodic_callback(g.update_graphs, 500)
+curdoc().add_periodic_callback(update, 500)
