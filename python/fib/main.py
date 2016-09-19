@@ -8,10 +8,7 @@ import traceback
 
 desc = Div(text="<h1>J-MAG FIB Science monitor</h1><p>Shows the science data from the FEE, which are 3 magnetic field vectors and a status byte.</p>", width=800)
 
-vectors = ['Bx', 'By', 'Bz']
-status = ['Status']
-
-hselect = Select(title="Highlight", value="All", options=["All"]+vectors+status)
+#hselect = Select(title="Highlight", value="All", options=["All"]+vectors+status)
 rselect = CheckboxButtonGroup(labels=["convert", "0-mean"])
 nslider = TextInput(title="Samples", value="1024")
 
@@ -19,7 +16,7 @@ nat_unit = jbif.dfmap_genmap({'Bx': lambda x: x * 0.002026557922,
                               'By': lambda x: x * 0.002026557922,
                               'Bz': lambda x: x * 0.002026557922})
 
-ds = jbif.CSV_Reader(pattern='FIB_Sci*.csv')
+ds = jbif.CSV_Reader(pattern="FIB_Sci*.csv")
 df = ds.get_dataframe()
 dF = jbif.dfmap_fft(df)
 
@@ -30,7 +27,7 @@ gs = jbif.Grapher(df=df, indep_var = 'Time', key_group = ['Status'])
 
 
 def _update():
-    ds = jbif.CSV_Reader(pattern="FIB_Sci*.csv")
+    ds.set_num_dp(int(nslider.value))
     df = ds.get_dataframe()
     if 0 in rselect.active:
         df = nat_unit.apply(df)
@@ -47,11 +44,7 @@ def update():
         print(e)
         print(traceback.format_exc())
 
-hselect.on_change('value', lambda attr, old, new: map(lambda x: x.update_graph(x.ds, highlight=new),
-                                                      [gt, gf, gs]))
-nslider.on_change('value', lambda attr, old, new: ds.set_num_dp(int(new)))
-
-box = widgetbox(hselect, rselect, nslider,  sizing_mode='fixed')
+box = widgetbox(rselect, nslider,  sizing_mode='fixed')
 grid = gridplot([[gt.make_new_graph(), gf.make_new_graph()],
                  [gs.make_new_graph(), None]])
 

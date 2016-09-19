@@ -13,7 +13,7 @@ import pandas
 from io import StringIO
 from bokeh.plotting import figure
 from bokeh.models.tools import WheelZoomTool
-from bokeh.models import Legend
+from bokeh.models import Legend, ColumnDataSource
 from glob import glob
 import numpy as np
 from numpy.fft import rfft, rfftfreq
@@ -258,7 +258,7 @@ class Grapher:
         self.figure_opts  = figure_opts
         self.key_group = key_group
         self.indep_var = indep_var
-        self.df = df
+        self.source = ColumnDataSource(data=df)
 
     def get_figure_opts(self):
         """
@@ -290,8 +290,7 @@ class Grapher:
 
             # storing the line renderer objects will allow us to update the
             # lines without triggering a page redraw
-            line = figure.line(self.df[self.indep_var], self.df[y],
-                    color=colors[i], line_width=1.5)
+            line = figure.line(self.indep_var, y, source=self.source, color=colors[i], line_width=1.5)
             self.active_lines[y] = line
             legend_strings.append((y, [line]))
 
@@ -306,7 +305,7 @@ class Grapher:
         without triggering a page redraw.
         """
 
-        self.df = df
+        self.source.data = ColumnDataSource.from_df(df)
 
         if highlight:
             if highlight == "All":
@@ -318,10 +317,6 @@ class Grapher:
                         l.glyph.line_color = colors[1]
                     else:
                         l.glyph.line_color = colors[0]
-
-        for y in self.key_group:
-            self.active_lines[y].data_source.data['x'] = df[self.indep_var]
-            self.active_lines[y].data_source.data['y'] = df[y]
 
 # find most-recently-produced
 # CSV in the directory
