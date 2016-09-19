@@ -21,8 +21,9 @@ from math import sqrt
 #from functools import reduce
 from collections import deque
 #import multiprocessing as mp
-#from profilehooks import profile
+from profilehooks import profile
 import ciso8601
+#import itertools
 
 def mp_concat(x, y):
     return '\n'.join([x, y])
@@ -155,6 +156,7 @@ class CSV_Reader:
 
         self.header = None
         self.dp_count = 0
+        #self.which_tailer = itertools.cycle([0, 1])
 
     def set_fname(self, fname):
         """
@@ -207,13 +209,36 @@ class CSV_Reader:
         return ''
 
     #@profile
-    def tail(self):
-        """
-        Tail the file; takes num_dp lines from the bottom.
-        """
+    #def _tail(self):
+    #    """
+    #    Tail the file; takes num_dp lines from the bottom.
+    #    """
+    #    with open(self.fname, 'r') as f:
+    #        q = deque(f, self.num_dp)
+    #    return "".join(q)
+
+    @profile
+    #def _tail2(self):
+    def tail(self, sz=65536):
         with open(self.fname, 'r') as f:
+            f.seek(0, 2)
+            fsize = f.tell()
+            f.seek(max(fsize-sz, 0), 0)
             q = deque(f, self.num_dp)
+            while len(q) < self.num_dp-1:
+                sz *= 2
+                f.seek(max(fsize-sz, 0), 0)
+                q = deque(f, self.num_dp)
+
         return "".join(q)
+
+    #def tail(self):
+    #    n = self.which_tailer.__next__()
+    #    print("_tail{}()".format(n+1))
+    #    return [
+    #        self._tail(),
+    #        self._tail2()
+    #    ][n]
 
     #@profile
     def get_dataframe(self):
