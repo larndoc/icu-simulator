@@ -72,7 +72,7 @@ void _usage(char *file, int line, const char *func, const char *name, const char
 		"\tbuffer       Number of data points to buffer before output\n"
 		"\t             (i.e. will output nper * f points per second)\n"
 		"Example usage:\n"
-		"\t%s fib fob pcu wave fib square 10 wave fob sine 25 t 250ms\n"
+		"\t%s fib fob pcu w fib \"sin(t)\" t 250ms\n"
 		"\t%s fib_hk fsc_sci wave fib_hk random\n"
 		"\t%s fob_hk freq 128 Hz wf fob_hk sine 0.5 noise\n"
 		"--------------------------------------------------------\n"

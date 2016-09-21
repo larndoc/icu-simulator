@@ -16,10 +16,6 @@ void _debug(int, char *, const char *, char *, int, bool, char *,...);
 #define debug(level, ...) _debug(level, __FILE__, __func__, NULL, __LINE__, opts.verbose, \
 				 __VA_ARGS__);
 
-static const char *log_tags[ ] = { FG_BLUE   "[+] " COLOR_END,  /* INFO */
-			    FG_PURPLE "[-] " COLOR_END,  /* BUG RESOLVED */
-			    FG_YELLOW "[*] " COLOR_END,  /* NOTICE */
-		     TEXT_BOLD FG_RED "[!] " COLOR_END}; /* BUG UNRESOLVED */
 
 /* Use D_INFO to trace program flow,
  * D_BUG_UNRESOLVED to flag debug

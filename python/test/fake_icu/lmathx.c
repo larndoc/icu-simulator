@@ -394,6 +394,7 @@ static const luaL_Reg R[] =
 	{ NULL,	NULL }
 };
 
+__attribute__((unused))
 static int luaopen_mathx(lua_State *L)
 {
  luaL_newlib(L,R);

@@ -6,6 +6,12 @@
 #include <stdlib.h>
 #include "log.h"
 
+static const char *log_tags[]
+			= { FG_BLUE   "[+] " COLOR_END,   /* INFO           */
+			    FG_PURPLE "[-] " COLOR_END,   /* BUG RESOLVED   */
+			    FG_YELLOW "[*] " COLOR_END,   /* NOTICE         */
+		     TEXT_BOLD FG_RED "[!] " COLOR_END }; /* BUG UNRESOLVED */
+
 void _debug(int loglevel, char *file, const char *func,
 	    char *clock, int line, bool verbose, char *msg, ...)
 {
@@ -38,6 +44,6 @@ void _debug(int loglevel, char *file, const char *func,
 	char *to_print = strtok(buffer, "\n");
 	printf("%s\n", to_print);
 
-	while (to_print = strtok(NULL, "\n"))
+	while ((to_print = strtok(NULL, "\n")) != NULL)
 		printf("%s| %s\n", buf, to_print);
 }
