@@ -2,7 +2,7 @@
 # anywhere else on the command line, so plz don't.
 # as a side note since when are math libs not automatically linked?
 
-SRCS = fake-icu.c ae.c lmathx.c log.c
+SRCS = fake-icu.c ae.c lmathx.c log.c wf.c util.c
 TRGT = fake-icu
 INCL = /usr/include/lua5.3
 LIBS = /usr/lib/x86_64-linux-gnu/

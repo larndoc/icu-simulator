@@ -11,7 +11,7 @@ struct timestamp {
 	     us; /* microsecond */
 };
 
-static struct timestamp tzero, now;
+extern struct timestamp tzero, now;
 
 #define is_leap_year(x) ((x%400) || (!(x%4) && (x%100)))
 #define wrap(var, lim, of) if (var < lim); else { var = fmod(var, lim); of++; }

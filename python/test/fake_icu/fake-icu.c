@@ -14,6 +14,7 @@
 #include "opts.h"
 #include "util.h"
 #include "tm.h"
+#include "wf.h"
 
 /* FIXME: find a GENSYM macro that works */
 #define ARGV_COUNTER _argv_counter
@@ -28,19 +29,10 @@
 #define IF_ARG_NOT_EXISTS if (ARGV_COUNTER >= argc)
 #define CHECK_ARGV if (ARGV_COUNTER >= argc) usage(argv[0], "CHECK_ARGV")
 #define ENSURE_WF_EXISTS(d) if(!(opts.enabled[d]&&!opts.wf[d])); else opts.wf[d]="sin(t)"
-#define PARSE_WAVE(x) do { NEXT_ARG_MUST_EXIST; x = THIS_ARG; } while (0) 
+#define PARSE_WAVE do { NEXT_ARG_MUST_EXIST; opts.waveforms[opts.num_wf++].name = THIS_ARG; NEXT_ARG_MUST_EXIST; opts.waveforms[opts.num_wf].expr = THIS_ARG;} while (0) 
 
 struct _opts opts;
-
-double eval(char buf[256])
-{
-	debug(D_BUG_RESOLVED, "have buf at <0x%lx>: %s\n",
-	      (unsigned long long)buf, buf);
-	ae_set("t", clk());
-	debug(D_BUG_RESOLVED, "ae_set() ok\n");
-	return ae_eval(buf);
-}
-
+struct timestamp tzero, now;
 
 int main(int argc, char *argv[])
 {
@@ -71,11 +63,15 @@ int main(int argc, char *argv[])
 	opts.n = 0;
 	opts.dp_per_output = 1;
 	opts.noise_ampl = 0;
+	opts.num_wf = 0;
 	for (int j = 0; j < N_DEV; j++) {
 		opts.enabled[j] = false;
 		opts.wf[j] 	= NULL;
 		opts.freq[j]    = 0.0f;
 	}
+
+	for (int k = 0; k < N_DEV*32; k++)
+		opts.waveforms[k] = (struct _wf) {NULL, NULL};
 
 	/* start the lua interpreter */
 	ae_open();
@@ -129,30 +125,14 @@ int main(int argc, char *argv[])
 		else IF_ARG("wave") goto waveform;
 		else IF_ARG("waveform") {
 			waveform:
-			debug(D_INFO, "Got waveform; parsing...\n");
 			NEXT_ARG_MUST_EXIST;
-			/* to be totally clear, this trick relies on the RHS *
-			 * of assignment evaluating before the LHS, and	     *
-			 * assignment evaluating to the RHS value. After the *
-			 * assignment a = b = c, (a==c) && (b==c) => true.   */
-			IF_ARG("fib")
-				PARSE_WAVE(opts.wf[FIB_SCI]
-					   = opts.wf[FIB_HK]);
-			else IF_ARG("fob")
-				PARSE_WAVE(opts.wf[FOB_SCI]
-					   = opts.wf[FOB_HK]); 
-			else IF_ARG("fsc")
-				PARSE_WAVE(opts.wf[FSC_SCI]
-					   = opts.wf[FSC_HK]);
-
-			else IF_ARG("fib_sci") PARSE_WAVE(opts.wf[FIB_SCI]);
-			else IF_ARG("fob_sci") PARSE_WAVE(opts.wf[FOB_SCI]);
-			else IF_ARG("fsc_sci") PARSE_WAVE(opts.wf[FSC_SCI]);
-			else IF_ARG("fib_hk")  PARSE_WAVE(opts.wf[FIB_HK]);
-			else IF_ARG("fob_hk")  PARSE_WAVE(opts.wf[FOB_HK]);
-			else IF_ARG("fsc_hk")  PARSE_WAVE(opts.wf[FSC_HK]);
-			else IF_ARG("pcu")     PARSE_WAVE(opts.wf[PCU_HK]);
-			else usage(argv[0], "invalid waveform specified");
+			char *dev = strtok(THIS_ARG, ":");
+			char *name = strtok(NULL, ":");
+			debug(D_BUG_UNRESOLVED, "wf: parsed %s:%s\n", dev, name);
+			NEXT_ARG_MUST_EXIST;
+			opts.waveforms[opts.num_wf].dev = dev;
+			opts.waveforms[opts.num_wf].name = name;
+			opts.waveforms[opts.num_wf].expr = THIS_ARG;
 		}
 
 		/* inject noise into the signal optionally */
@@ -316,7 +296,6 @@ int main(int argc, char *argv[])
 	 * we expect to be killed by a signal otherwise.              */
 	int count = 0;
 	while (1) {
-
 		if (opts.n && count >= opts.n)
 			break;
 
@@ -325,7 +304,8 @@ int main(int argc, char *argv[])
 			if (!opts.enabled[i])
 				continue;
 
-			debug(D_INFO, "Device %d is about to go live\n", i);
+			debug(D_INFO, "Device %d (%s) is about to go live\n",
+			      i, interfaces[i]);
 			
 			/* Compute output and print */
 			for (int k = 0; k < opts.dp_per_output; k++) {	
@@ -333,20 +313,16 @@ int main(int argc, char *argv[])
 				timestamp(out[i]);
 
 				for (int j = 0; j < num_dp[i]-1; j++) {
-
-					debug(D_BUG_RESOLVED,
-					      "Evaluating <0x%llx> (dev id=%d): %s\n",
-					      (unsigned long long)opts.wf[i],
-					      i, opts.wf[i]);
-
-					double _out = eval(opts.wf[i]);
+					debug(D_BUG_UNRESOLVED, "eval maj/min %d,%d", i, j);
+					double _out = eval_by_major_minor(i, j);
 					debug(D_BUG_RESOLVED, "Have result %lf\n", _out);
 					fprintf(out[i], "%lf,", _out);
 						//opts.wf[i](DEFAULT_AMPLITUDE,
 					//		   opts.freq[i]));
 				}
 
-				fprintf(out[i], "%lf\n", eval(opts.wf[i]));
+				fprintf(out[i], "%lf\n", eval_by_major_minor(i,
+									     num_dp[i]-1));
 				tick();
 				count++;
 			}

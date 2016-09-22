@@ -12,7 +12,7 @@
 #define fmt_from_tm(tm) tm->tm_year,tm->tm_mon,tm->tm_mday,\
 			tm->tm_hour,tm->tm_min,tm->tm_sec
 /* pretty-printing debugging stuff */
-void _debug(int, char *, const char *, char *, int, bool, char *,...);
+int _debug(int, char *, const char *, char *, int, bool, char *,...);
 #define debug(level, ...) _debug(level, __FILE__, __func__, NULL, __LINE__, opts.verbose, \
 				 __VA_ARGS__);
 
