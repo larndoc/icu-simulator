@@ -3,7 +3,7 @@ from bokeh.layouts import layout, widgetbox, gridplot
 import sys
 sys.path.append("..")
 import jmag_bokeh_if as jbif
-from bokeh.models.widgets import Select, TextInput, Div, CheckboxButtonGroup
+from bokeh.models.widgets import Select, TextInput, Div, CheckboxButtonGroup, CheckboxGroup
 import traceback
 
 desc = Div(text="<h1>J-MAG FIB Science monitor</h1><p>Shows the science data from the FEE, which are 3 magnetic field vectors and a status byte.</p>", width=800)
@@ -20,6 +20,10 @@ ds = jbif.CSV_Reader(pattern="FIB_Sci*.csv")
 df = ds.get_dataframe()
 dF = jbif.dfmap_fft(df)
 
+keys = [k for k in df]
+keys = list(filter(lambda k: k != 'Time', keys))
+hlsel = CheckboxGroup(labels=keys, active=list(range(len(keys))))
+
 gt = jbif.Grapher(df=df, indep_var = 'Time', key_group = ['Bx', 'By', 'Bz'])
 gf = jbif.Grapher(df=dF, indep_var = 'Freq', key_group = ['Bx', 'By', 'Bz'],
                   figure_opts = {'x_axis_type':'linear'})
@@ -27,15 +31,17 @@ gs = jbif.Grapher(df=df, indep_var = 'Time', key_group = ['Status'], figure_opts
 
 
 def _update():
+    print("_update(): hlsel.active={}".format(hlsel.active))
     ds.set_num_dp(int(nslider.value))
     df = ds.get_dataframe()
     if 0 in rselect.active:
         df = nat_unit.apply(df)
     if 1 in rselect.active:
         df = jbif.dfmap_zeromean(df)
-    gt.update_graph(df)
-    gf.update_graph(jbif.dfmap_fft(df, indep_var='Time'))
-    gs.update_graph(df)
+    gt.update_graph(df, highlight=list(map(lambda x: keys[x], hlsel.active)))
+    gf.update_graph(jbif.dfmap_fft(df, indep_var='Time'),
+                    highlight=list(map(lambda x: keys[x], hlsel.active)))
+    gs.update_graph(df, highlight=list(map(lambda x: keys[x], hlsel.active)))
 
 def update():
     try:
@@ -44,7 +50,7 @@ def update():
         print(e)
         print(traceback.format_exc())
 
-box = widgetbox(rselect, nslider,  sizing_mode='fixed')
+box = widgetbox(rselect, nslider, hlsel,  sizing_mode='fixed')
 grid = gridplot([[gt.make_new_graph(), gf.make_new_graph()],
                  [gs.make_new_graph(), None]])
 

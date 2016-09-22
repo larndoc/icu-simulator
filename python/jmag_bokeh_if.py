@@ -32,9 +32,9 @@ def mp_magn(x):
 
 #p = mp.Pool(processes=1)
 
-colors = ["#008080", "#8B0000", "#006400", "#2F4F4F",
-          "#800000", "#FF00FF", "#4B0082", "#191970",
-          "#808000", "#696969", "#0000FF", "#FF4500"]
+_colors = ["#008080", "#8B0000", "#006400", "#2F4F4F",
+           "#800000", "#FF00FF", "#4B0082", "#191970",
+           "#808000", "#696969", "#0000FF", "#FF4500"]
 
 # for convenience -> specify your data directory here
 # !! this should be an absolute path so we don't get
@@ -75,9 +75,8 @@ def dfmap_fft(df, indep_var='Time'):
 
     # avg time between samples
     # assumes uniform sampling
-    dt = (b-a)
-    #dt = (b-a).total_seconds()
-    dt /= n
+    dt = (b-a) / n
+    #dt = (b-a).total_seconds() / n
 
     # get list of frequencies from the fft
     # new_df['Freq'] = fftfreq(len(self.df[key]), dt)
@@ -273,7 +272,7 @@ class CSV_Reader:
 class Grapher:
 
     def __init__(self, figure_opts=None, key_group=None, indep_var='Time',
-                 df=None):
+                 df=None, colors=None):
         """
         Constructor.
             key_group       : a list of lists of strings;
@@ -292,7 +291,11 @@ class Grapher:
         self.key_group = key_group
         self.indep_var = indep_var
         self.source = ColumnDataSource(data=df)
-
+        self.colors = None
+        if colors is None:
+            self.colors = _colors
+        else:
+            self.colors = colors
     def get_figure_opts(self):
         """
         Get figure options. Either
@@ -323,7 +326,8 @@ class Grapher:
 
             # storing the line renderer objects will allow us to update the
             # lines without triggering a page redraw
-            line = figure.line(self.indep_var, y, source=self.source, color=colors[i], line_width=1.5)
+            line = figure.line(self.indep_var, y, source=self.source,
+                    color=self.colors[i], line_width=1.5)
             self.active_lines[y] = line
             legend_strings.append((y, [line]))
 
@@ -338,18 +342,15 @@ class Grapher:
         without triggering a page redraw.
         """
 
+        print("update_graph(): highlight={}".format(highlight))
         self.source.data = ColumnDataSource.from_df(df)
 
-        if highlight:
-            if highlight == "All":
-                for l, c in zip(self.active_lines.values(), colors):
-                    l.glyph.line_color = c
-            else:
+        if highlight is not None:
                 for key, l in self.active_lines.items():
-                    if highlight in key:
-                        l.glyph.line_color = colors[1]
+                    if key in highlight:
+                        l.glyph.line_alpha = 1
                     else:
-                        l.glyph.line_color = colors[0]
+                        l.glyph.line_alpha = 0.2
 
 # find most-recently-produced
 # CSV in the directory
