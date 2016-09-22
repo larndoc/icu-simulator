@@ -23,7 +23,7 @@ dF = jbif.dfmap_fft(df)
 gt = jbif.Grapher(df=df, indep_var = 'Time', key_group = ['Bx', 'By', 'Bz'])
 gf = jbif.Grapher(df=dF, indep_var = 'Freq', key_group = ['Bx', 'By', 'Bz'],
                   figure_opts = {'x_axis_type':'linear'})
-gs = jbif.Grapher(df=df, indep_var = 'Time', key_group = ['Status'])
+gs = jbif.Grapher(df=df, indep_var = 'Time', key_group = ['Status'], figure_opts={'plot_height': 200})
 
 
 def _update():

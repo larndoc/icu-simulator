@@ -21,7 +21,7 @@ from math import sqrt
 #from functools import reduce
 from collections import deque
 #import multiprocessing as mp
-from profilehooks import profile
+#from profilehooks import profile
 import ciso8601
 #import itertools
 
@@ -51,7 +51,7 @@ def default_figure(kwargs):
     kwargs['plot_height'] = kwargs.get('plot_height', 500)
     kwargs['plot_width']  = kwargs.get('plot_width', 600)
     kwargs['tools']       = kwargs.get('tools', 'box_zoom,pan,save,reset')
-    kwargs['x_axis_type'] = kwargs.get('x_axis_type', 'datetime')
+    #kwargs['x_axis_type'] = kwargs.get('x_axis_type', 'datetime')
     #kwargs['webgl']       = kwargs.get('webgl', False)
     p = figure(**kwargs)
     p.add_tools(WheelZoomTool(dimensions=['height']))
@@ -75,7 +75,8 @@ def dfmap_fft(df, indep_var='Time'):
 
     # avg time between samples
     # assumes uniform sampling
-    dt = (b-a).total_seconds()
+    dt = (b-a)
+    #dt = (b-a).total_seconds()
     dt /= n
 
     # get list of frequencies from the fft
@@ -140,7 +141,7 @@ class dfmap_genmap:
 
 
 class CSV_Reader:
-    def __init__(self, fname=None, pattern=None, num_dp=1024, indep_var='Time'):
+    def __init__(self, fname=None, pattern=None, num_dp=1024, indep_var='Time', relative_time=True):
         """
         Constructor method.
             fname       : file name to read
@@ -156,6 +157,7 @@ class CSV_Reader:
 
         self.header = None
         self.dp_count = 0
+        self._rt = relative_time
         #self.which_tailer = itertools.cycle([0, 1])
 
     def set_fname(self, fname):
@@ -173,16 +175,16 @@ class CSV_Reader:
         """
         self.num_dp = num_dp
 
-    def _blocks(self, f, sz=16384):
-        # generator reads 16kb blocks
-        while True:
-            b = f.read(sz)
-            if not b:
-                break
-            yield b
-
-    def _count_lines_blockwise(self, f):
-        return sum(bl.count('\n') for bl in self._blocks(f))
+    # def _blocks(self, f, sz=16384):
+    #     # generator reads 16kb blocks
+    #     while True:
+    #         b = f.read(sz)
+    #         if not b:
+    #             break
+    #         yield b
+    #
+    # def _count_lines_blockwise(self, f):
+    #     return sum(bl.count('\n') for bl in self._blocks(f))
 
     #@profile
     def get_header(self):
@@ -192,7 +194,7 @@ class CSV_Reader:
         a tail of the file, returns '' instead;
         returning another value would cause an error.
         """
-        if self.header is not None and self.dp_count > self.num_dp:
+        if self.header is not None:
             return self.header
 
         # either no header or insufficient data points to return one;
@@ -202,11 +204,8 @@ class CSV_Reader:
             if self.header is None:
                 self.header = f.readline()
                 f.seek(0)
-            self.dp_count = self._count_lines_blockwise(f)
 
-        if self.dp_count > self.num_dp:
-            return self.header
-        return ''
+        return self.header
 
     #@profile
     #def _tail(self):
@@ -217,19 +216,20 @@ class CSV_Reader:
     #        q = deque(f, self.num_dp)
     #    return "".join(q)
 
-    @profile
+    #@profile
     #def _tail2(self):
     def tail(self, sz=65536):
         with open(self.fname, 'r') as f:
             f.seek(0, 2)
             fsize = f.tell()
             f.seek(max(fsize-sz, 0), 0)
-            q = deque(f, self.num_dp)
-            while len(q) < self.num_dp-1:
+            q = deque(f, self.num_dp+1)
+            while (len(q) < self.num_dp+1) and (fsize > sz):
                 sz *= 2
                 f.seek(max(fsize-sz, 0), 0)
-                q = deque(f, self.num_dp)
-
+                q = deque(f, self.num_dp+1)
+        if len(q) > 0:
+            q.popleft()
         return "".join(q)
 
     #def tail(self):
@@ -239,6 +239,11 @@ class CSV_Reader:
     #        self._tail(),
     #        self._tail2()
     #    ][n]
+
+    def _relative_time(self, df):
+        if self.indep_var == 'Time':
+            df[self.indep_var] = (df[self.indep_var] - max(df[self.indep_var]))/np.timedelta64(1, 's')
+        return df
 
     #@profile
     def get_dataframe(self):
@@ -252,6 +257,7 @@ class CSV_Reader:
             df = pandas.read_csv(StringIO(str(head+tail)))
         else:
             df = pandas.DataFrame()
+
         try:
             # ISO 8601 datetime string -> Python datetime object
             df['Time'] = list(map(ciso8601.parse_datetime, df['Time']))
@@ -259,8 +265,10 @@ class CSV_Reader:
             pass
         except TypeError:
             print(df['Time'])
-
-        return df#.sort_values(self.indep_var)
+        if self._rt:
+            return self._relative_time(df)
+        else:
+            return df
 
 class Grapher:
 
