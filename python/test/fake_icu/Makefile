@@ -2,15 +2,35 @@
 # anywhere else on the command line, so plz don't.
 # as a side note since when are math libs not automatically linked?
 
-SRCS = fake-icu.c ae.c lmathx.c log.c wf.c util.c
-TRGT = fake-icu
+SRCS = $(wildcard *.c)
+OBJS = $(SRCS:.c=.o)
 INCL = /usr/include/lua5.3
 LIBS = /usr/lib/x86_64-linux-gnu/
+TRGT = fake-icu
+CC = gcc
+CFLAGS = -Wall -Werror -I$(INCL) -std=gnu11
+LDFLAGS = -L$(LIBS) -lm -llua5.3
 
-all: fake-icu.c
-	gcc -Wall $(SRCS) -I$(INCL) -L$(LIBS) -o $(TRGT) -std=gnu11 -lm -llua5.3
+all: $(TRGT)
 
+$(TRGT): $(OBJS)
+	gcc $(OBJS) $(LDFLAGS) -o $(TRGT) 
+
+%.o: %.c %.h
+	$(CC) $(CFLAGS) -c $<
+
+%.o: %.c
+	$(CC) $(CFLAGS) -c $<
+
+.SILENT: cleanall
+cleanall:
+	rm -f /data/*.csv
+	rm -f $(TRGT)
+	rm -f $(OBJS)
 .SILENT: clean
 clean:
-	rm -f /data/*.csv
-	rm -f fake-icu
+	rm -f $(TRGT)
+	rm -f $(OBJS)
+.SILENT: cleanobjs
+cleanobjs:
+	rm -f $(OBJS)
