@@ -1,5 +1,6 @@
 #ifndef _tm_h
 #define _tm_h
+#include <stdio.h>
 
 struct timestamp {
 	long y,  /* year        */

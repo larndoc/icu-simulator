@@ -133,6 +133,7 @@ int main(int argc, char *argv[])
 			opts.waveforms[opts.num_wf].dev = dev;
 			opts.waveforms[opts.num_wf].name = name;
 			opts.waveforms[opts.num_wf].expr = THIS_ARG;
+			opts.num_wf++;
 		}
 
 		/* inject noise into the signal optionally */
