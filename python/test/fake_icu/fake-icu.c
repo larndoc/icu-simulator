@@ -271,7 +271,7 @@ int main(int argc, char *argv[])
 		tm->tm_mon++;
 		sprintf(fnames[i], names[i], fmt_from_tm(tm));
 		char *path = prepare_path(opts.dir_out, fnames[i]);
-		debug(D_BUG_UNRESOLVED, "Have path at <0x%x>: %s\n", (unsigned long long) path, path);
+		debug(D_BUG_RESOLVED, "Have path at <0x%x>: %s\n", (unsigned long long) path, path);
 		out[i] = fopen(path, "w");
 		debug(D_INFO, "Have output file struct at <0x%x>\n", (unsigned long long) out[i]);
 		fprintf(out[i], "%s\n", headers[i]);
@@ -314,7 +314,7 @@ int main(int argc, char *argv[])
 				timestamp(out[i]);
 
 				for (int j = 0; j < num_dp[i]-1; j++) {
-					debug(D_BUG_UNRESOLVED, "eval maj/min %d,%d", i, j);
+					debug(D_BUG_RESOLVED, "eval maj/min %d,%d", i, j);
 					double _out = eval_by_major_minor(i, j);
 					debug(D_BUG_RESOLVED, "Have result %lf\n", _out);
 					fprintf(out[i], "%lf,", _out);

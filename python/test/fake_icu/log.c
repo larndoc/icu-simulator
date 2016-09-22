@@ -15,36 +15,28 @@ static const char *log_tags[]
 int _debug(int loglevel, char *file, const char *func,
 	    char *clock, int line, bool verbose, char *msg, ...)
 {
+	if ((loglevel == D_INFO || loglevel == D_BUG_RESOLVED)
+	    && !verbose) return 1;
+	
+	char tag[128];
+	sprintf(tag, "%s %s:%d in %s()", log_tags[loglevel], file, line, func);
+	printf("%s", tag);
+	int len = strlen(tag);
+	memset(tag, 0, 128);
+	memset(tag, ' ', len > 50 ? len : 50);
 	/* check if verbose logging is enabled before *
 	 * dumping everything into stdout 	      */
-	if (loglevel == D_INFO         && !verbose) return 1;
-	if (loglevel == D_BUG_RESOLVED && !verbose) return 1;
 
-	/* naturally this is a variadic function */
 	va_list args;
 	char buffer[strlen(msg) + 1024];
 	va_start(args, msg);
 	vsnprintf(buffer, strlen(msg)+1024, msg, args);
 
-	/* compute log tag length and prepare a buffer of *
-	 * empty spaces to produce nice-looking logs      */
-	size_t tag_len = strlen(log_tags[loglevel])
-                       + strlen(file)
-                       + strlen(func)
-                       + ceil(log(line) / log(10.)) - 4;
-	char *buf = malloc(tag_len + 1);
-	memset(buf, ' ', tag_len);
-	buf[tag_len] = 0;
-
-	/* handle log tag */
-	printf("%s %s:%d in %s() | ",
-	       log_tags[loglevel], file, line, func);
-
-	/* account for log tag on line breaks */
 	char *to_print = strtok(buffer, "\n");
-	printf("%s\n", to_print);
+	printf(" | %s\n", to_print);
 
 	while ((to_print = strtok(NULL, "\n")) != NULL)
-		printf("%s| %s\n", buf, to_print);
+		printf("%s | %s\n", tag, to_print);
+
 	return 0;
 }
